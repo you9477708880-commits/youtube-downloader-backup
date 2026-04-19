@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>理財後台</title>
+<link rel="stylesheet" href="../assets/styles/tokens.css">
+<link rel="stylesheet" href="../assets/styles/base.css">
+<link rel="stylesheet" href="../assets/styles/components.css">
+<link rel="stylesheet" href="./style.css">
+<script>
+  window.__app_id = "financial-computer";
+  window.__firebase_config = JSON.stringify({
+    apiKey: "AIzaSyCI6PsPnFnZFPK6OMseyvhT6Auk6eXt8kk",
+    authDomain: "financial-computer.firebaseapp.com",
+    projectId: "financial-computer",
+    storageBucket: "financial-computer.firebasestorage.app",
+    messagingSenderId: "943410547757",
+    appId: "1:943410547757:web:42e848ca63543371517ca4",
+    measurementId: "G-J9Y9TJJ2CE"
+  });
+</script>
+</head>
+<body class="admin-body">
+  <main class="admin-shell">
+    <section class="admin-hero">
+      <div>
+        <p class="admin-kicker">Owner Console</p>
+        <h1>理財網站管理後台</h1>
+        <p class="admin-copy">
+          這個頁面只給管理員使用，用來查看使用者、清除個人資料，或移除帳號。
+        </p>
+      </div>
+      <div class="admin-auth">
+        <div id="session-pill" class="session-pill neutral">尚未登入</div>
+        <div class="auth-actions">
+          <button id="login-btn" class="sbtn">Google 登入</button>
+          <button id="logout-btn" class="sbtn outline" disabled>登出</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-grid">
+      <article class="card admin-panel">
+        <div class="ct">
+          <span>管理員狀態</span>
+          <span id="profile-state" class="bdg bdg-a">待確認</span>
+        </div>
+        <div id="profile-box" class="profile-box">
+          <div class="empty">請先使用管理員 Google 帳號登入。</div>
+        </div>
+      </article>
+
+      <article class="card admin-panel">
+        <div class="ct">
+          <span>操作說明</span>
+          <span class="ct-s">MVP</span>
+        </div>
+        <ul class="admin-notes">
+          <li>這個最小版本會顯示使用者清單、資料摘要、刪除資料、刪除帳號。</li>
+          <li>真正的刪除權限只在 Cloud Functions 後端，不會放在前端頁面。</li>
+          <li>只有白名單中的 Google 帳號可以操作。</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="admin-grid admin-grid-main">
+      <article class="card admin-panel">
+        <div class="ct">
+          <span>使用者列表</span>
+          <div class="admin-toolbar">
+            <button id="refresh-btn" class="sbtn outline compact" disabled>重新整理</button>
+          </div>
+        </div>
+        <div id="users-box" class="admin-scroll">
+          <div class="empty">登入後會在這裡顯示使用者清單。</div>
+        </div>
+      </article>
+
+      <article class="card admin-panel">
+        <div class="ct">
+          <span>使用者摘要</span>
+          <span id="summary-state" class="ct-s">尚未選擇</span>
+        </div>
+        <div id="summary-box">
+          <div class="empty">點選左側使用者後，這裡會顯示資料摘要與管理按鈕。</div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
