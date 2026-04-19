@@ -1,0 +1,6 @@
+**/**
+!.claspignore
+!appsscript.json
+!*.gs
+!*.js
+!*.html

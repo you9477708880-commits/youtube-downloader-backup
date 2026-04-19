@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f4f4f4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<title>理財計算 Pro</title>
+
+<link rel="stylesheet" href="./assets/styles/tokens.css">
+<link rel="stylesheet" href="./assets/styles/base.css">
+<link rel="stylesheet" href="./assets/styles/layout.css">
+<link rel="stylesheet" href="./assets/styles/components.css">
+<script>
+  window.__app_id = "financial-computer";
+  window.__firebase_config = JSON.stringify({
+    apiKey: "AIzaSyCI6PsPnFnZFPK6OMseyvhT6Auk6eXt8kk",
+    authDomain: "financial-computer.firebaseapp.com",
+    projectId: "financial-computer",
+    storageBucket: "financial-computer.firebasestorage.app",
+    messagingSenderId: "943410547757",
+    appId: "1:943410547757:web:42e848ca63543371517ca4",
+    measurementId: "G-J9Y9TJJ2CE"
+  });
+</script>
+<!-- styles moved to ./assets/styles/* -->
+</head>
+<body>
+<header class="app-header">
+  <div class="hdr-top">
+    <div>
+      <div class="hdr-t">財務管理 Pro <span id="cloud-status" class="cloud-st">☁️ 初始化中...</span></div>
+      <div class="hdr-s" id="hdr-s"></div>
+    </div>
+    <div class="hdr-side">
+      <button type="button" id="auth-btn" class="auth-btn">Google 登入</button>
+      <div class="hdr-tag" id="hdr-tag">本機模式</div>
+    </div>
+  </div>
+  <nav class="nav" id="main-nav" aria-label="主要導覽">
+    <button type="button" id="tab-ov" class="on" data-action="tab" data-target="ov">總覽</button>
+    <button type="button" id="tab-lg" data-action="tab" data-target="lg">記帳</button>
+    <button type="button" id="tab-wl" data-action="tab" data-target="wl">預算分配</button>
+    <button type="button" id="tab-cf" data-action="tab" data-target="cf">現金流</button>
+    <button type="button" id="tab-bs" data-action="tab" data-target="bs">資產負債</button>
+    <button type="button" id="tab-re" data-action="tab" data-target="re">退休</button>
+  </nav>
+</header>
+
+<main class="app-content">
+  <!-- 總覽 -->
+  <section id="t-ov" class="sec on" aria-labelledby="tab-ov">
+    <div class="card p-2 mb-3">
+      <div class="grid-2 flex-row gap-2">
+        <select id="f-preset" data-action="change-preset" aria-label="選擇時間區間" class="font-bold text-md p-2">
+          <option value="month">本月</option>
+          <option value="week">本週</option>
+          <option value="year">今年</option>
+          <option value="all">全部時間</option>
+          <option value="custom">自訂區間...</option>
+        </select>
+        <div class="flex-row gap-1">
+          <input type="date" id="f-start" data-action="custom-date" aria-label="開始日期" class="text-sm text-mono px-1">
+          <span class="text-gray">-</span>
+          <input type="date" id="f-end" data-action="custom-date" aria-label="結束日期" class="text-sm text-mono px-1">
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-2">
+      <div class="mc"><div class="lb">期間收入</div><div class="vl text-inc" id="o-i">NT$ 0</div></div>
+      <div class="mc"><div class="lb">期間支出</div><div class="vl text-exp" id="o-e">NT$ 0</div></div>
+      <div class="mc"><div class="lb">期間結餘</div><div class="vl" id="o-n">NT$ 0</div></div>
+      <div class="mc"><div class="lb">可亂花餘額</div><div class="vl" id="o-bud">—</div></div>
+    </div>
+    
+    <div class="card"><div class="ct">花費總覽 (支出分類) <span class="ct-s">依篩選期間</span></div><div id="o-bars"><div class="empty">尚無支出資料</div></div></div>
+    
+    <div class="card pad-sm">
+      <div class="ct px-1">最近交易列表 <span class="ct-s">依篩選期間</span></div>
+      <div id="o-tx"><div class="empty">尚無交易記錄</div></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">資料備份與還原 <span class="ct-s">本地 JSON</span></div>
+      <div class="grid-2">
+        <button type="button" class="sbtn outline" data-action="export-data">匯出備份</button>
+        <button type="button" class="sbtn outline" data-action="trigger-import">匯入資料</button>
+        <input type="file" id="file-import" class="d-none" accept=".json">
+      </div>
+    </div>
+  </section>
+
+  <!-- 記帳 -->
+  <section id="t-lg" class="sec" aria-labelledby="tab-lg">
+    <div class="card">
+      <div class="ct">新增交易</div>
+      <form id="form-tx" class="flex-col">
+        <div>
+          <fieldset>
+            <legend class="flb w-100">類型</legend>
+            <div class="grid-3" id="tx-type-btns">
+              <button type="button" id="b-i" class="tb on-inc" data-action="set-tx-type" data-val="income">收入</button>
+              <button type="button" id="b-e" class="tb" data-action="set-tx-type" data-val="expense">支出</button>
+              <button type="button" id="b-t" class="tb" data-action="set-tx-type" data-val="transfer">轉帳</button>
+            </div>
+          </fieldset>
+        </div>
+        
+        <div id="f-ie-acc">
+          <label class="flb" for="i-acc">帳戶</label>
+          <select id="i-acc" class="acc-opts"></select>
+        </div>
+        
+        <div id="f-tr-acc" class="d-none">
+          <div class="grid-2">
+            <div><label class="flb" for="i-from">轉出帳戶</label><select id="i-from" class="acc-opts" required></select></div>
+            <div><label class="flb" for="i-to">轉入帳戶</label><select id="i-to" class="acc-opts" required></select></div>
+          </div>
+        </div>
+
+        <div>
+          <label class="flb" for="i-amt">金額（NT$）</label>
+          <input type="number" id="i-amt" placeholder="0" min="1" required>
+        </div>
+        
+        <div id="f-cat-group">
+          <label class="flb" for="i-cat"><span>類別</span> <button type="button" class="icon-btn text-blue font-bold" data-action="add-custom-cat">+新增</button></label>
+          <select id="i-cat"></select>
+        </div>
+        
+        <div>
+          <label class="flb" for="i-desc">說明（選填）</label>
+          <input type="text" id="i-desc" placeholder="輸入備註或品項名稱...">
+        </div>
+        <div>
+          <label class="flb" for="i-date">日期</label>
+          <input type="date" id="i-date" required>
+        </div>
+        <button type="submit" class="sbtn">儲存記錄</button>
+      </form>
+    </div>
+    
+    <div class="card pad-sm">
+      <div class="ct px-1">所有交易明細 <span class="ct-s" id="tx-cnt">0 筆</span></div>
+      <div id="a-tx"><div class="empty">尚無交易記錄</div></div>
+    </div>
+  </section>
+
+  <!-- 預算分配 -->
+  <section id="t-wl" class="sec" aria-labelledby="tab-wl">
+    <div class="card">
+      <div class="ct">1. 總預算設定</div>
+      <div class="flex-col mb-2">
+        <div>
+          <label class="flb" for="bud-cap">全域預算上限（NT$）</label>
+          <input type="number" id="bud-cap" value="10000" placeholder="10000" min="0">
+        </div>
+      </div>
+      <div class="bud-sum">
+        <div class="mc"><div class="lb">總預算上限</div><div class="vl text-md" id="bs-cap">NT$ 10,000</div></div>
+        <div class="mc"><div class="lb">期間已支出</div><div class="vl text-md" id="bs-exp">NT$ 0</div></div>
+        <div class="mc"><div class="lb">可亂花的錢</div><div class="vl text-md text-inc" id="bs-avail">NT$ 10,000</div></div>
+      </div>
+      <p class="text-xs text-gray text-center">「可亂花的錢」= 總預算 - 期間所有常規支出。</p>
+      <div class="bud-track mt-3"><div class="bud-fill" id="ov-fill" style="width:0%"></div></div>
+      <div class="bud-labels"><span>NT$ 0</span><span id="ov-cap-lbl" class="text-mono">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">2. 個別類別預算限制 <span class="ct-s">選填</span></div>
+      <form class="flex-col" id="form-cat-bud">
+        <div class="grid-2">
+          <div><label class="flb" for="cb-cat">選擇類別</label><select id="cb-cat"></select></div>
+          <div><label class="flb" for="cb-amt">預算上限 (NT$)</label><input type="number" id="cb-amt" placeholder="例：5000" min="1" required></div>
+        </div>
+        <button type="submit" class="sbtn outline">設定 / 更新預算</button>
+      </form>
+      <div id="cb-list" class="mt-3"></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">3. 待購清單 (花費「可亂花的錢」)</div>
+      <form class="flex-col" id="form-wish">
+        <div><label class="flb" for="w-name">物品名稱</label><input type="text" id="w-name" placeholder="例：登山鞋、遊戲機…" required></div>
+        <div class="grid-2">
+          <div><label class="flb" for="w-price">金額（NT$）</label><input type="number" id="w-price" placeholder="0" min="1" required></div>
+          <div><label class="flb" for="w-cat">分類</label>
+            <select id="w-cat">
+              <option>3C / 電子</option><option>運動 / 戶外</option><option>服飾</option>
+              <option>居家</option><option>餐飲</option><option>娛樂</option><option>其他</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="sbtn outline">加入清單</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="ct">待購清單排序 <span class="ct-s">按 ▲/▼ 調整順序</span></div>
+      <div class="wish-list" id="wl-list"></div>
+    </div>
+  </section>
+
+  <!-- 現金流量 -->
+  <section id="t-cf" class="sec" aria-labelledby="tab-cf">
+    <div class="card"><div class="ct">現金流量表 <span class="ct-s">依篩選期間</span></div><div id="cf-b"></div></div>
+  </section>
+
+  <!-- 資產負債 -->
+  <section id="t-bs" class="sec" aria-labelledby="tab-bs">
+    <div class="card">
+      <div class="ct">新增帳戶 / 資產負債</div>
+      <form class="flex-col" id="form-bs">
+        <div><label class="flb" for="bs-n">項目名稱</label><input type="text" id="bs-n" placeholder="例：台幣活存、車貸、外幣" required></div>
+        <div class="grid-2">
+          <div><label class="flb" for="bs-t">類型</label>
+            <select id="bs-t">
+              <option value="account">流動帳戶 (現金/銀行)</option>
+              <option value="item">固定資產 / 長期負債</option>
+            </select>
+          </div>
+          <div id="bs-cat-wrap" class="d-none"><label class="flb" for="bs-c">資產/負債</label><select id="bs-c"><option value="asset">資產</option><option value="liability">負債</option></select></div>
+        </div>
+        
+        <div><label class="flb" for="bs-a">初始 / 當前金額（NT$）</label><input type="number" id="bs-a" placeholder="0" min="0" required></div>
+        
+        <label class="flex-row justify-start gap-2 text-gray mt-1 pointer" style="font-size:13px;">
+          <input type="checkbox" id="bs-em" class="w-16px h-16px">
+          <span>設為 🛡️ 緊急備用金 <span class="text-xs">(不計入退休計畫本金)</span></span>
+        </label>
+        
+        <button type="submit" class="sbtn">新增項目</button>
+      </form>
+    </div>
+    <div class="card"><div class="ct">資產負債表 <span class="ct-s">即時總和 (不限期間)</span></div><div id="bs-b"></div></div>
+  </section>
+
+  <!-- 退休 -->
+  <section id="t-re" class="sec" aria-labelledby="tab-re">
+    <div class="grid-2 mb-2">
+      <div class="mc"><div class="lb">退休時資產</div><div class="vl text-md" id="r-a">—</div></div>
+      <div class="mc"><div class="lb">達成率</div><div class="vl text-md" id="r-p">—</div></div>
+      <div class="mc"><div class="lb">投入本金</div><div class="vl text-md" id="r-pr">—</div></div>
+      <div class="mc"><div class="lb">複利收益</div><div class="vl text-md" id="r-g">—</div></div>
+    </div>
+    <div class="card">
+      <div class="ct">資金設定</div>
+      
+      <div class="flex-col gap-2 p-2 mb-3 bg-sur2 border-panel">
+        <label class="flex-row justify-start gap-2 font-bold text-sm pointer">
+          <input type="checkbox" id="r-linked" class="w-16px h-16px">
+          自動連動「可用淨資產」作為初始本金
+        </label>
+        <div class="text-xs text-gray" style="padding-left:24px;">
+          (計算方式：總資產 - 總負債 - 🛡️ 緊急備用金)<br>
+          <span id="r-linked-val" class="font-bold text-trn text-mono d-inline-flex mt-1">目前：NT$ 0</span>
+        </div>
+      </div>
+
+      <div class="slr opacity-50 pointer-none" id="r-manual-wrap" style="transition:opacity 0.2s">
+        <div class="slh"><span class="sll">手動設定初始資產</span><span class="slv text-mono" id="sv0">NT$ 0</span></div>
+        <input type="range" id="rs0" min="0" max="50000000" step="100000" value="0" data-idx="0">
+      </div>
+      
+      <div class="slr"><div class="slh"><span class="sll">每月投入金額</span><span class="slv text-mono" id="sv1">NT$ 10,000</span></div><input type="range" id="rs1" min="0" max="100000" step="1000" value="10000" data-idx="1"></div>
+      <div class="slr"><div class="slh"><span class="sll">初始金額年化報酬率</span><span class="slv text-mono" id="sv2">6.0%</span></div><input type="range" id="rs2" min="0" max="15" step="0.1" value="6"></div>
+      <div class="slr"><div class="slh"><span class="sll">每月投入年化報酬率</span><span class="slv text-mono" id="sv3">6.0%</span></div><input type="range" id="rs3" min="0" max="15" step="0.1" value="6"></div>
+      <div class="slr mb-0"><div class="slh"><span class="sll">通貨膨脹率</span><span class="slv text-mono" id="sv4">2.0%</span></div><input type="range" id="rs4" min="0" max="10" step="0.1" value="2"></div>
+    </div>
+    <div class="card">
+      <div class="ct">個人與目標</div>
+      <div class="flex-col mb-3">
+        <div class="grid-3">
+          <div><label class="flb" for="rc">目前年齡</label><input type="number" id="rc" value="30" min="1" max="120"></div>
+          <div><label class="flb" for="rr">退休年齡</label><input type="number" id="rr" value="65" min="1" max="120"></div>
+          <div><label class="flb" for="rd">預期壽命</label><input type="number" id="rd" value="90" min="1" max="150"></div>
+        </div>
+      </div>
+      <div class="slr"><div class="slh"><span class="sll">每月提領需求（現值）</span><span class="slv text-mono" id="sv5">NT$ 40,000</span></div><input type="range" id="rs5" min="10000" max="200000" step="5000" value="40000"></div>
+      <div class="slr mb-0"><div class="slh"><span class="sll">目標資產（現值）</span><span class="slv text-mono" id="sv6">NT$ 20,000,000</span></div><input type="range" id="rs6" min="5000000" max="100000000" step="500000" value="20000000"></div>
+      <div id="r-sg" class="text-sm text-gray mt-3" style="line-height:1.6"></div>
+    </div>
+    <div class="card">
+      <div class="ct">快速預設</div>
+      <div class="grid-2">
+        <button type="button" class="tb" data-action="preset-ret" data-r="6" data-i="2">保守型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬6% 通膨2%</span></button>
+        <button type="button" class="tb" data-action="preset-ret" data-r="8" data-i="2.5">平衡型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬8% 通膨2.5%</span></button>
+        <button type="button" class="tb" data-action="preset-ret" data-r="10" data-i="3">成長型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬10% 通膨3%</span></button>
+        <button type="button" class="tb" data-action="preset-ret" data-r="12" data-i="3">積極型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬12% 通膨3%</span></button>
+      </div>
+    </div>
+    <div class="card">
+      <button type="button" class="flex-row icon-btn w-100" data-action="toggle-tbl">
+        <span class="ct mb-0">年度資產明細</span>
+        <span class="text-xs text-gray" id="tg-lbl">展開 ▼</span>
+      </button>
+      <div id="tbl-w" class="d-none mt-3 overflow-x-auto">
+        <table>
+          <thead><tr><th>年齡</th><th>狀態</th><th class="r">投入累計</th><th class="r">資產總值</th></tr></thead>
+          <tbody id="r-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<!-- legacy inline app moved to ./src/main.js -->
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
