@@ -1,5 +1,5 @@
 import { resolvePresetRange } from "../domain/date-range.js";
-import { buildTransaction } from "../domain/transactions.js";
+import { buildAdvanceRepayment, buildTransaction, getAdvanceOutstanding, getOpenAdvances } from "../domain/transactions.js";
 
 export function createActions(context) {
   const { dom, store, renderAll, renderWishlist, ui, constants } = context;
@@ -22,6 +22,15 @@ export function createActions(context) {
     customDate() {
       dom.filterPreset.value = "custom";
       renderAll();
+    },
+
+    setBudgetView(mode) {
+      store.update((state) => {
+        state.settings.budgetViewMode = mode === "spread" ? "spread" : "actual";
+      });
+      context.saveState();
+      ui.syncFromSettings();
+      renderWishlist();
     },
 
     setTxType(type) {
@@ -71,6 +80,12 @@ export function createActions(context) {
         accountId: dom.inputAccount.value,
         fromAcc: dom.inputFromAccount.value,
         toAcc: dom.inputToAccount.value,
+        ownAmount: Math.round(parseFloat(dom.inputOwnAmount?.value) || 0),
+        person: dom.inputAdvancePerson?.value || "",
+        budgetMode: dom.inputSpreadEnable?.checked ? "spread" : "normal",
+        spreadMonths: Math.round(parseFloat(dom.inputSpreadMonths?.value) || 0),
+        spreadStartMonth: dom.inputSpreadStartMonth?.value || dom.inputDate.value.slice(0, 7),
+        spreadLabel: dom.inputSpreadLabel?.value || "",
       });
 
       if (tx.type === "transfer" && tx.fromAcc === tx.toAcc) {
@@ -78,11 +93,40 @@ export function createActions(context) {
         return;
       }
 
+      if (tx.type === "advance") {
+        if (tx.ownAmount > tx.amount) {
+          ui.toast.show("自己負擔不能大於總付款", "error");
+          return;
+        }
+        if (tx.receivableAmount <= 0) {
+          ui.toast.show("代墊金額需大於 0，請確認自己負擔金額", "error");
+          return;
+        }
+      }
+
+      if (tx.type === "expense" && tx.budgetMode === "spread") {
+        if (!tx.spreadStartMonth) {
+          ui.toast.show("請選擇分攤起始月份", "error");
+          return;
+        }
+        if ((tx.spreadMonths || 0) < 2) {
+          ui.toast.show("分攤月數至少要 2 個月", "error");
+          return;
+        }
+      }
+
       store.update((draft) => {
         draft.txs.unshift(tx);
       });
       dom.inputAmount.value = "";
+      if (dom.inputOwnAmount) dom.inputOwnAmount.value = "";
+      if (dom.inputAdvancePerson) dom.inputAdvancePerson.value = "";
+      if (dom.inputSpreadEnable) dom.inputSpreadEnable.checked = false;
+      if (dom.inputSpreadMonths) dom.inputSpreadMonths.value = "";
+      if (dom.inputSpreadStartMonth) dom.inputSpreadStartMonth.value = dom.inputDate.value.slice(0, 7);
+      if (dom.inputSpreadLabel) dom.inputSpreadLabel.value = "";
       dom.inputDesc.value = "";
+      ui.syncSpreadInputs();
       context.saveState();
       renderAll();
       ui.toast.show("記錄儲存成功");
@@ -97,6 +141,47 @@ export function createActions(context) {
       context.saveState();
       renderAll();
       ui.toast.show("已刪除");
+    },
+
+    repayAdvance(id) {
+      const state = store.getState();
+      const advance = getOpenAdvances(state.txs).find((tx) => tx.id === id);
+      if (!advance) {
+        ui.toast.show("這筆代墊款已結清或不存在", "error");
+        return;
+      }
+
+      const rawAmount = window.prompt(`本次收到多少？尚欠 ${advance.outstandingAmount}`, String(advance.outstandingAmount));
+      if (rawAmount === null) return;
+      const amount = Math.round(parseFloat(rawAmount) || 0);
+      if (amount <= 0 || amount > getAdvanceOutstanding(state.txs, advance)) {
+        ui.toast.show("收款金額不正確", "error");
+        return;
+      }
+
+      const accountMenu = state.accounts.map((account, index) => `${index + 1}. ${account.name}`).join("\n");
+      const rawIndex = window.prompt(`請選擇收款帳戶：\n${accountMenu}`, "1");
+      if (rawIndex === null) return;
+      const account = state.accounts[Math.max(0, Math.min(state.accounts.length - 1, Number(rawIndex) - 1))];
+      if (!account) {
+        ui.toast.show("找不到收款帳戶", "error");
+        return;
+      }
+
+      const repayment = buildAdvanceRepayment({
+        advanceId: advance.id,
+        amount,
+        date: new Date().toISOString().slice(0, 10),
+        accountId: account.id,
+        person: advance.person,
+      });
+
+      store.update((draft) => {
+        draft.txs.unshift(repayment);
+      });
+      context.saveState();
+      renderAll();
+      ui.toast.show("代墊收款已記錄");
     },
 
     addBs() {

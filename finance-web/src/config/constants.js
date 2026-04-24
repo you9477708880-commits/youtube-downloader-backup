@@ -17,6 +17,7 @@ export const DEFAULT_ACCOUNTS = [
 
 export const DEFAULT_SETTINGS = {
   budgetCap: 20000,
+  budgetViewMode: "actual",
   catBudgets: {},
   retLinked: true,
   retManualAsset: 0,

@@ -59,6 +59,78 @@
   border: 1px solid var(--acc);
 }
 
+.sbtn.compact {
+  width: auto;
+  padding: 7px 10px;
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.seg-btn {
+  border: 1px solid var(--bdr);
+  background: var(--sur2);
+  color: var(--txt);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.seg-btn.on {
+  background: var(--blue-bg);
+  border-color: var(--blue-m);
+  color: var(--blue);
+}
+
+.spread-list {
+  display: grid;
+  gap: 10px;
+}
+
+.spread-item {
+  border: 1px solid var(--bdr);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--sur2);
+}
+
+.spread-item .top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.spread-item .title {
+  font-weight: 700;
+}
+
+.spread-item .sub {
+  color: var(--tx2);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.spread-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
 .tb {
   padding: 10px;
   border: 1px solid var(--bdr);
@@ -196,6 +268,95 @@
 .sr:last-child { border-bottom: none; }
 .sdiv { font-size: 11px; color: var(--tx3); font-weight: 600; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .st { font-weight: 600; }
+
+.drill {
+  border-bottom: 1px solid var(--bdr);
+}
+
+.drill:last-child {
+  border-bottom: none;
+}
+
+.drill > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.drill > summary::-webkit-details-marker {
+  display: none;
+}
+
+.drill > summary .sr {
+  border-bottom: none;
+}
+
+.drill > summary .sr span:first-child::after {
+  content: "點開";
+  display: inline-flex;
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border-radius: 999px;
+  padding: 2px 7px;
+  vertical-align: middle;
+}
+
+.drill[open] > summary .sr span:first-child::after {
+  content: "收合";
+}
+
+.detail-list {
+  margin: -2px 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  background: var(--sur2);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-main {
+  min-width: 0;
+}
+
+.detail-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--tx3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-amt {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-empty {
+  padding: 12px 0;
+}
 
 .bdg {
   display: inline-block;

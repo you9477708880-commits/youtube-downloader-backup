@@ -1,9 +1,11 @@
+const PWA_VERSION = "finance-app-v5";
+
 export function setupPWA() {
   const isLocalhost = ["localhost", "127.0.0.1"].includes(location.hostname);
   const manifest = {
     name: "理財計算 Pro",
     short_name: "記帳Pro",
-    start_url: location.href,
+    start_url: location.pathname,
     display: "standalone",
     background_color: "#f4f4f4",
     theme_color: "#00796b",
@@ -23,29 +25,92 @@ export function setupPWA() {
 
   if (!("serviceWorker" in navigator)) return;
 
-  // During local development, stale cache is much more harmful than helpful.
   if (isLocalhost) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => registration.unregister());
+    });
+    caches?.keys?.().then((keys) => {
+      keys.forEach((key) => caches.delete(key));
     });
     return;
   }
 
   const swCode = `
-    const CACHE_NAME = "finance-app-v4";
+    const CACHE_NAME = "${PWA_VERSION}";
+    const STATIC_CACHE = "static-" + CACHE_NAME;
+    const PAGE_CACHE = "pages-" + CACHE_NAME;
+
     self.addEventListener("install", (event) => {
-      event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll([location.href])));
-      self.skipWaiting();
+      event.waitUntil(self.skipWaiting());
     });
+
     self.addEventListener("activate", (event) => {
-      event.waitUntil(self.clients.claim());
+      event.waitUntil(
+        caches.keys().then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key !== STATIC_CACHE && key !== PAGE_CACHE)
+              .map((key) => caches.delete(key)),
+          ),
+        ).then(() => self.clients.claim()),
+      );
     });
+
+    async function networkFirst(request) {
+      const cache = await caches.open(PAGE_CACHE);
+      try {
+        const fresh = await fetch(request, { cache: "no-store" });
+        if (fresh && fresh.ok) cache.put(request, fresh.clone());
+        return fresh;
+      } catch (error) {
+        const cached = await cache.match(request, { ignoreSearch: true });
+        if (cached) return cached;
+        throw error;
+      }
+    }
+
+    async function staleWhileRevalidate(request) {
+      const cache = await caches.open(STATIC_CACHE);
+      const cached = await cache.match(request, { ignoreSearch: true });
+      const fetchPromise = fetch(request)
+        .then((response) => {
+          if (response && response.ok) cache.put(request, response.clone());
+          return response;
+        })
+        .catch(() => null);
+
+      return cached || fetchPromise || fetch(request);
+    }
+
     self.addEventListener("fetch", (event) => {
-      event.respondWith(caches.match(event.request).then((response) => response || fetch(event.request)));
+      const { request } = event;
+      if (request.method !== "GET") return;
+
+      const url = new URL(request.url);
+      if (url.origin !== self.location.origin) return;
+
+      const isNavigation = request.mode === "navigate" || request.headers.get("accept")?.includes("text/html");
+      if (isNavigation) {
+        event.respondWith(networkFirst(request));
+        return;
+      }
+
+      const isStaticAsset = /\\.(css|js|png|jpg|jpeg|svg|gif|webp|ico|woff2?)$/i.test(url.pathname);
+      if (isStaticAsset) {
+        event.respondWith(staleWhileRevalidate(request));
+      }
     });
   `;
 
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+
   navigator.serviceWorker
     .register(URL.createObjectURL(new Blob([swCode], { type: "application/javascript" })))
+    .then((registration) => registration.update())
     .catch((error) => console.warn("SW failed:", error));
 }

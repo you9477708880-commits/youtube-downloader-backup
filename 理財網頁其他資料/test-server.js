@@ -3,14 +3,15 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
-const root = __dirname;
 const args = process.argv.slice(2);
-const defaultEntry = "\u7406\u8CA1\u8A08\u7B97.html";
+const rootArg = args.find((arg) => arg.startsWith("--root="));
+const root = path.resolve((rootArg || "").slice("--root=".length) || __dirname);
+const defaultEntry = fs.existsSync(path.join(root, "index.html")) ? "index.html" : "\u7406\u8CA1\u8A08\u7B97.html";
 const requestedEntry = args.find((arg) => !arg.startsWith("--")) || defaultEntry;
 const headlessMode = args.includes("--headless");
 const portArg = args.find((arg) => arg.startsWith("--port="));
 const port = Number((portArg || "").split("=")[1]) || 4173;
-const reportPath = path.join(root, "headless-report.html");
+const reportPath = path.join(__dirname, "headless-report.html");
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -34,8 +35,9 @@ function resolveChromePath() {
 
 function safeJoin(base, targetPath) {
   const normalized = targetPath === "/" ? `/${requestedEntry}` : targetPath;
-  const resolved = path.normalize(path.join(base, decodeURIComponent(normalized)));
-  if (!resolved.startsWith(base)) return null;
+  const resolved = path.resolve(path.join(base, decodeURIComponent(normalized)));
+  const relative = path.relative(base, resolved);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
   return resolved;
 }
 
@@ -243,6 +245,7 @@ function shutdown(code = 0) {
 server.listen(port, "localhost", () => {
   const url = `http://localhost:${port}/${encodeURI(requestedEntry)}`;
   console.log(`Serving ${requestedEntry} at ${url}`);
+  console.log(`Root: ${root}`);
 
   if (!headlessMode) {
     console.log("Press Ctrl+C to stop.");
@@ -256,11 +259,19 @@ server.listen(port, "localhost", () => {
     return;
   }
 
-  const chrome = spawn(
-    chromePath,
-    ["--headless", "--disable-gpu", "--virtual-time-budget=6000", "--dump-dom", url],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
+  let chrome;
+  try {
+    chrome = spawn(
+      chromePath,
+      ["--headless", "--disable-gpu", "--virtual-time-budget=6000", "--dump-dom", url],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+  } catch (error) {
+    console.error(`Unable to start headless browser: ${error.message}`);
+    console.error("If you are running this from Codex/sandbox, run the same command in your own PowerShell window.");
+    shutdown(1);
+    return;
+  }
 
   let stdout = "";
   let stderr = "";
@@ -304,7 +315,11 @@ server.listen(port, "localhost", () => {
     shutdown(code || 0);
   });
 
-  chrome.on("error", () => shutdown(1));
+  chrome.on("error", (error) => {
+    console.error(`Unable to start headless browser: ${error.message}`);
+    console.error("If you are running this from Codex/sandbox, run the same command in your own PowerShell window.");
+    shutdown(1);
+  });
 });
 
 process.on("SIGINT", () => shutdown(0));

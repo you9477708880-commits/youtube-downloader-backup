@@ -80,8 +80,8 @@
   <div class="wrap">
     <section class="card">
       <h1>Headless Test Report</h1>
-      <p>Generated at 2026/4/19 下午7:11:28</p>
-      <p>URL: <a href="http://localhost:4174/%E7%90%86%E8%B2%A1%E8%A8%88%E7%AE%97.html">http://localhost:4174/%E7%90%86%E8%B2%A1%E8%A8%88%E7%AE%97.html</a></p>
+      <p>Generated at 2026/4/24 下午10:38:53</p>
+      <p>URL: <a href="http://localhost:4184/index.html">http://localhost:4184/index.html</a></p>
       <p>Browser: C:\Program Files\Google\Chrome\Application\chrome.exe</p>
     </section>
 
@@ -95,7 +95,7 @@
         <div class="metric"><div class="label">Expense</div><div class="value">NT$ 0</div></div>
         <div class="metric"><div class="label">Net</div><div class="value">NT$ 0</div></div>
         <div class="metric"><div class="label">Budget</div><div class="value">NT$ 20,000</div></div>
-        <div class="metric"><div class="label">DOM Length</div><div class="value">33812</div></div>
+        <div class="metric"><div class="label">DOM Length</div><div class="value">38009</div></div>
       </div>
     </section>
 
@@ -132,7 +132,7 @@
   });
 &lt;/script&gt;
 &lt;!-- styles moved to ./assets/styles/* --&gt;
-&lt;link rel=&quot;manifest&quot; href=&quot;blob:http://localhost:4174/c6bddbd6-bcf3-49e9-894f-9a85fc67cc3d&quot;&gt;&lt;/head&gt;
+&lt;link rel=&quot;manifest&quot; href=&quot;blob:http://localhost:4184/0c574001-c26c-4d3e-bd9f-bd89ed84384e&quot;&gt;&lt;/head&gt;
 &lt;body&gt;
 &lt;header class=&quot;app-header&quot;&gt;
   &lt;div class=&quot;hdr-top&quot;&gt;
@@ -186,7 +186,7 @@
     
     &lt;div class=&quot;card pad-sm&quot;&gt;
       &lt;div class=&quot;ct px-1&quot;&gt;最近交易列表 &lt;span class=&quot;ct-s&quot;&gt;依篩選期間&lt;/span&gt;&lt;/div&gt;
-      &lt;div id=&quot;o-tx&quot;&gt;&lt;div class=&quot;empty&quot;&gt;篩選期間無記錄&lt;/div&gt;&lt;/div&gt;
+      &lt;div id=&quot;o-tx&quot;&gt;&lt;div class=&quot;empty&quot;&gt;本期間沒有交易&lt;/div&gt;&lt;/div&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;card&quot;&gt;
@@ -196,6 +196,11 @@
         &lt;button type=&quot;button&quot; class=&quot;sbtn outline&quot; data-action=&quot;trigger-import&quot;&gt;匯入資料&lt;/button&gt;
         &lt;input type=&quot;file&quot; id=&quot;file-import&quot; class=&quot;d-none&quot; accept=&quot;.json&quot;&gt;
       &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;div class=&quot;card pad-sm&quot;&gt;
+      &lt;div class=&quot;ct px-1&quot;&gt;待收代墊款&lt;span class=&quot;ct-s&quot;&gt;收款不算收入&lt;/span&gt;&lt;/div&gt;
+      &lt;div id=&quot;adv-list&quot;&gt;&lt;div class=&quot;empty&quot;&gt;目前沒有待收代墊款&lt;/div&gt;&lt;/div&gt;
     &lt;/div&gt;
   &lt;/section&gt;
 
@@ -207,10 +212,11 @@
         &lt;div&gt;
           &lt;fieldset&gt;
             &lt;legend class=&quot;flb w-100&quot;&gt;類型&lt;/legend&gt;
-            &lt;div class=&quot;grid-3&quot; id=&quot;tx-type-btns&quot;&gt;
+            &lt;div class=&quot;grid-4&quot; id=&quot;tx-type-btns&quot;&gt;
               &lt;button type=&quot;button&quot; id=&quot;b-i&quot; class=&quot;tb&quot; data-action=&quot;set-tx-type&quot; data-val=&quot;income&quot;&gt;收入&lt;/button&gt;
               &lt;button type=&quot;button&quot; id=&quot;b-e&quot; class=&quot;tb on-exp&quot; data-action=&quot;set-tx-type&quot; data-val=&quot;expense&quot;&gt;支出&lt;/button&gt;
               &lt;button type=&quot;button&quot; id=&quot;b-t&quot; class=&quot;tb&quot; data-action=&quot;set-tx-type&quot; data-val=&quot;transfer&quot;&gt;轉帳&lt;/button&gt;
+              &lt;button type=&quot;button&quot; id=&quot;b-a&quot; class=&quot;tb&quot; data-action=&quot;set-tx-type&quot; data-val=&quot;advance&quot;&gt;代墊&lt;/button&gt;
             &lt;/div&gt;
           &lt;/fieldset&gt;
         &lt;/div&gt;
@@ -230,6 +236,43 @@
         &lt;div&gt;
           &lt;label class=&quot;flb&quot; for=&quot;i-amt&quot;&gt;金額（NT$）&lt;/label&gt;
           &lt;input type=&quot;number&quot; id=&quot;i-amt&quot; placeholder=&quot;0&quot; min=&quot;1&quot; required=&quot;&quot;&gt;
+        &lt;/div&gt;
+
+        &lt;div id=&quot;f-adv-group&quot; class=&quot;d-none&quot;&gt;
+          &lt;div class=&quot;grid-2&quot;&gt;
+            &lt;div&gt;
+              &lt;label class=&quot;flb&quot; for=&quot;i-own&quot;&gt;自己負擔（NT$）&lt;/label&gt;
+              &lt;input type=&quot;number&quot; id=&quot;i-own&quot; placeholder=&quot;例如 400&quot; min=&quot;0&quot;&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;label class=&quot;flb&quot; for=&quot;i-person&quot;&gt;代墊對象&lt;/label&gt;
+              &lt;input type=&quot;text&quot; id=&quot;i-person&quot; placeholder=&quot;例如 媽媽、弟弟&quot;&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div class=&quot;text-xs text-gray mt-1&quot;&gt;總金額會先從付款帳戶扣除；只有「自己負擔」會算進支出，其餘會列為待收代墊款。&lt;/div&gt;
+        &lt;/div&gt;
+
+        &lt;div id=&quot;f-spread-group&quot; class=&quot;&quot;&gt;
+          &lt;label class=&quot;flex-row justify-start gap-2 text-gray mt-1 pointer&quot; style=&quot;font-size:13px;&quot;&gt;
+            &lt;input type=&quot;checkbox&quot; id=&quot;i-spread-enable&quot; class=&quot;w-16px h-16px&quot;&gt;
+            &lt;span&gt;這是一筆大額支出，改用分攤方式計入月預算&lt;/span&gt;
+          &lt;/label&gt;
+          &lt;div id=&quot;f-spread-fields&quot; class=&quot;grid-3 d-none mt-2&quot;&gt;
+            &lt;div&gt;
+              &lt;label class=&quot;flb&quot; for=&quot;i-spread-months&quot;&gt;分攤月數&lt;/label&gt;
+              &lt;input type=&quot;number&quot; id=&quot;i-spread-months&quot; min=&quot;2&quot; placeholder=&quot;例如 12&quot;&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;label class=&quot;flb&quot; for=&quot;i-spread-start&quot;&gt;起始月份&lt;/label&gt;
+              &lt;input type=&quot;month&quot; id=&quot;i-spread-start&quot;&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;label class=&quot;flb&quot; for=&quot;i-spread-label&quot;&gt;分攤名稱（選填）&lt;/label&gt;
+              &lt;input type=&quot;text&quot; id=&quot;i-spread-label&quot; placeholder=&quot;例如 旅遊基金&quot;&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+          &lt;div id=&quot;i-spread-preview&quot; class=&quot;text-xs text-gray mt-1 d-none&quot;&gt;每月預算會認列 NT$ 0。&lt;/div&gt;
+          &lt;div class=&quot;text-xs text-gray mt-1&quot;&gt;只會影響預算分析，不會改變帳戶餘額、現金流或原始交易金額。&lt;/div&gt;
         &lt;/div&gt;
         
         &lt;div id=&quot;f-cat-group&quot;&gt;
@@ -259,6 +302,11 @@
   &lt;section id=&quot;t-wl&quot; class=&quot;sec&quot; aria-labelledby=&quot;tab-wl&quot;&gt;
     &lt;div class=&quot;card&quot;&gt;
       &lt;div class=&quot;ct&quot;&gt;1. 總預算設定&lt;/div&gt;
+      &lt;div class=&quot;seg mt-2 mb-2&quot; aria-label=&quot;預算檢視模式&quot;&gt;
+        &lt;button type=&quot;button&quot; id=&quot;bud-mode-actual&quot; class=&quot;seg-btn on&quot; data-action=&quot;set-budget-view&quot; data-mode=&quot;actual&quot;&gt;實際支出&lt;/button&gt;
+        &lt;button type=&quot;button&quot; id=&quot;bud-mode-spread&quot; class=&quot;seg-btn&quot; data-action=&quot;set-budget-view&quot; data-mode=&quot;spread&quot;&gt;分攤後支出&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div id=&quot;bud-mode-note&quot; class=&quot;text-xs text-gray text-center mb-2&quot;&gt;目前以實際交易日認列支出，適合看本期真實花費。&lt;/div&gt;
       &lt;div class=&quot;flex-col mb-2&quot;&gt;
         &lt;div&gt;
           &lt;label class=&quot;flb&quot; for=&quot;bud-cap&quot;&gt;全域預算上限（NT$）&lt;/label&gt;
@@ -267,12 +315,23 @@
       &lt;/div&gt;
       &lt;div class=&quot;bud-sum&quot;&gt;
         &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot;&gt;總預算上限&lt;/div&gt;&lt;div class=&quot;vl text-md&quot; id=&quot;bs-cap&quot;&gt;NT$ 20,000&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot;&gt;期間已支出&lt;/div&gt;&lt;div class=&quot;vl text-md&quot; id=&quot;bs-exp&quot;&gt;NT$ 0&lt;/div&gt;&lt;/div&gt;
-        &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot;&gt;可亂花的錢&lt;/div&gt;&lt;div class=&quot;vl text-md text-inc&quot; id=&quot;bs-avail&quot;&gt;NT$ 20,000&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot; id=&quot;bs-exp-lbl&quot;&gt;期間已支出（實際）&lt;/div&gt;&lt;div class=&quot;vl text-md&quot; id=&quot;bs-exp&quot;&gt;NT$ 0&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot;&gt;可自由運用&lt;/div&gt;&lt;div class=&quot;vl text-md text-inc&quot; id=&quot;bs-avail&quot;&gt;NT$ 20,000&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;mc&quot;&gt;&lt;div class=&quot;lb&quot;&gt;月預算餘裕&lt;/div&gt;&lt;div class=&quot;vl text-md text-inc&quot; id=&quot;bs-room&quot;&gt;NT$ 20,000&lt;/div&gt;&lt;/div&gt;
       &lt;/div&gt;
-      &lt;p class=&quot;text-xs text-gray text-center&quot;&gt;「可亂花的錢」= 總預算 - 期間所有常規支出。&lt;/p&gt;
+      &lt;p class=&quot;text-xs text-gray text-center&quot;&gt;可自由運用：依實際支出計算，較保守。月預算餘裕：依分攤後支出計算，適合看長期規劃。&lt;/p&gt;
       &lt;div class=&quot;bud-track mt-3&quot;&gt;&lt;div class=&quot;bud-fill&quot; id=&quot;ov-fill&quot; style=&quot;width: 0%; background: var(--grn-m);&quot;&gt;&lt;/div&gt;&lt;/div&gt;
       &lt;div class=&quot;bud-labels&quot;&gt;&lt;span&gt;NT$ 0&lt;/span&gt;&lt;span id=&quot;ov-cap-lbl&quot; class=&quot;text-mono&quot;&gt;NT$ 20,000&lt;/span&gt;&lt;/div&gt;
+      &lt;details class=&quot;drill mt-3&quot;&gt;
+        &lt;summary&gt;
+          &lt;div class=&quot;sr&quot;&gt;
+            &lt;span&gt;本期預算來源明細&lt;/span&gt;
+            &lt;span class=&quot;text-sm text-gray&quot;&gt;點開查看&lt;/span&gt;
+          &lt;/div&gt;
+        &lt;/summary&gt;
+        &lt;div id=&quot;bud-source-list&quot;&gt;&lt;div class=&quot;empty detail-empty&quot;&gt;本期沒有納入預算的支出明細&lt;/div&gt;&lt;/div&gt;
+      &lt;/details&gt;
+      &lt;div class=&quot;spread-list mt-3&quot; id=&quot;bud-spread-list&quot;&gt;&lt;/div&gt;
     &lt;/div&gt;
 
     &lt;div class=&quot;card&quot;&gt;
@@ -284,67 +343,7 @@
         &lt;/div&gt;
         &lt;button type=&quot;submit&quot; class=&quot;sbtn outline&quot;&gt;設定 / 更新預算&lt;/button&gt;
       &lt;/form&gt;
-      &lt;div id=&quot;cb-list&quot; class=&quot;mt-3&quot;&gt;&lt;div class=&quot;empty p-2&quot;&gt;尚未設定任何類別預算&lt;/div&gt;&lt;/div&gt;
-    &lt;/div&gt;
-
-    &lt;div class=&quot;card&quot;&gt;
-      &lt;div class=&quot;ct&quot;&gt;3. 待購清單 (花費「可亂花的錢」)&lt;/div&gt;
-      &lt;form class=&quot;flex-col&quot; id=&quot;form-wish&quot;&gt;
-        &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;w-name&quot;&gt;物品名稱&lt;/label&gt;&lt;input type=&quot;text&quot; id=&quot;w-name&quot; placeholder=&quot;例：登山鞋、遊戲機…&quot; required=&quot;&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;grid-2&quot;&gt;
-          &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;w-price&quot;&gt;金額（NT$）&lt;/label&gt;&lt;input type=&quot;number&quot; id=&quot;w-price&quot; placeholder=&quot;0&quot; min=&quot;1&quot; required=&quot;&quot;&gt;&lt;/div&gt;
-          &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;w-cat&quot;&gt;分類&lt;/label&gt;
-            &lt;select id=&quot;w-cat&quot;&gt;
-              &lt;option&gt;3C / 電子&lt;/option&gt;&lt;option&gt;運動 / 戶外&lt;/option&gt;&lt;option&gt;服飾&lt;/option&gt;
-              &lt;option&gt;居家&lt;/option&gt;&lt;option&gt;餐飲&lt;/option&gt;&lt;option&gt;娛樂&lt;/option&gt;&lt;option&gt;其他&lt;/option&gt;
-            &lt;/select&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-        &lt;button type=&quot;submit&quot; class=&quot;sbtn outline&quot;&gt;加入清單&lt;/button&gt;
-      &lt;/form&gt;
-    &lt;/div&gt;
-
-    &lt;div class=&quot;card&quot;&gt;
-      &lt;div class=&quot;ct&quot;&gt;待購清單排序 &lt;span class=&quot;ct-s&quot;&gt;按 ▲/▼ 調整順序&lt;/span&gt;&lt;/div&gt;
-      &lt;div class=&quot;wish-list&quot; id=&quot;wl-list&quot;&gt;&lt;div class=&quot;empty&quot;&gt;尚未加入任何項目&lt;/div&gt;&lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/section&gt;
-
-  &lt;!-- 現金流量 --&gt;
-  &lt;section id=&quot;t-cf&quot; class=&quot;sec&quot; aria-labelledby=&quot;tab-cf&quot;&gt;
-    &lt;div class=&quot;card&quot;&gt;&lt;div class=&quot;ct&quot;&gt;現金流量表 &lt;span class=&quot;ct-s&quot;&gt;依篩選期間&lt;/span&gt;&lt;/div&gt;&lt;div id=&quot;cf-b&quot;&gt;
-    &lt;div class=&quot;sdiv&quot;&gt;一、營業活動&lt;/div&gt;
-    &lt;div class=&quot;sr&quot;&gt;&lt;span&gt;薪資 / 獎金 / 副業 / 其他&lt;/span&gt;&lt;span class=&quot;text-inc&quot;&gt;NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;sr&quot;&gt;&lt;span&gt;日常生活支出&lt;/span&gt;&lt;span class=&quot;text-exp&quot;&gt;-NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;sr st&quot;&gt;&lt;span&gt;營業活動淨現金流&lt;/span&gt;&lt;span class=&quot;text-inc&quot;&gt;NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;sdiv&quot;&gt;二、投資活動&lt;/div&gt;
-    &lt;div class=&quot;sr&quot;&gt;&lt;span&gt;投資收益 / 租金收入&lt;/span&gt;&lt;span class=&quot;text-inc&quot;&gt;NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;sr st&quot;&gt;&lt;span&gt;投資活動淨現金流&lt;/span&gt;&lt;span class=&quot;text-inc&quot;&gt;NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;divider-top&quot;&gt;
-      &lt;div class=&quot;sr st&quot; style=&quot;font-size:15px&quot;&gt;&lt;span&gt;期末現金淨變動&lt;/span&gt;&lt;span class=&quot;text-inc&quot;&gt;+NT$ 0&lt;/span&gt;&lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;&lt;/div&gt;
-  &lt;/section&gt;
-
-  &lt;!-- 資產負債 --&gt;
-  &lt;section id=&quot;t-bs&quot; class=&quot;sec&quot; aria-labelledby=&quot;tab-bs&quot;&gt;
-    &lt;div class=&quot;card&quot;&gt;
-      &lt;div class=&quot;ct&quot;&gt;新增帳戶 / 資產負債&lt;/div&gt;
-      &lt;form class=&quot;flex-col&quot; id=&quot;form-bs&quot;&gt;
-        &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;bs-n&quot;&gt;項目名稱&lt;/label&gt;&lt;input type=&quot;text&quot; id=&quot;bs-n&quot; placeholder=&quot;例：台幣活存、車貸、外幣&quot; required=&quot;&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;grid-2&quot;&gt;
-          &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;bs-t&quot;&gt;類型&lt;/label&gt;
-            &lt;select id=&quot;bs-t&quot;&gt;
-              &lt;option value=&quot;account&quot;&gt;流動帳戶 (現金/銀行)&lt;/option&gt;
-              &lt;option value=&quot;item&quot;&gt;固定資產 / 長期負債&lt;/option&gt;
-            &lt;/select&gt;
-          &lt;/div&gt;
-          &lt;div id=&quot;bs-cat-wrap&quot; class=&quot;d-none&quot;&gt;&lt;label class=&quot;flb&quot; for=&quot;bs-c&quot;&gt;資產/負債&lt;/label&gt;&lt;select id=&quot;bs-c&quot;&gt;&lt;option value=&quot;asset&quot;&gt;資產&lt;/option&gt;&lt;option value=&quot;liability&quot;&gt;負債&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
-        &lt;/div&gt;
-        
-        &lt;div&gt;&lt;label class=&quot;flb&quot; for=&quot;bs-a&quot;&gt;初始 / 當前金額（NT$）&lt;/label&gt;&lt;input type=&quot;number&quot; id=&quot;bs-a&quot; placeholder=&quot;0&quot; min=&quot;0&quot; required=&quot;&quot;&gt;&lt;/div&gt;
-        
-        &lt;</pre>
+      &lt;div id=&quot;cb-list&quot; class</pre>
     </section>
   </div>
 </body>

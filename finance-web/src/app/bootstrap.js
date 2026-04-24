@@ -32,14 +32,25 @@ function collectDom(doc = document) {
     inputDesc: $("i-desc", doc),
     inputDate: $("i-date", doc),
     inputCategory: $("i-cat", doc),
+    inputOwnAmount: $("i-own", doc),
+    inputAdvancePerson: $("i-person", doc),
+    inputSpreadEnable: $("i-spread-enable", doc),
+    inputSpreadMonths: $("i-spread-months", doc),
+    inputSpreadStartMonth: $("i-spread-start", doc),
+    inputSpreadLabel: $("i-spread-label", doc),
+    inputSpreadPreview: $("i-spread-preview", doc),
     inputAccount: $("i-acc", doc),
     inputFromAccount: $("i-from", doc),
     inputToAccount: $("i-to", doc),
     incomeButton: $("b-i", doc),
     expenseButton: $("b-e", doc),
     transferButton: $("b-t", doc),
+    advanceButton: $("b-a", doc),
     incomeExpenseAccountWrap: $("f-ie-acc", doc),
     categoryWrap: $("f-cat-group", doc),
+    advanceWrap: $("f-adv-group", doc),
+    spreadWrap: $("f-spread-group", doc),
+    spreadFieldsWrap: $("f-spread-fields", doc),
     transferWrap: $("f-tr-acc", doc),
     oIncome: $("o-i", doc),
     oExpense: $("o-e", doc),
@@ -47,15 +58,23 @@ function collectDom(doc = document) {
     oBars: $("o-bars", doc),
     oTx: $("o-tx", doc),
     aTx: $("a-tx", doc),
+    advList: $("adv-list", doc),
     txCount: $("tx-cnt", doc),
     cashflowBody: $("cf-b", doc),
     balanceSheetBody: $("bs-b", doc),
     budgetCap: $("bs-cap", doc),
+    budgetExpenseLabel: $("bs-exp-lbl", doc),
     budgetExpense: $("bs-exp", doc),
     budgetAvailable: $("bs-avail", doc),
+    budgetPlanningRoom: $("bs-room", doc),
     overviewFill: $("ov-fill", doc),
     overviewCapLabel: $("ov-cap-lbl", doc),
     overviewBudget: $("o-bud", doc),
+    budgetModeActualButton: $("bud-mode-actual", doc),
+    budgetModeSpreadButton: $("bud-mode-spread", doc),
+    budgetModeNote: $("bud-mode-note", doc),
+    budgetSourceList: $("bud-source-list", doc),
+    budgetSpreadList: $("bud-spread-list", doc),
     categoryBudgetList: $("cb-list", doc),
     wishList: $("wl-list", doc),
     budgetCapInput: $("bud-cap", doc),
@@ -225,6 +244,8 @@ export async function bootstrapFinanceApp(doc = document) {
     syncFromSettings() {
       const state = store.getState();
       dom.budgetCapInput.value = state.settings.budgetCap;
+      dom.budgetModeActualButton.classList.toggle("on", (state.settings.budgetViewMode || "actual") === "actual");
+      dom.budgetModeSpreadButton.classList.toggle("on", (state.settings.budgetViewMode || "actual") === "spread");
       dom.retireLinked.checked = state.settings.retLinked;
       dom.retireAsset.value = state.settings.retManualAsset;
       this.toggleRetLinkUI();
@@ -247,8 +268,9 @@ export async function bootstrapFinanceApp(doc = document) {
     renderTransactionCategorySelect() {
       const state = store.getState();
       if (state.txType === "transfer") return;
-      const base = state.txType === "income" ? CONSTANTS.incomeCategories : CONSTANTS.expenseCategories;
-      const categories = [...base, ...state.userCats[state.txType]];
+      const categoryType = state.txType === "income" ? "income" : "expense";
+      const base = categoryType === "income" ? CONSTANTS.incomeCategories : CONSTANTS.expenseCategories;
+      const categories = [...base, ...state.userCats[categoryType]];
       dom.inputCategory.innerHTML = categories.map((category) => `<option>${escapeHTML(category)}</option>`).join("");
     },
     syncTxType() {
@@ -256,16 +278,53 @@ export async function bootstrapFinanceApp(doc = document) {
       dom.incomeButton.className = `tb${txType === "income" ? " on-inc" : ""}`;
       dom.expenseButton.className = `tb${txType === "expense" ? " on-exp" : ""}`;
       dom.transferButton.className = `tb${txType === "transfer" ? " on-trn" : ""}`;
+      dom.advanceButton.className = `tb${txType === "advance" ? " on-trn" : ""}`;
 
       if (txType === "transfer") {
         dom.incomeExpenseAccountWrap.classList.add("d-none");
         dom.categoryWrap.classList.add("d-none");
+        dom.advanceWrap.classList.add("d-none");
+        dom.spreadWrap.classList.add("d-none");
         dom.transferWrap.classList.remove("d-none");
       } else {
         dom.incomeExpenseAccountWrap.classList.remove("d-none");
         dom.categoryWrap.classList.remove("d-none");
+        dom.advanceWrap.classList.toggle("d-none", txType !== "advance");
+        dom.spreadWrap.classList.toggle("d-none", txType !== "expense");
         dom.transferWrap.classList.add("d-none");
+        if (txType !== "expense" && dom.inputSpreadEnable) {
+          dom.inputSpreadEnable.checked = false;
+        }
       }
+      this.syncSpreadInputs();
+    },
+    syncSpreadInputs() {
+      const enabled = !!dom.inputSpreadEnable?.checked && store.getState().txType === "expense";
+      dom.spreadFieldsWrap?.classList.toggle("d-none", !enabled);
+      dom.inputSpreadPreview?.classList.toggle("d-none", !enabled);
+      this.syncSpreadPreview();
+    },
+    syncSpreadPreview() {
+      if (!dom.inputSpreadPreview) return;
+      const enabled = !!dom.inputSpreadEnable?.checked && store.getState().txType === "expense";
+      if (!enabled) {
+        dom.inputSpreadPreview.textContent = "每月預算會認列 NT$ 0。";
+        return;
+      }
+
+      const amount = Math.round(parseFloat(dom.inputAmount.value) || 0);
+      const months = Math.max(0, Math.round(parseFloat(dom.inputSpreadMonths.value) || 0));
+      if (amount <= 0 || months < 2) {
+        dom.inputSpreadPreview.textContent = "輸入金額與分攤月數後，這裡會顯示每月大約認列多少。";
+        return;
+      }
+
+      const base = Math.floor(amount / months);
+      const remainder = amount - base * months;
+      dom.inputSpreadPreview.textContent =
+        remainder > 0
+          ? `每月預算約認列 ${formatMoney(base)}，系統會自動調整尾差。`
+          : `每月預算會認列 ${formatMoney(base)}。`;
     },
   };
 
@@ -280,18 +339,20 @@ export async function bootstrapFinanceApp(doc = document) {
     }
   };
 
-  const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRange(doc));
+  const getFilterRangeValue = () => getFilterRange(doc);
+  const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
   const renderWishlistOnly = () =>
-    renderWishlist({ state: store.getState(), filteredTxs: getFiltered(), constants: CONSTANTS, utils, dom });
+    renderWishlist({ state: store.getState(), filteredTxs: getFiltered(), filterRange: getFilterRangeValue(), constants: CONSTANTS, utils, dom });
 
   const renderAll = () => {
     const state = store.getState();
     const filteredTxs = getFiltered();
+    const filterRange = getFilterRangeValue();
     renderOverview({ state, filteredTxs, constants: CONSTANTS, utils, dom });
     renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
-    renderCashFlow({ filteredTxs, utils, dom });
+    renderCashFlow({ state, filteredTxs, utils, dom });
     renderBalanceSheet({ state, utils, dom });
-    renderWishlist({ state, filteredTxs, constants: CONSTANTS, utils, dom });
+    renderWishlist({ state, filteredTxs, filterRange, constants: CONSTANTS, utils, dom });
     renderRetirement({ state, utils, dom });
   };
 
@@ -316,6 +377,7 @@ export async function bootstrapFinanceApp(doc = document) {
     if (action === "set-tx-type") actions.setTxType(button.dataset.val);
     if (action === "add-custom-cat") actions.addCustomCat();
     if (action === "del-tx") actions.delTx(Number(button.dataset.id));
+    if (action === "repay-advance") actions.repayAdvance(Number(button.dataset.id));
     if (action === "del-bs") actions.delBs(button.dataset.id, button.dataset.isacc === "true");
     if (action === "toggle-em") actions.toggleEm(button.dataset.id, button.dataset.isacc === "true");
     if (action === "del-cat-budget") actions.delCatBudget(button.dataset.cat);
@@ -323,6 +385,7 @@ export async function bootstrapFinanceApp(doc = document) {
     if (action === "mv-wish") actions.mvWish(Number(button.dataset.id), Number(button.dataset.dir));
     if (action === "toggle-tbl") ui.toggleRetirementTable();
     if (action === "preset-ret") actions.presetRet(Number(button.dataset.r), Number(button.dataset.i));
+    if (action === "set-budget-view") actions.setBudgetView(button.dataset.mode);
     if (action === "export-data") {
       exportData(store.getState());
       toast.show("資料已匯出");
@@ -350,6 +413,16 @@ export async function bootstrapFinanceApp(doc = document) {
   dom.filterEnd.addEventListener("change", () => actions.customDate());
   dom.balanceType.addEventListener("change", (event) => {
     dom.balanceCategoryWrap.classList.toggle("d-none", event.target.value !== "item");
+  });
+  dom.inputSpreadEnable?.addEventListener("change", () => ui.syncSpreadInputs());
+  dom.inputAmount.addEventListener("input", () => ui.syncSpreadPreview());
+  dom.inputSpreadMonths?.addEventListener("input", () => ui.syncSpreadPreview());
+  dom.inputSpreadStartMonth?.addEventListener("change", () => ui.syncSpreadPreview());
+  dom.inputDate.addEventListener("change", () => {
+    if (!dom.inputSpreadStartMonth.value && dom.inputDate.value) {
+      dom.inputSpreadStartMonth.value = dom.inputDate.value.slice(0, 7);
+    }
+    ui.syncSpreadPreview();
   });
   dom.budgetCapInput.addEventListener("change", () => {
     store.update((state) => {
@@ -449,11 +522,13 @@ export async function bootstrapFinanceApp(doc = document) {
   ui.renderTransactionCategorySelect();
   ui.populateCategoryBudgetOptions();
   ui.syncTxType();
+  ui.syncSpreadInputs();
   ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
   const now = new Date();
   dom.headerSub.textContent = `${now.getFullYear()} / ${now.getMonth() + 1}`;
   dom.inputDate.value = localDateStr(now);
+  dom.inputSpreadStartMonth.value = localDateStr(now).slice(0, 7);
   actions.setDatePreset("month");
   actions.setTxType("expense");
 
@@ -476,6 +551,7 @@ export async function bootstrapFinanceApp(doc = document) {
       ui.renderTransactionCategorySelect();
       ui.populateCategoryBudgetOptions();
       ui.syncTxType();
+      ui.syncSpreadInputs();
       renderAll();
     },
   });

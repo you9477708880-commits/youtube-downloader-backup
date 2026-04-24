@@ -249,6 +249,12 @@
   gap: 8px;
 }
 
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
 .flex-col {
   display: flex;
   flex-direction: column;
