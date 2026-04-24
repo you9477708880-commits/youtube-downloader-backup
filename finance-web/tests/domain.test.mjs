@@ -13,6 +13,7 @@ import {
   getTransactionAccountIds,
   getTransactionSignedAmount,
 } from "../src/views/transaction-detail-view.js";
+import { renderWishlist } from "../src/views/wishlist-view.js";
 
 const accounts = [
   { id: "cash", name: "現金", type: "asset", initialBalance: 10000 },
@@ -204,6 +205,49 @@ function testSpreadHelpers() {
   assert.equal(getBudgetAmountForRange(spreadTx, { start: "2027-01-01", end: "2027-03-31" }, "spread"), 6000);
 }
 
+function testBudgetViewRendering() {
+  const dom = {
+    budgetCap: { textContent: "" },
+    budgetExpense: { textContent: "" },
+    budgetAvailable: { textContent: "" },
+    budgetPlanningRoom: { textContent: "" },
+    budgetExpenseLabel: { textContent: "" },
+    budgetModeNote: { textContent: "" },
+    overviewFill: { style: {} },
+    overviewCapLabel: { textContent: "" },
+    overviewBudget: { textContent: "", className: "" },
+    budgetSourceList: { innerHTML: "" },
+    categoryBudgetList: { innerHTML: "" },
+    budgetSpreadList: { innerHTML: "" },
+    wishList: { innerHTML: "" },
+  };
+  const utils = {
+    formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
+    escapeHTML: (value) => String(value),
+  };
+  const constants = { wishCategoryIcons: {} };
+
+  renderWishlist({
+    state: {
+      ...state,
+      wishes: [],
+      settings: {
+        ...state.settings,
+        budgetViewMode: "spread",
+      },
+    },
+    filterRange: { start: "2026-04-01", end: "2026-04-30" },
+    constants,
+    utils,
+    dom,
+  });
+
+  assert.equal(dom.budgetExpense.textContent, "NT$ 4,000");
+  assert.equal(dom.budgetAvailable.textContent, "NT$ 0", "可自由運用應依實際支出顯示");
+  assert.equal(dom.budgetPlanningRoom.textContent, "NT$ 16,000", "月預算餘裕應依分攤後支出顯示");
+  assert.equal(dom.budgetExpenseLabel.textContent, "期間已支出（分攤後）");
+}
+
 testOverviewAndCashFlow();
 testAccountBalances();
 testAdvanceReceivable();
@@ -211,5 +255,6 @@ testBudget();
 testBalanceSheet();
 testTraceabilityHelpers();
 testSpreadHelpers();
+testBudgetViewRendering();
 
 console.log("Domain tests passed");
