@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { calculateAccountBalances, calculateBalanceSheet } from "../src/domain/accounts.js";
+import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances, calculateBalanceSheet } from "../src/domain/accounts.js";
 import { calculateBudgetData } from "../src/domain/budget.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
 import {
@@ -9,6 +9,8 @@ import {
   withoutFundEventsLinkedToTransaction,
 } from "../src/domain/sinking-funds.js";
 import {
+  buildAdvanceRepayment,
+  buildTransaction,
   getAdvanceOutstanding,
   getAdvanceRepaidAmount,
   getOpenAdvances,
@@ -347,6 +349,42 @@ function testMoneyNormalization() {
   assert.equal(toMoneyInt("9999.999999999999"), 10000);
   assert.equal(toMoneyInt(999.9999999999999), 1000);
   assert.equal(toMoneyInt("12,345"), 12345);
+  assert.equal(toMoneyInt("1000元"), 0);
+}
+
+function testTransactionIdsAreNotDateNowOnly() {
+  const tx = buildTransaction({
+    txType: "expense",
+    amount: "1000元",
+    desc: "",
+    date: "2026-04-01",
+    category: "餐飲",
+    accountId: "cash",
+    spreadMonths: "not-a-number",
+  });
+  const repayment = buildAdvanceRepayment({ advanceId: "adv-1", amount: "1000元", date: "2026-04-02", accountId: "cash", person: "" });
+  assert.match(tx.id, /^tx-/);
+  assert.match(repayment.id, /^repay-/);
+  assert.notEqual(String(tx.id), String(Date.now()));
+  assert.equal(tx.amount, 0);
+  assert.equal(repayment.amount, 0);
+}
+
+function testDeletedAccountFallbackKeepsHistoricalBalance() {
+  const orphanState = {
+    ...state,
+    accounts: [{ id: "cash", name: "現金", type: "asset", initialBalance: 0 }],
+    bsI: [],
+    txs: [
+      { id: "orphan-income", type: "income", amount: 10000, desc: "舊帳戶收入", date: "2026-04-01", cat: "薪資", acc: "deleted-bank" },
+      { id: "orphan-expense", type: "expense", amount: 3000, desc: "舊帳戶支出", date: "2026-04-02", cat: "餐飲", acc: "deleted-bank" },
+    ],
+  };
+  const balances = calculateAccountBalances(orphanState);
+  const sheet = calculateBalanceSheet(orphanState);
+  assert.equal(balances[DELETED_ACCOUNT_FALLBACK_ID], 7000);
+  assert.equal(sheet.totalAssets, 7000);
+  assert.equal(sheet.netWorth, 7000);
 }
 
 function testStateMoneyNormalization() {
@@ -734,6 +772,8 @@ testFundTargetPlanStatus();
 testBalanceSheet();
 testTraceabilityHelpers();
 testMoneyNormalization();
+testTransactionIdsAreNotDateNowOnly();
+testDeletedAccountFallbackKeepsHistoricalBalance();
 testStateMoneyNormalization();
 testRetirementWarnings();
 testBudgetViewRendering();

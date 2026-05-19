@@ -41,6 +41,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
         signInWithGoogle: async () => false,
         signOutToAnonymous: async () => false,
         getUser: () => null,
+        destroy: () => {},
       };
     }
 
@@ -64,6 +65,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
     let authTransitioning = false;
     let saveResolver = null;
     let unsubscribeSnapshot = null;
+    let unsubscribeAuth = null;
 
     const provider = new authMod.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
@@ -129,7 +131,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       }
     };
 
-    authMod.onAuthStateChanged(auth, (user) => {
+    unsubscribeAuth = authMod.onAuthStateChanged(auth, (user) => {
       if (!user) {
         userId = null;
         clearSnapshot();
@@ -207,6 +209,13 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
         }
       },
       getUser: () => toUserProfile(currentUser),
+      destroy: () => {
+        clearSnapshot();
+        if (unsubscribeAuth) {
+          unsubscribeAuth();
+          unsubscribeAuth = null;
+        }
+      },
     };
   } catch (error) {
     console.warn("Firebase Init failed, gracefully falling back to LocalStorage.", error);
@@ -217,6 +226,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       signInWithGoogle: async () => false,
       signOutToAnonymous: async () => false,
       getUser: () => null,
+      destroy: () => {},
     };
   }
 }

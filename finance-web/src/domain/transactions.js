@@ -1,5 +1,22 @@
 import { toMoneyInt } from "../utils/format.js";
 
+export function createTransactionId(prefix = "tx") {
+  if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function toSafeCount(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
+}
+
+export function compareTransactionsByDateDesc(a, b) {
+  const dateA = String(a?.date || "");
+  const dateB = String(b?.date || "");
+  if (dateA !== dateB) return dateB.localeCompare(dateA);
+  return String(b?.id || "").localeCompare(String(a?.id || ""));
+}
+
 export function buildTransaction({
   txType,
   amount,
@@ -18,10 +35,10 @@ export function buildTransaction({
   linkedFundId,
 }) {
   const tx = {
-    id: Date.now(),
+    id: createTransactionId(),
     type: txType,
     amount: toMoneyInt(amount),
-    desc: desc.trim(),
+    desc: (desc || "").trim(),
     date,
   };
 
@@ -44,7 +61,7 @@ export function buildTransaction({
     }
     if (txType === "expense" && budgetMode === "spread") {
       tx.budgetMode = "spread";
-      tx.spreadMonths = Math.max(2, Math.round(Number(spreadMonths || 0)));
+      tx.spreadMonths = Math.max(2, toSafeCount(spreadMonths, 0));
       tx.spreadStartMonth = spreadStartMonth || date.slice(0, 7);
       tx.spreadLabel = (spreadLabel || "").trim();
     }
@@ -55,7 +72,7 @@ export function buildTransaction({
 
 export function buildAdvanceRepayment({ advanceId, amount, date, accountId, person }) {
   return {
-    id: Date.now(),
+    id: createTransactionId("repay"),
     type: "advance_repayment",
     advanceId,
     amount: toMoneyInt(amount),
@@ -103,7 +120,7 @@ export function getOpenAdvances(txs) {
 }
 
 export function groupTransactionsByDate(txs) {
-  const sorted = [...txs].sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.id - a.id));
+  const sorted = [...txs].sort(compareTransactionsByDateDesc);
   const groups = new Map();
 
   sorted.forEach((tx) => {

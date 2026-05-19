@@ -1,4 +1,4 @@
-import { getPersonalExpenseAmount } from "./transactions.js";
+import { compareTransactionsByDateDesc, getPersonalExpenseAmount } from "./transactions.js";
 import { getFundAvailableBeforeExpense, getLinkedFundSpendAmount, summarizeFund } from "./sinking-funds.js";
 
 function isDateInRange(date, range) {
@@ -41,7 +41,7 @@ function buildLivingExpenseItems(state, range) {
       };
     })
     .filter(Boolean)
-    .sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.id - a.id));
+    .sort(compareTransactionsByDateDesc);
 }
 
 export function calculateBudgetData(state, range) {

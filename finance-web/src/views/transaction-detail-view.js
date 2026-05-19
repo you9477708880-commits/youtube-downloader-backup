@@ -1,4 +1,4 @@
-import { getPersonalExpenseAmount } from "../domain/transactions.js";
+import { compareTransactionsByDateDesc, getPersonalExpenseAmount } from "../domain/transactions.js";
 
 export function getTransactionAccountIds(tx) {
   if (tx.type === "transfer") return [tx.fromAcc, tx.toAcc].filter(Boolean);
@@ -45,7 +45,7 @@ export function getTransactionSubtitle(tx, accountName = "") {
 export function renderTransactionDetailList({ txs, utils, getAccountName, accountId = "" }) {
   if (!txs.length) return '<div class="empty detail-empty">沒有相關明細</div>';
 
-  const sorted = [...txs].sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.id - a.id));
+  const sorted = [...txs].sort(compareTransactionsByDateDesc);
 
   return `
     <div class="detail-list">

@@ -1,4 +1,4 @@
-import { calculateAccountBalances } from "./accounts.js";
+import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances } from "./accounts.js";
 
 export function calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs }) {
   const balances = calculateAccountBalances(state);
@@ -10,6 +10,7 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
     totalWorth += balances[account.id];
     if (account.isEm) emergencyFund += balances[account.id];
   });
+  totalWorth += balances[DELETED_ACCOUNT_FALLBACK_ID] || 0;
 
   state.bsI.forEach((item) => {
     const value = item.cat === "asset" ? item.amount : -item.amount;

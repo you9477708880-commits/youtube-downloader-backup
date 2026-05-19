@@ -10,8 +10,13 @@ import {
 import { getFundAvailableBeforeExpense, getFundTargetPlanStatus, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
 import { localDateStr, toMoneyInt } from "../utils/format.js";
 
+function createClientId(prefix) {
+  if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function createFundEventId() {
-  return `fe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createClientId("fe");
 }
 
 function escapeCssValue(value) {
@@ -546,7 +551,7 @@ export function createActions(context) {
           Object.assign(fund, values);
         } else {
           draft.sinkingFunds.push({
-            id: `sf-${Date.now()}`,
+            id: createClientId("sf"),
             ...values,
             events: [],
           });
@@ -692,7 +697,7 @@ export function createActions(context) {
           }
         } else if (dom.balanceType.value === "account") {
           draft.accounts.push({
-            id: `a${Date.now()}`,
+            id: createClientId("a"),
             name: dom.balanceName.value.trim(),
             type: "asset",
             isEm: dom.balanceEmergency.checked,
@@ -700,7 +705,7 @@ export function createActions(context) {
           });
         } else {
           draft.bsI.push({
-            id: Date.now(),
+            id: createClientId("bs"),
             name: dom.balanceName.value.trim(),
             amount,
             cat: dom.balanceCategory.value,
@@ -803,7 +808,7 @@ export function createActions(context) {
           wish.cat = dom.wishCategory.value;
         } else {
           draft.wishes.push({
-            id: Date.now(),
+            id: createClientId("wish"),
             name: dom.wishName.value.trim(),
             price,
             cat: dom.wishCategory.value,
