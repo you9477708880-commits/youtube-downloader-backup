@@ -1,7 +1,9 @@
 # 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-05-18  
-目前分支 / Current branch: `新功能實驗`
+最後更新 / Last updated: 2026-05-19  
+目前主線 / Current mainline: `main`  
+最新主線提交 / Latest main commit: `58ed1a2 整合新功能實驗版本`  
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -39,7 +41,7 @@ The current priority is not advanced investment simulation. The priority is to c
 
 ### 中文
 
-以下項目已在目前分支中完成或已落地：
+以下項目已在 `main` 完成、推送，並已部署到 Firebase Hosting：
 
 - 預算主邏輯改為「大額支出準備 / 基金制」，不再以舊的事後分攤為主。
 - 大額準備資料模型已採 `sinkingFunds` + `events`。
@@ -64,10 +66,15 @@ The current priority is not advanced investment simulation. The priority is to c
 - 已補大額準備編輯 UI smoke scenario，會驗證設定可修改、事件可保留、提示文字正確。
 - `docs/data-model.md`、`docs/accounting-rules.md`、`docs/report-traceability.md` 已更新為中英雙語規則文件。
 - smoke test 報告預設寫入暫存資料夾，不再污染 Git 工作區。
+- 合併前安全整理已完成：匯入 JSON 深層驗證、XSS 惡意字串回歸測試、localStorage 逐欄位錯誤隔離、HTML 屬性值跳脫、Firestore rules 檔案與部署檢查文件皆已補上。
+- Firebase Hosting 安全標頭已補上，包含 `nosniff`、禁止 iframe 嵌入、Referrer Policy、Permissions Policy，以及保守版 CSP。
+- Firestore rules 已部署，雲端資料限制為相同 Firebase `uid` 才能讀寫。
+- `新功能實驗` 已透過 squash merge 整合回 `main`，並已推送到 GitHub 遠端。
+- Firebase Hosting 已部署新版，正式網址 `https://financial-computer.web.app` 已更新。
 
 ### English
 
-The following items are completed or implemented on the current branch:
+The following items are completed on `main`, pushed, and deployed to Firebase Hosting:
 
 - Budget logic is now centered on large-expense funds instead of legacy after-the-fact spreading.
 - Large-expense funds use `sinkingFunds` plus `events`.
@@ -100,6 +107,10 @@ The following items are completed or implemented on the current branch:
 - Smoke test reports now default to the temporary folder and no longer dirty the Git worktree.
 - 合併前安全整理已完成：匯入 JSON 深層驗證、XSS 惡意字串回歸測試、localStorage 逐欄位錯誤隔離、HTML 屬性值跳脫、Firestore rules 檔案與部署檢查文件皆已補上。
 - Pre-merge security hardening is complete: deep JSON import validation, malicious-string XSS regression coverage, per-field localStorage error isolation, escaped HTML attribute values, Firestore rules, and deployment checklist updates are in place.
+- Firebase Hosting security headers are added, including `nosniff`, iframe denial, Referrer Policy, Permissions Policy, and a conservative CSP.
+- Firestore rules are deployed so cloud data can only be read/written by the matching Firebase `uid`.
+- `新功能實驗` was squash-merged back into `main` and pushed to GitHub.
+- Firebase Hosting has been redeployed; the production URL `https://financial-computer.web.app` is updated.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -136,7 +147,7 @@ The following items are completed or implemented on the current branch:
 建議優先處理：
 
 1. **交易分類模型升級**
-   - 目前核心表單的編輯能力已經補齊。
+   - 目前核心表單的編輯能力、安全整理、主線合併與正式部署已完成。
    - 下一個 AndroMoney 相容前置條件，是把交易從單一分類欄位升級為 `category` + `subcategory`。
 
 ### English
@@ -144,7 +155,7 @@ The following items are completed or implemented on the current branch:
 Recommended immediate priorities:
 
 1. **Transaction category model upgrade**
-   - Editing coverage is now complete across the current core forms.
+   - Core form editing, security hardening, mainline merge, and production deployment are complete.
    - The next prerequisite for AndroMoney compatibility is upgrading transactions from a single category field to `category` + `subcategory`.
 
 ## 5. 中期重構 / Mid-Term Refactors
@@ -154,14 +165,12 @@ Recommended immediate priorities:
 中期應處理：
 
 1. **DOM 與渲染安全整理**
-   - 目前多數使用者字串已透過 `escapeHTML` 顯示，但仍應集中檢查所有 `innerHTML` 組字串位置。
-   - 若保留 `innerHTML`，所有插入 HTML 屬性或內容的外部資料都要先跳脫；可逐步把純文字區塊改成節點建立與 `textContent`。
-   - `src/ui/dom.js` 的 `$` helper 目前只適合 `document` root；若未來要支援在特定容器內查找，應改成能同時支援 `document` 與 element root 的版本。
+   - 合併前已完成一輪 XSS 與屬性跳脫檢查。
+   - 後續若大幅新增 UI，仍建議逐步把純文字區塊改成節點建立與 `textContent`，減少新的 `innerHTML` 風險。
 
 2. **本機儲存錯誤隔離**
-   - `loadLocalState` 應把每個 localStorage 欄位獨立解析。
-   - 單一欄位損毀時，只回退該欄位預設值，不應阻止其他正常欄位載入。
-   - 若未來資料量變大，再評估儲存防抖；但理財資料目前應優先維持操作後立即保存，避免關頁前資料尚未落盤。
+   - 合併前已完成逐欄位解析。
+   - 後續若資料量變大，可再評估儲存防抖或更完整的本機資料修復工具。
 
 3. **大額準備版本化設定**
    - 目前編輯會直接重算整段規劃。
@@ -176,14 +185,12 @@ Recommended immediate priorities:
 Mid-term work:
 
 1. **DOM and rendering safety cleanup**
-   - Most user strings are already displayed through `escapeHTML`, but every `innerHTML` construction site should be reviewed.
-   - If `innerHTML` stays in use, all external data inserted into HTML attributes or text content must be escaped first. Pure text regions can gradually move to node creation plus `textContent`.
-   - The `$` helper in `src/ui/dom.js` currently only works safely with a `document` root. If future code needs scoped lookup inside a container element, it should support both `document` and element roots.
+   - A pre-merge XSS and attribute-escaping pass is complete.
+   - If future UI work expands significantly, gradually move pure text regions to node creation plus `textContent` to reduce new `innerHTML` risk.
 
 2. **Local storage error isolation**
-   - `loadLocalState` should parse each localStorage field independently.
-   - If one stored field is corrupted, only that field should fall back to its default value. Other valid fields should still load.
-   - If data grows large later, evaluate debounced saving. For now, finance data should prefer immediate persistence after user actions so closing the page does not lose recent changes.
+   - Per-field parsing is complete.
+   - If local data grows large later, consider debounced saving or a more complete local data repair tool.
 
 3. **Versioned fund settings**
    - Current fund edits recalculate the entire plan.
