@@ -70,6 +70,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - Firebase Hosting 安全標頭已補上，包含 `nosniff`、禁止 iframe 嵌入、Referrer Policy、Permissions Policy，以及保守版 CSP。
 - Firestore rules 已部署，雲端資料限制為相同 Firebase `uid` 才能讀寫。
 - 資料完整性補強已完成：交易、還款與主要前端新增項目的 ID 改為 UUID 優先、刪除帳戶後的歷史交易會歸入 fallback 餘額、交易排序已支援字串 ID、金額顯示與交易建構已加強 NaN 防護。
+- 現金流量表已改為納入所有非投資類別收入，避免自訂收入分類在現金流頁漏算。
 - 雲端同步監聽器已補 `destroy()` 清理方法，可在未來多次初始化或測試環境中解除 auth 與 Firestore snapshot 監聽。
 - `新功能實驗` 已透過 squash merge 整合回 `main`，並已推送到 GitHub 遠端。
 - Firebase Hosting 已部署新版，正式網址 `https://financial-computer.web.app` 已更新。
@@ -112,6 +113,7 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 - Firebase Hosting security headers are added, including `nosniff`, iframe denial, Referrer Policy, Permissions Policy, and a conservative CSP.
 - Firestore rules are deployed so cloud data can only be read/written by the matching Firebase `uid`.
 - Data-integrity hardening is complete: transaction, repayment, and primary client-created entity IDs now prefer UUIDs, transactions from deleted accounts are preserved in a fallback balance, transaction sorting supports string IDs, and transaction construction / money display have stronger NaN protection.
+- Cash-flow reporting now includes all non-investment income categories, so custom income categories are not dropped from the cash-flow page.
 - Cloud sync now exposes `destroy()` cleanup so future repeated initialization or tests can unsubscribe from auth and Firestore snapshot listeners.
 - `新功能實驗` was squash-merged back into `main` and pushed to GitHub.
 - Firebase Hosting has been redeployed; the production URL `https://financial-computer.web.app` is updated.

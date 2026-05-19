@@ -129,6 +129,20 @@ function testOverviewAndCashFlow() {
   assert.equal(cashflow.netTotal, 19200);
 }
 
+function testCashFlowIncludesCustomIncomeCategories() {
+  const cashflow = summarizeCashFlow([
+    { id: "custom-income", type: "income", amount: 3000, desc: "網拍", date: "2026-04-07", cat: "網拍收入", acc: "bank" },
+    { id: "dividend", type: "income", amount: 1200, desc: "股息", date: "2026-04-08", cat: "股息收入", acc: "bank" },
+    { id: "meal", type: "expense", amount: 500, desc: "晚餐", date: "2026-04-09", cat: "餐飲", acc: "cash" },
+  ]);
+
+  assert.equal(cashflow.operatingIncome, 3000);
+  assert.equal(cashflow.investingIncome, 1200);
+  assert.equal(cashflow.operatingExpense, 500);
+  assert.equal(cashflow.netOperating, 2500);
+  assert.equal(cashflow.netTotal, 3700);
+}
+
 function testAccountBalances() {
   const balances = calculateAccountBalances(state);
   assert.equal(balances.cash, 14000);
@@ -829,6 +843,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
 }
 
 testOverviewAndCashFlow();
+testCashFlowIncludesCustomIncomeCategories();
 testAccountBalances();
 testAdvanceReceivable();
 testSinkingFunds();

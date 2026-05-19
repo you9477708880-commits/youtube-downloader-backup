@@ -155,12 +155,13 @@ export function summarizeExpenseCategories(txs) {
 }
 
 export function summarizeCashFlow(txs) {
+  const investingIncomeCategories = ["投資收益", "股息收入"];
   const operatingIncome = txs
-    .filter((tx) => ["薪資", "獎金", "其他收入", "被動收入"].includes(tx.cat))
+    .filter((tx) => tx.type === "income" && !investingIncomeCategories.includes(tx.cat))
     .reduce((sum, tx) => sum + tx.amount, 0);
   const operatingExpense = txs.reduce((sum, tx) => sum + getPersonalExpenseAmount(tx), 0);
   const investingIncome = txs
-    .filter((tx) => ["投資收益", "股息收入"].includes(tx.cat))
+    .filter((tx) => tx.type === "income" && investingIncomeCategories.includes(tx.cat))
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   return {
