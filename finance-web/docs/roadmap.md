@@ -1,8 +1,8 @@
-# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
+﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
 最後更新 / Last updated: 2026-05-19  
 目前主線 / Current mainline: `main`  
-最新主線提交 / Latest main commit: `58ed1a2 整合新功能實驗版本`  
+最新主線提交 / Latest main commit: see `git log -1 --oneline`  
 目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
@@ -155,6 +155,8 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 1. **交易分類模型升級**
    - 目前核心表單的編輯能力、安全整理、主線合併與正式部署已完成。
    - 下一個 AndroMoney 相容前置條件，是把交易從單一分類欄位升級為 `category` + `subcategory`。
+   - 必須先設計資料版本與載入遷移：舊交易不可留下 `subcategory === undefined`，應統一補為可顯示的預設值，例如「未分類」。
+   - 新 UI、分組、統計、匯入匯出只能讀取經遷移後的資料形狀，避免舊資料造成白畫面。
 
 ### English
 
@@ -163,6 +165,8 @@ Recommended immediate priorities:
 1. **Transaction category model upgrade**
    - Core form editing, security hardening, mainline merge, and production deployment are complete.
    - The next prerequisite for AndroMoney compatibility is upgrading transactions from a single category field to `category` + `subcategory`.
+   - Data versioning and load-time migration must be designed first: older transactions must never leave `subcategory === undefined`; use a display-safe fallback such as `未分類`.
+   - New UI, grouping, reporting, import, and export code should only consume the migrated data shape so older data cannot blank the page.
 
 ## 5. 中期重構 / Mid-Term Refactors
 
@@ -178,13 +182,16 @@ Recommended immediate priorities:
    - 合併前已完成逐欄位解析。
    - 後續若資料量變大，可再評估儲存防抖或更完整的本機資料修復工具。
 
-3. **大額準備版本化設定**
+3. **大額準備計畫變更規則**
    - 目前編輯會直接重算整段規劃。
-   - 未來若要只影響之後月份，需要新增版本化或生效月份規則。
+   - 不優先做完整「設定檔版本化」，避免把大額準備計算變成難以理解的多版本模型。
+   - 若未來要讓設定只影響之後月份，應採明確的 `plan_changed` 事件或生效月份規則：過去月份鎖定，未來月份套用新參數。
+   - 實作前必須先定義回溯顯示、預算推算與刪改規則。
 
 4. **匯入 / 雲端資料衝突策略**
-   - 登入 Google 時，可詢問使用本機、使用雲端或嘗試合併。
-   - 合併前需要明確衝突規則。
+   - 登入 Google 時若本機與雲端不同，先只提供明確覆蓋選項：「以雲端資料覆蓋本機」或「以本機資料覆蓋雲端」。
+   - 在具備每筆資料 `updatedAt`、刪除墓碑或交易日誌回放能力前，不做自動合併。
+   - 未來若要合併，必須先定義單筆資料衝突規則與可回復機制。
 
 5. **分類預算資料清理**
    - `settings.catBudgets` 可能保留已不再使用的分類預算。
@@ -203,13 +210,16 @@ Mid-term work:
    - Per-field parsing is complete.
    - If local data grows large later, consider debounced saving or a more complete local data repair tool.
 
-3. **Versioned fund settings**
+3. **Fund plan-change rules**
    - Current fund edits recalculate the entire plan.
-   - A future "future months only" mode would require versioned settings or an effective-month rule.
+   - Full settings-versioning is not the preferred first step because it would make fund calculations harder to understand.
+   - If future edits should affect future months only, use an explicit `plan_changed` event or effective-month rule: past months stay locked and future months use the new parameters.
+   - Before implementation, define historical display, budget projection, and edit/delete rules.
 
 4. **Import / cloud conflict strategy**
-   - On Google sign-in, ask whether to use local data, cloud data, or attempt a merge.
-   - Merging requires explicit conflict rules.
+   - If local and cloud data differ on Google sign-in, first provide only explicit overwrite choices: use cloud data locally, or upload local data over cloud.
+   - Do not implement automatic merging until records have `updatedAt`, deletion tombstones, or replayable transaction logs.
+   - Future merge support must define per-record conflict rules and recovery behavior first.
 
 5. **Category-budget data cleanup**
    - `settings.catBudgets` may keep budget entries for categories that are no longer used.
@@ -217,13 +227,12 @@ Mid-term work:
    - A future cleanup tool can list unused category budgets first, then remove them only after user confirmation.
 
 6. **AndroMoney compatibility layer**
-   - Use AndroMoney CSV as a mobile-compatible interchange format, not as the full website backup format.
+   - Use AndroMoney CSV as a mobile-compatible transaction interchange format, not as backup/restore for this website.
    - Upgrade the transaction category model from one field to `category` + `subcategory` so imported AndroMoney data can preserve both levels.
    - On CSV import, ask the user to map AndroMoney account names to website accounts instead of silently creating or guessing accounts.
    - Preserve external identifiers such as `externalSource`, `externalId`, and `externalUid` so repeated imports can detect duplicates and future sync logic has stable references.
-   - Export two files for cross-device use:
-     - an AndroMoney-compatible CSV containing the transaction layer that mobile apps can understand
-     - a website extension JSON containing large-expense funds, fund links, manual balance-sheet items, retirement settings, and other website-only data
+   - Full website backup and restore must remain a single complete JSON file that includes both `txs` and website-only data.
+   - Do not pair edited CSV files with a separate extension JSON for system restore; that can create mismatched fund links and orphan events.
    - Website-generated CSV should use UTF-8 with BOM to reduce Excel encoding mistakes, while import should accept both UTF-8 and UTF-8 with BOM.
 
 ## 6. 暫緩 / Deferred
@@ -398,10 +407,10 @@ If documents conflict, recommended priority:
 
 ### 中文
 
-AndroMoney CSV 適合作為「手機端交換格式」，但不適合作為網站的完整備份格式。網站需要保留兩層資料：
+AndroMoney CSV 適合作為「手機端交易交換格式」，但不適合作為網站的完整備份或還原格式。完整備份 / 還原只能使用網站自己的單一 JSON，並且該 JSON 必須同時包含 `txs`、大額準備、fund links、手動資產負債、退休設定與其他網站專屬資料。
 
 1. **手機相容層**
-   - 以 AndroMoney CSV 承載手機端可理解的交易資料：
+   - 以 AndroMoney CSV 承載手機端可理解的交易資料，定位為單向匯入新交易或單向匯出給其他軟體讀取：
      - 收入
      - 支出
      - 轉帳
@@ -412,8 +421,9 @@ AndroMoney CSV 適合作為「手機端交換格式」，但不適合作為網�
      - 帳戶
      - 備註
 
-2. **網站擴充層**
-   - 以網站自己的 JSON 保留 AndroMoney 無法表達的資料：
+2. **網站完整備份層**
+   - 以網站自己的單一 JSON 保留 AndroMoney 無法表達的資料，並作為唯一完整還原來源：
+     - `txs`
      - 大額支出準備
      - `linkedFundId`
      - `topup` / `spend` events
@@ -433,28 +443,32 @@ AndroMoney CSV 適合作為「手機端交換格式」，但不適合作為網�
 ```
 
 2. 補舊資料遷移，讓既有只有單層分類的資料仍可正常顯示。
+   - 新增 schema version 或等價的資料版本欄位。
+   - 載入舊資料時強制補齊 `subcategory`，不可讓 UI 收到 `undefined`。
+   - 補分類模型相關 domain tests 與 smoke scenario。
 3. 建立 AndroMoney CSV 匯入：
    - 自動辨識格式
    - 先顯示匯入預覽
    - 匯入時由使用者手動對應帳戶名稱
    - 完整保留主分類與子分類
    - 以 `externalSource` / `externalId` / `externalUid` 避免重複匯入
+   - CSV 匯入只建立或更新一般交易層，不嘗試與網站完整備份 JSON 合併。
 4. 建立 AndroMoney 相容 CSV 匯出：
    - 只輸出手機端可理解的交易層
    - 不把網站專屬的大額準備事件硬塞進 CSV
-5. 建立雙檔案匯出：
-   - `AndroMoney.csv`
-   - `finance-web-extension.json`
+5. 保留單一 JSON 完整備份 / 還原：
+   - 不支援 `AndroMoney.csv` + `finance-web-extension.json` 這種雙檔案還原。
+   - 若使用者用 Excel 修改 CSV 後再匯入，只把它當成外部交易匯入，不拿來恢復 fund links 或準備事件。
 6. 網站自行產生的 CSV 預設使用 UTF-8 with BOM，降低 Excel 直接開啟時的亂碼機率；匯入時同時接受 UTF-8 與 UTF-8 with BOM。
 
 開發參考樣本目前放在 `docs/samples/AndroMoney.csv`，用途是檢查格式，不代表正式產品資料。
 
 ### English
 
-AndroMoney CSV should be treated as a mobile-compatible interchange format, not as the website's full backup format. The product should keep two data layers:
+AndroMoney CSV should be treated as a mobile-compatible transaction interchange format, not as backup/restore for this website. Full backup/restore must use the website's single complete JSON, and that JSON must include `txs`, large-expense funds, fund links, manual balance-sheet items, retirement settings, and other website-only data.
 
 1. **Mobile-compatible layer**
-   - AndroMoney CSV carries the transaction data that mobile apps can understand:
+   - AndroMoney CSV carries transaction data that mobile apps can understand and is only for one-way importing new transactions or one-way exporting for other software:
      - income
      - expense
      - transfer
@@ -465,8 +479,9 @@ AndroMoney CSV should be treated as a mobile-compatible interchange format, not 
      - accounts
      - note
 
-2. **Website extension layer**
-   - The website keeps a separate JSON file for data that AndroMoney cannot represent:
+2. **Website full-backup layer**
+   - The website keeps one complete JSON file for data that AndroMoney cannot represent, and this is the only full restore source:
+     - `txs`
      - large-expense funds
      - `linkedFundId`
      - `topup` / `spend` events
@@ -486,18 +501,22 @@ Recommended implementation order:
 ```
 
 2. Add migration logic so older single-category data still renders correctly.
+   - Add `schemaVersion` or an equivalent data-version field.
+   - When loading old data, force-fill `subcategory`; UI code must not receive `undefined`.
+   - Add category-model domain tests and a smoke scenario.
 3. Implement AndroMoney CSV import:
    - auto-detect the format
    - show a preview before committing
    - ask the user to map account names manually during import
    - preserve both category levels
    - use `externalSource` / `externalId` / `externalUid` to prevent duplicate imports
+   - CSV import only creates or updates the transaction layer; it must not merge with the full website backup JSON.
 4. Implement AndroMoney-compatible CSV export:
    - export only the transaction layer that mobile apps understand
    - do not force website-only large-expense fund events into the CSV
-5. Implement paired export files:
-   - `AndroMoney.csv`
-   - `finance-web-extension.json`
+5. Keep single-JSON full backup/restore:
+   - Do not support `AndroMoney.csv` + `finance-web-extension.json` as a paired restore format.
+   - If the user edits CSV in Excel and imports it later, treat it as external transaction import only, not as fund-link or fund-event restoration.
 6. Website-generated CSV should default to UTF-8 with BOM to reduce Excel encoding mistakes, while import should accept both UTF-8 and UTF-8 with BOM.
 
 The current development sample is stored at `docs/samples/AndroMoney.csv` for format inspection only; it is not product data.
