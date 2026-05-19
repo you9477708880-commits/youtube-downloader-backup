@@ -246,11 +246,24 @@ Mid-term work:
 - 完整投資情境模擬。
 - 複雜自動合併本機與雲端資料。
 - 舊 `spread / budgetMode` 的全面移除。
+- 理財書籍產品設計筆記中的遠期體驗功能。
 
 暫緩原因：
 
 - 目前更重要的是先穩住金額規則、可追溯性和編輯前置規則。
 - 桌機版與投資模擬會擴大範圍，應在核心帳務規則穩定後再做。
+- 理財書籍筆記提供的是產品方向參考，不應壓過目前的帳務資料模型與 AndroMoney 前置工作。
+
+遠期產品參考：
+
+- 參考文件：`docs/finance-book-product-design-notes.md`
+- 可考慮的方向：
+  - 財務階段視圖。
+  - 收入、支出、負債、資產、心態、習慣的六要素總覽。
+  - 使用者自選的生活品質情境。
+  - 月度回顧：理財餘裕、支出調整、目標進度與下月行動。
+  - 將待購清單與大額準備整合成更完整的目標系統。
+- 這些功能目前只作為遠期設計參考，不列入立即下一步。
 
 ### English
 
@@ -261,11 +274,24 @@ Deferred for now:
 - Full investment scenario simulation.
 - Complex automatic local/cloud data merging.
 - Full removal of legacy `spread / budgetMode`.
+- Long-term experience ideas from the finance-book product design notes.
 
 Reason:
 
 - The current priority is stable money rules, traceability, and editing prerequisites.
 - Desktop redesign and investment simulation would expand scope and should wait until accounting rules are stable.
+- The finance-book notes are product-direction references and should not override the current accounting data model and AndroMoney prerequisites.
+
+Long-term product reference:
+
+- Reference document: `docs/finance-book-product-design-notes.md`
+- Possible future directions:
+  - Financial-stage view.
+  - Six-factor overview: income, expenses, debt, assets, mindset, and habits.
+  - User-selected lifestyle scenarios.
+  - Monthly review: financial margin, expense adjustments, goal progress, and next-month actions.
+  - A more integrated goal system that connects wishlist items and large-expense funds.
+- These ideas are long-term design references only and are not part of the immediate next steps.
 
 ## 7. 測試策略 / Testing Strategy
 
