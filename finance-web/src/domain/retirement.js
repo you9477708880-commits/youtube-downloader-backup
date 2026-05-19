@@ -1,5 +1,10 @@
 import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances } from "./accounts.js";
 
+function finiteNumberOrDefault(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs }) {
   const balances = calculateAccountBalances(state);
 
@@ -27,12 +32,12 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
     principal = inputs.currentAsset || 0;
   }
 
-  const monthlyContribution = inputs.monthlyContribution || 0;
-  const principalAnnualReturn = (inputs.principalAnnualReturnRate || 0) / 100 || 0.06;
-  const contributionAnnualReturn = (inputs.contributionAnnualReturnRate || 0) / 100 || 0.06;
-  const inflation = (inputs.inflationRate || 0) / 100 || 0.02;
-  const monthlyWithdraw = inputs.monthlyWithdraw || 40000;
-  const targetAsset = inputs.targetAsset || 20000000;
+  const monthlyContribution = finiteNumberOrDefault(inputs.monthlyContribution, 0);
+  const principalAnnualReturn = finiteNumberOrDefault(inputs.principalAnnualReturnRate, 6) / 100;
+  const contributionAnnualReturn = finiteNumberOrDefault(inputs.contributionAnnualReturnRate, 6) / 100;
+  const inflation = finiteNumberOrDefault(inputs.inflationRate, 2) / 100;
+  const monthlyWithdraw = finiteNumberOrDefault(inputs.monthlyWithdraw, 40000);
+  const targetAsset = finiteNumberOrDefault(inputs.targetAsset, 20000000);
   const principalMonthlyRate = principalAnnualReturn / 12;
   const contributionMonthlyRate = contributionAnnualReturn / 12;
   const table = [];

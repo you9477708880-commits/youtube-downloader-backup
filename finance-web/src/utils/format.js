@@ -1,6 +1,8 @@
 export function formatMoney(value) {
   const amount = Number(value);
-  return `NT$ ${Math.round(Math.abs(Number.isFinite(amount) ? amount : 0)).toLocaleString()}`;
+  const rounded = Math.round(Number.isFinite(amount) ? amount : 0);
+  const prefix = rounded < 0 ? "-NT$ " : "NT$ ";
+  return `${prefix}${Math.abs(rounded).toLocaleString()}`;
 }
 
 export function toMoneyInt(value) {

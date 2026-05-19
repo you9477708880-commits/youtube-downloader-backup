@@ -184,6 +184,11 @@ Recommended immediate priorities:
    - 登入 Google 時，可詢問使用本機、使用雲端或嘗試合併。
    - 合併前需要明確衝突規則。
 
+5. **分類預算資料清理**
+   - `settings.catBudgets` 可能保留已不再使用的分類預算。
+   - 這不是目前的資安漏洞，也不應在未確認使用者意圖時自動刪除。
+   - 未來可提供「清理未使用分類預算」功能，先列出將移除的項目，再由使用者確認。
+
 ### English
 
 Mid-term work:
@@ -204,7 +209,12 @@ Mid-term work:
    - On Google sign-in, ask whether to use local data, cloud data, or attempt a merge.
    - Merging requires explicit conflict rules.
 
-5. **AndroMoney compatibility layer**
+5. **Category-budget data cleanup**
+   - `settings.catBudgets` may keep budget entries for categories that are no longer used.
+   - This is not an active security issue and should not be auto-deleted without confirming user intent.
+   - A future cleanup tool can list unused category budgets first, then remove them only after user confirmation.
+
+6. **AndroMoney compatibility layer**
    - Use AndroMoney CSV as a mobile-compatible interchange format, not as the full website backup format.
    - Upgrade the transaction category model from one field to `category` + `subcategory` so imported AndroMoney data can preserve both levels.
    - On CSV import, ask the user to map AndroMoney account names to website accounts instead of silently creating or guessing accounts.

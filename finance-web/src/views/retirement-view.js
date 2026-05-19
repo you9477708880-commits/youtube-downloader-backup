@@ -1,6 +1,11 @@
 import { calculateRetirementProjection } from "../domain/retirement.js";
 import { toMoneyInt } from "../utils/format.js";
 
+function parseNumberOrDefault(value, fallback) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function renderRetirement({ state, utils, dom }) {
   const currentAge = parseInt(dom.currentAge.value, 10) || 30;
   const retirementAge = parseInt(dom.retirementAge.value, 10) || 65;
@@ -14,9 +19,9 @@ export function renderRetirement({ state, utils, dom }) {
     inputs: {
       currentAsset: toMoneyInt(dom.retireAsset.value),
       monthlyContribution: toMoneyInt(dom.retireMonthly.value),
-      principalAnnualReturnRate: parseFloat(dom.retirePrincipalReturn.value) || 6,
-      contributionAnnualReturnRate: parseFloat(dom.retireContributionReturn.value) || 6,
-      inflationRate: parseFloat(dom.retireInflation.value) || 2,
+      principalAnnualReturnRate: parseNumberOrDefault(dom.retirePrincipalReturn.value, 6),
+      contributionAnnualReturnRate: parseNumberOrDefault(dom.retireContributionReturn.value, 6),
+      inflationRate: parseNumberOrDefault(dom.retireInflation.value, 2),
       monthlyWithdraw: toMoneyInt(dom.retireWithdraw.value) || 40000,
       targetAsset: toMoneyInt(dom.retireTarget.value) || 20000000,
     },

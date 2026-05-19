@@ -25,10 +25,11 @@ import {
 import { renderLedger } from "../src/views/ledger-view.js";
 import { renderWishlist } from "../src/views/wishlist-view.js";
 import { renderBalanceSheet } from "../src/views/balance-sheet-view.js";
+import { renderRetirement } from "../src/views/retirement-view.js";
 import { isValidImportShape } from "../src/services/import-export.js";
 import { loadLocalState } from "../src/services/storage-local.js";
 import { createInitialState } from "../src/state/initial-state.js";
-import { escapeHTML, toMoneyInt } from "../src/utils/format.js";
+import { escapeHTML, formatMoney, toMoneyInt } from "../src/utils/format.js";
 import { normalizeFinanceStateMoney } from "../src/utils/normalize-state.js";
 
 const accounts = [
@@ -350,6 +351,9 @@ function testMoneyNormalization() {
   assert.equal(toMoneyInt(999.9999999999999), 1000);
   assert.equal(toMoneyInt("12,345"), 12345);
   assert.equal(toMoneyInt("1000元"), 0);
+  assert.equal(formatMoney(5000), "NT$ 5,000");
+  assert.equal(formatMoney(-5000), "-NT$ 5,000");
+  assert.equal(formatMoney("not-a-number"), "NT$ 0");
 }
 
 function testTransactionIdsAreNotDateNowOnly() {
@@ -446,6 +450,71 @@ function testRetirementWarnings() {
   assert.equal(projection.targetTooLow, true);
   assert.ok(projection.minimumRequiredAsset > projection.targetAsset);
   assert.match(projection.depletedAgeLabel, /歲/);
+}
+
+function testRetirementKeepsZeroPercentInputs() {
+  const projection = calculateRetirementProjection({
+    state: {
+      txs: [],
+      accounts: [],
+      bsI: [],
+      settings: { retLinked: false },
+    },
+    currentAge: 30,
+    retirementAge: 31,
+    deathAge: 30,
+    inputs: {
+      currentAsset: 10000,
+      monthlyContribution: 0,
+      principalAnnualReturnRate: 0,
+      contributionAnnualReturnRate: 0,
+      inflationRate: 0,
+      monthlyWithdraw: 0,
+      targetAsset: 10000,
+    },
+  });
+
+  assert.equal(projection.principalAnnualReturn, 0);
+  assert.equal(projection.contributionAnnualReturn, 0);
+  assert.equal(projection.inflation, 0);
+  assert.equal(Math.round(projection.retirementValue), 10000);
+}
+
+function testRetirementViewKeepsZeroPercentInputs() {
+  const node = (value = "") => ({ value, textContent: "", innerHTML: "", className: "" });
+  const dom = {
+    currentAge: node("30"),
+    retirementAge: node("31"),
+    deathAge: node("30"),
+    retireAsset: node("10000"),
+    retireMonthly: node("0"),
+    retirePrincipalReturn: node("0"),
+    retireContributionReturn: node("0"),
+    retireInflation: node("0"),
+    retireWithdraw: node("0"),
+    retireTarget: node("10000"),
+    retireLinkedValue: node(),
+    retireAssetValue: node(),
+    retireAssetAtRetire: node(),
+    retireAchieve: node(),
+    retirePaid: node(),
+    retireGain: node(),
+    retireSuggestion: node(),
+    retireTable: node(),
+  };
+
+  renderRetirement({
+    state: {
+      txs: [],
+      accounts: [],
+      bsI: [],
+      settings: { retLinked: false },
+    },
+    utils: { formatMoney },
+    dom,
+  });
+
+  assert.equal(dom.retireAssetAtRetire.textContent, "NT$ 10,000");
 }
 
 function testBudgetViewRendering() {
@@ -776,6 +845,8 @@ testTransactionIdsAreNotDateNowOnly();
 testDeletedAccountFallbackKeepsHistoricalBalance();
 testStateMoneyNormalization();
 testRetirementWarnings();
+testRetirementKeepsZeroPercentInputs();
+testRetirementViewKeepsZeroPercentInputs();
 testBudgetViewRendering();
 testWishlistLinkedFundTransactionRendering();
 testLedgerFundTraceRendering();
