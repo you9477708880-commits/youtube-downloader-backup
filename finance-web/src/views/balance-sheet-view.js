@@ -5,21 +5,24 @@ export function renderBalanceSheet({ state, utils, dom }) {
   const data = calculateBalanceSheet(state);
   const getAccountName = (id) => state.accounts.find((account) => account.id === id)?.name || "未知帳戶";
   const getAccountTxs = (accountId) => state.txs.filter((tx) => getTransactionAccountIds(tx).includes(accountId));
+  const emergencyIcon = (enabled) => (enabled ? "🛡️" : '<span class="opacity-30">🛡️</span>');
 
   const accountRows = state.accounts
     .map((account) => {
       const txs = getAccountTxs(account.id);
+      const accountId = utils.escapeHTML(account.id);
       return `
         <details class="drill">
           <summary>
             <div class="sr">
               <span class="flex-row gap-2">
-                <button type="button" class="icon-btn ${account.isEm ? "text-pur" : "text-gray"}" data-action="toggle-em" data-id="${account.id}" data-isacc="true">${account.isEm ? "緊急" : '<span class="opacity-30">緊急</span>'}</button>
+                <button type="button" class="icon-btn ${account.isEm ? "text-blue" : "text-gray"}" title="${account.isEm ? "已設為緊急備用金" : "設為緊急備用金"}" data-action="toggle-em" data-id="${accountId}" data-isacc="true">${emergencyIcon(account.isEm)}</button>
                 ${utils.escapeHTML(account.name)}
               </span>
               <span class="flex-row gap-2 font-mono ${data.balances[account.id] < 0 ? "text-exp" : ""}">
                 ${utils.formatMoney(data.balances[account.id])}
-                <button type="button" class="del-btn text-lg p-1" data-action="del-bs" data-id="${account.id}" data-isacc="true">×</button>
+                <button type="button" class="sbtn outline compact" data-action="edit-bs" data-id="${accountId}" data-isacc="true">編輯</button>
+                <button type="button" class="del-btn text-lg p-1" data-action="del-bs" data-id="${accountId}" data-isacc="true">×</button>
               </span>
             </div>
           </summary>
@@ -31,18 +34,22 @@ export function renderBalanceSheet({ state, utils, dom }) {
 
   const buildRows = (items) =>
     items
-      .map((item) => `
+      .map((item) => {
+        const itemId = utils.escapeHTML(item.id);
+        return `
         <div class="sr">
           <span class="flex-row gap-2">
-            <button type="button" class="icon-btn ${item.isEm ? "text-pur" : "text-gray"}" data-action="toggle-em" data-id="${item.id}" data-isacc="false">${item.isEm ? "緊急" : '<span class="opacity-30">緊急</span>'}</button>
+            <button type="button" class="icon-btn ${item.isEm ? "text-blue" : "text-gray"}" title="${item.isEm ? "已設為緊急備用金" : "設為緊急備用金"}" data-action="toggle-em" data-id="${itemId}" data-isacc="false">${emergencyIcon(item.isEm)}</button>
             ${utils.escapeHTML(item.name)}
           </span>
           <span class="flex-row gap-2 font-mono">
             ${utils.formatMoney(item.amount)}
-            <button type="button" class="del-btn text-lg p-1" data-action="del-bs" data-id="${item.id}" data-isacc="false">×</button>
+            <button type="button" class="sbtn outline compact" data-action="edit-bs" data-id="${itemId}" data-isacc="false">編輯</button>
+            <button type="button" class="del-btn text-lg p-1" data-action="del-bs" data-id="${itemId}" data-isacc="false">×</button>
           </span>
         </div>
-      `)
+      `;
+      })
       .join("");
 
   const receivableRows = data.receivables

@@ -1,3 +1,5 @@
+import { toMoneyInt } from "../utils/format.js";
+
 export function buildTransaction({
   txType,
   amount,
@@ -13,11 +15,12 @@ export function buildTransaction({
   spreadMonths,
   spreadStartMonth,
   spreadLabel,
+  linkedFundId,
 }) {
   const tx = {
     id: Date.now(),
     type: txType,
-    amount: Math.round(amount || 0),
+    amount: toMoneyInt(amount),
     desc: desc.trim(),
     date,
   };
@@ -27,7 +30,7 @@ export function buildTransaction({
     tx.toAcc = toAcc;
     tx.cat = "轉帳";
   } else if (txType === "advance") {
-    const own = Math.max(0, Math.round(ownAmount || 0));
+    const own = Math.max(0, toMoneyInt(ownAmount));
     tx.acc = accountId;
     tx.cat = category;
     tx.ownAmount = Math.min(own, tx.amount);
@@ -36,9 +39,12 @@ export function buildTransaction({
   } else {
     tx.acc = accountId;
     tx.cat = category;
+    if (txType === "expense" && linkedFundId) {
+      tx.linkedFundId = linkedFundId;
+    }
     if (txType === "expense" && budgetMode === "spread") {
       tx.budgetMode = "spread";
-      tx.spreadMonths = Math.max(2, Math.round(spreadMonths || 0));
+      tx.spreadMonths = Math.max(2, Math.round(Number(spreadMonths || 0)));
       tx.spreadStartMonth = spreadStartMonth || date.slice(0, 7);
       tx.spreadLabel = (spreadLabel || "").trim();
     }
@@ -52,7 +58,7 @@ export function buildAdvanceRepayment({ advanceId, amount, date, accountId, pers
     id: Date.now(),
     type: "advance_repayment",
     advanceId,
-    amount: Math.round(amount || 0),
+    amount: toMoneyInt(amount),
     date,
     acc: accountId,
     cat: "代墊收款",
@@ -75,8 +81,14 @@ export function getAdvanceRepayments(txs, advanceId) {
   return txs.filter((tx) => tx.type === "advance_repayment" && String(tx.advanceId) === String(advanceId));
 }
 
+export function getAdvanceRepaidAmount(txs, advanceId, excludedRepaymentId = null) {
+  return getAdvanceRepayments(txs, advanceId)
+    .filter((tx) => String(tx.id) !== String(excludedRepaymentId ?? ""))
+    .reduce((sum, tx) => sum + tx.amount, 0);
+}
+
 export function getAdvanceOutstanding(txs, advanceTx) {
-  const repaid = getAdvanceRepayments(txs, advanceTx.id).reduce((sum, tx) => sum + tx.amount, 0);
+  const repaid = getAdvanceRepaidAmount(txs, advanceTx.id);
   return Math.max(0, (advanceTx.receivableAmount || 0) - repaid);
 }
 
@@ -85,7 +97,7 @@ export function getOpenAdvances(txs) {
     .filter((tx) => tx.type === "advance" && getAdvanceOutstanding(txs, tx) > 0)
     .map((tx) => ({
       ...tx,
-      repaidAmount: getAdvanceRepayments(txs, tx.id).reduce((sum, repayment) => sum + repayment.amount, 0),
+      repaidAmount: getAdvanceRepaidAmount(txs, tx.id),
       outstandingAmount: getAdvanceOutstanding(txs, tx),
     }));
 }

@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -9,9 +10,14 @@ const root = path.resolve((rootArg || "").slice("--root=".length) || __dirname);
 const defaultEntry = fs.existsSync(path.join(root, "index.html")) ? "index.html" : "\u7406\u8CA1\u8A08\u7B97.html";
 const requestedEntry = args.find((arg) => !arg.startsWith("--")) || defaultEntry;
 const headlessMode = args.includes("--headless");
+const scenarioArg = args.find((arg) => arg.startsWith("--scenario="));
+const scenario = (scenarioArg || "").slice("--scenario=".length);
 const portArg = args.find((arg) => arg.startsWith("--port="));
 const port = Number((portArg || "").split("=")[1]) || 4173;
-const reportPath = path.join(__dirname, "headless-report.html");
+const reportArg = args.find((arg) => arg.startsWith("--report="));
+const reportPath = path.resolve(
+  (reportArg || "").slice("--report=".length) || path.join(os.tmpdir(), "finance-web-headless-report.html"),
+);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -67,6 +73,13 @@ function extractTextById(dom, id) {
   return normalizeWhitespace(match[1].replace(/<[^>]+>/g, " "));
 }
 
+function extractDatasetValueById(dom, id, dataKey) {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedDataKey = dataKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = dom.match(new RegExp(`<[^>]+id=["']${escapedId}["'][^>]*data-${escapedDataKey}=["']([^"']+)["'][^>]*>`, "i"));
+  return match ? match[1] : "";
+}
+
 function buildSummary(dom, url, browserPath) {
   const navMatches = [...dom.matchAll(/<button[^>]+data-target=["']([^"']+)["'][^>]*>([\s\S]*?)<\/button>/gi)];
   const navTabs = navMatches.map((match) => ({
@@ -85,6 +98,10 @@ function buildSummary(dom, url, browserPath) {
     overviewExpense: extractTextById(dom, "o-e"),
     overviewNet: extractTextById(dom, "o-n"),
     overviewBudget: extractTextById(dom, "o-bud"),
+    smokeScenario: scenario,
+    smokeStatus: extractDatasetValueById(dom, "smoke-result", "status"),
+    smokeResult: extractTextById(dom, "smoke-result"),
+    smokeDetail: extractTextById(dom, "smoke-detail"),
     navTabs,
     domLength: dom.length,
   };
@@ -192,6 +209,8 @@ function writeReport(summary, dom) {
         <div class="metric"><div class="label">Expense</div><div class="value">${escapeHtml(summary.overviewExpense || "(empty)")}</div></div>
         <div class="metric"><div class="label">Net</div><div class="value">${escapeHtml(summary.overviewNet || "(empty)")}</div></div>
         <div class="metric"><div class="label">Budget</div><div class="value">${escapeHtml(summary.overviewBudget || "(empty)")}</div></div>
+        <div class="metric"><div class="label">Smoke Scenario</div><div class="value">${escapeHtml(summary.smokeScenario || "(none)")}</div></div>
+        <div class="metric"><div class="label">Smoke Result</div><div class="value">${escapeHtml(summary.smokeResult || "(none)")}</div></div>
         <div class="metric"><div class="label">DOM Length</div><div class="value">${escapeHtml(summary.domLength)}</div></div>
       </div>
     </section>
@@ -209,6 +228,7 @@ function writeReport(summary, dom) {
 </body>
 </html>`;
 
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, reportHtml, "utf8");
 }
 
@@ -243,7 +263,8 @@ function shutdown(code = 0) {
 }
 
 server.listen(port, "localhost", () => {
-  const url = `http://localhost:${port}/${encodeURI(requestedEntry)}`;
+  const scenarioQuery = scenario ? `?smoke=${encodeURIComponent(scenario)}` : "";
+  const url = `http://localhost:${port}/${encodeURI(requestedEntry)}${scenarioQuery}`;
   console.log(`Serving ${requestedEntry} at ${url}`);
   console.log(`Root: ${root}`);
 
@@ -304,12 +325,22 @@ server.listen(port, "localhost", () => {
     console.log(`- Overview: ${summary.overviewIncome || "(empty)"} / ${summary.overviewExpense || "(empty)"} / ${summary.overviewNet || "(empty)"}`);
     console.log(`- Budget: ${summary.overviewBudget || "(empty)"}`);
     console.log(`- Nav tabs: ${summary.navTabs.map((tab) => `${tab.target}:${tab.label}`).join(" | ") || "(none)"}`);
+    if (scenario) {
+      console.log(`- Smoke scenario: ${summary.smokeScenario || "(empty)"}`);
+      console.log(`- Smoke result: ${summary.smokeResult || "(empty)"}`);
+      console.log(`- Smoke detail: ${summary.smokeDetail || "(empty)"}`);
+    }
     console.log(`- Report: ${reportPath}`);
 
     if (stderr.trim()) {
       console.log("");
       console.log("Browser stderr");
       console.log(stderr.trim());
+    }
+
+    if (scenario && summary.smokeStatus !== "pass") {
+      shutdown(1);
+      return;
     }
 
     shutdown(code || 0);

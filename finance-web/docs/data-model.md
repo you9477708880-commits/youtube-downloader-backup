@@ -1,12 +1,14 @@
-# 理財計算資料模型
+# 理財計算資料模型 / Finance Data Model
 
-這份文件說明目前前端 state 的主要資料結構，以及每種交易類型如何影響統計、帳戶餘額、預算與資產負債表。
+這份文件說明目前前端 state 的主要資料結構，以及哪些資料是帳務事實、哪些是預算規劃、哪些只是推估顯示。
 
-目標是讓後續維護時，不需要重新從 UI 或 render 邏輯推回資料意義。
+This document describes the frontend state model and separates accounting facts, budget planning data, and projection-only data.
 
-## State Root
+## 1. State Root
 
 目前整份資料會以單一 state 物件保存，並同步到 localStorage / Firestore。
+
+The whole app state is stored as one state object and synced to localStorage / Firestore.
 
 ```js
 {
@@ -14,6 +16,7 @@
   txs: [],
   bsI: [],
   wishes: [],
+  sinkingFunds: [],
   userCats: {
     income: [],
     expense: []
@@ -23,58 +26,46 @@
 }
 ```
 
-## txType
+## 2. 單一資料真相 / Single Source Of Truth
 
-`txType` 是目前新增交易表單正在使用的交易類型。
+### 中文
 
-目前支援：
+- `txs` 是交易事實來源，代表實際發生的收入、支出、轉帳、代墊與代墊收款。
+- `accounts.initialBalance` 是帳戶起始餘額來源。
+- `bsI` 是手動資產 / 負債來源。
+- `sinkingFunds` 是大額支出準備的設定來源。
+- `sinkingFunds.events` 是大額準備的補入與動用事件來源。
+- 退休頁是推估工具，不是帳務事實來源。
 
-- `income`：收入
-- `expense`：支出
-- `transfer`：帳戶間轉帳
-- `advance`：代墊款
+### English
 
-注意：`advance_repayment` 是系統產生的收款交易，不會作為表單的主要交易類型。
+- `txs` is the source of truth for actual transactions: income, expenses, transfers, advances, and advance repayments.
+- `accounts.initialBalance` is the source for account starting balances.
+- `bsI` stores manual assets and liabilities.
+- `sinkingFunds` stores large-expense fund settings.
+- `sinkingFunds.events` stores fund top-up and spending events.
+- The retirement page is a projection tool, not an accounting source of truth.
 
-## txs
+## 3. txs
 
-`txs` 是交易清單，所有收入、支出、轉帳、代墊、代墊收款都存在這裡。
+`txs` 是交易清單。所有實際發生的收入、支出、轉帳、代墊與代墊收款都存在這裡。
 
-交易通常依照新增時間放在陣列前方：
+`txs` is the transaction list. All real income, expenses, transfers, advances, and advance repayments are stored here.
 
-```js
-state.txs.unshift(tx)
-```
-
-### 共用欄位
-
-多數交易都有：
+### 共用欄位 / Common Fields
 
 ```js
 {
-  id: 1710000000000,
+  id,
   type: "expense",
-  amount: 1000,
-  desc: "晚餐",
-  date: "2026-04-22",
-  cat: "餐飲"
+  amount,
+  desc,
+  date,
+  cat
 }
 ```
 
-欄位說明：
-
-- `id`：交易 ID，目前使用 `Date.now()`。
-- `type`：交易類型。
-- `amount`：交易金額，整數。
-- `desc`：備註。
-- `date`：日期字串，格式為 `YYYY-MM-DD`。
-- `cat`：分類。
-
-## Transaction Types
-
 ### income
-
-收入交易。
 
 ```js
 {
@@ -88,16 +79,19 @@ state.txs.unshift(tx)
 }
 ```
 
-會影響：
+影響：
 
-- 收入統計：增加 `amount`
-- 帳戶餘額：`acc` 增加 `amount`
-- 現金流：依分類可能列入營運收入或投資收入
-- 預算支出：不影響
+- 收入統計增加 `amount`。
+- 帳戶 `acc` 增加 `amount`。
+- 不影響預算支出。
+
+Effects:
+
+- Increases income by `amount`.
+- Increases account `acc` by `amount`.
+- Does not affect budget expenses.
 
 ### expense
-
-一般支出交易。
 
 ```js
 {
@@ -108,31 +102,25 @@ state.txs.unshift(tx)
   date,
   cat,
   acc,
-  budgetMode: "normal" | "spread",
-  spreadMonths,
-  spreadStartMonth,
-  spreadLabel
+  linkedFundId?
 }
 ```
 
-會影響：
+影響：
 
-- 支出統計：增加 `amount`
-- 帳戶餘額：`acc` 減少 `amount`
-- 預算支出：在 `actual` 模式下增加 `amount`
-- 預算支出：在 `spread` 模式下改依分攤月數按月認列
-- 分類支出：跟隨目前預算模式
+- 帳戶 `acc` 減少 `amount`。
+- 總覽與現金流支出增加 `amount`。
+- 預算頁生活支出通常增加 `amount`。
+- 若 `linkedFundId` 指向大額準備，預算頁只把未被準備覆蓋的部分算進生活支出。
 
-若 `budgetMode === "spread"`，表示這是一筆大額支出分攤。它的意思是：
+Effects:
 
-- 原始交易仍在 `date` 當天全額發生
-- 帳戶餘額仍在 `date` 當天全額扣除
-- 總覽與現金流仍看原始全額
-- 只有預算頁與分類預算可切換成分攤後視角
+- Decreases account `acc` by `amount`.
+- Increases overview and cash-flow expenses by `amount`.
+- Usually increases budget living expense by `amount`.
+- If `linkedFundId` points to a large-expense fund, only the uncovered portion should count as living expense in the budget page.
 
 ### transfer
-
-帳戶之間的轉帳。
 
 ```js
 {
@@ -147,307 +135,318 @@ state.txs.unshift(tx)
 }
 ```
 
-會影響：
+轉帳只移動帳戶資金，不是收入也不是支出。
 
-- 帳戶餘額：`fromAcc` 減少 `amount`
-- 帳戶餘額：`toAcc` 增加 `amount`
-- 收入統計：不影響
-- 支出統計：不影響
-- 預算：不影響
+A transfer only moves money between accounts. It is neither income nor expense.
 
 ### advance
-
-代墊交易。用於「我先付全部，別人之後還我一部分」。
-
-範例：
 
 ```js
 {
   id,
   type: "advance",
-  amount: 1200,
-  ownAmount: 400,
-  receivableAmount: 800,
-  person: "媽媽",
-  desc: "晚餐",
-  date: "2026-04-22",
-  cat: "餐飲",
-  acc: "a1"
+  amount,
+  ownAmount,
+  receivableAmount,
+  person,
+  desc,
+  date,
+  cat,
+  acc
 }
 ```
 
-欄位說明：
+代墊代表自己先付全額，但只有 `ownAmount` 是自己的支出。
 
-- `amount`：實際付款總額。
-- `ownAmount`：自己實際負擔的金額。
-- `receivableAmount`：別人應該還你的金額，通常是 `amount - ownAmount`。
-- `person`：代墊對象。
-- `acc`：付款帳戶。
-
-會影響：
-
-- 帳戶餘額：`acc` 減少 `amount`
-- 支出統計：只增加 `ownAmount`
-- 預算支出：只增加 `ownAmount`
-- 分類支出：只增加 `ownAmount`
-- 資產負債表：尚未收回的 `receivableAmount` 算作資產
-- 收入統計：不影響
-
-會計概念：
-
-```text
-付款總額 = 自己支出 + 應收代墊款
-```
-
-例如：
-
-```text
-吃飯總額 1200
-自己負擔 400
-家人應還 800
-```
-
-系統應理解為：
-
-```text
-餐飲支出 400
-應收代墊款 800
-帳戶扣款 1200
-```
+An advance means the user paid the full amount first, but only `ownAmount` is the user's own expense.
 
 ### advance_repayment
-
-代墊收款交易。用於記錄對方還錢。
 
 ```js
 {
   id,
   type: "advance_repayment",
   advanceId,
-  amount: 800,
-  date: "2026-04-24",
-  acc: "a1",
+  amount,
+  date,
+  acc,
   cat: "代墊收款",
-  desc: "媽媽 還款",
-  person: "媽媽"
+  desc,
+  person
 }
 ```
 
-欄位說明：
+代墊收款不是收入，而是應收款回收。
 
-- `advanceId`：對應的 `advance` 交易 ID。
-- `amount`：本次收到的金額。
-- `acc`：收款帳戶。
-- `person`：還款對象。
+Advance repayment is not income. It is receivable recovery.
 
-會影響：
+### 補充：代墊與還款關聯 / Addendum: Advance And Repayment Relationship
 
-- 帳戶餘額：`acc` 增加 `amount`
-- 對應代墊款的未收金額：減少 `amount`
-- 收入統計：不影響
-- 支出統計：不影響
-- 預算：不影響
+- `advance_repayment.advanceId` 會把還款固定連回原本的代墊。
+- 編輯單筆還款時，最大可填金額為：
 
-重要原則：
+```text
+advance.receivableAmount - sum(other advance_repayment.amount)
+```
 
-代墊收款不是收入，只是應收款回收。
+- 編輯原始代墊時，新的 `receivableAmount` 不可小於目前已還款總額。
 
-## 代墊款計算
+- `advance_repayment.advanceId` keeps each repayment attached to its original advance.
+- When editing one repayment, the maximum allowed amount is:
 
-開放中的代墊款定義：
+```text
+advance.receivableAmount - sum(other advance_repayment.amount)
+```
+
+- When editing the original advance, the new `receivableAmount` cannot be lower than the total amount already repaid.
+
+## 4. sinkingFunds
+
+`sinkingFunds` 是大額支出準備清單。它代表預算規劃與準備金事件，不代表真實帳戶餘額。
+
+`sinkingFunds` stores large-expense funds. It represents budget planning and fund events, not real account balances.
 
 ```js
-outstandingAmount = receivableAmount - repayments
+{
+  id,
+  name,
+  category,
+  targetAmount,
+  monthlyContribution,
+  startMonth,
+  targetMonth,
+  carryoverEnabled,
+  note,
+  events: [
+    { id, type: "topup" | "spend", amount, date, note, linkedTxId? }
+  ]
+}
+```
+
+### 欄位說明 / Field Meanings
+
+- `targetAmount`：希望準備到的目標金額。Target amount.
+- `monthlyContribution`：每月規劃提撥，這是預算規劃，不是帳戶轉帳。Planned monthly contribution; this is budget planning, not an account transfer.
+- `startMonth`：開始納入每月規劃提撥的月份。First planned contribution month.
+- `targetMonth`：希望完成準備的月份。Expected completion month.
+- `events`：實際補入或動用準備金的事件。Actual fund top-up or spending events.
+
+### events
+
+```js
+{ id, type: "topup", amount, date, note, linkedTxId? }
+{ id, type: "spend", amount, date, note, linkedTxId? }
+```
+
+- `topup`：額外補入準備，會扣本月可自由運用。
+- `spend`：動用準備，會降低準備目前累積。
+- `linkedTxId`：若事件來自某筆支出交易，記錄對應交易 ID。
+
+- `topup`: extra money added to a fund; reduces current-month free-to-use budget.
+- `spend`: money used from a fund; reduces fund balance.
+- `linkedTxId`: stores the linked expense transaction ID when applicable.
+
+### 編輯設定的影響 / Editing Settings
+
+- 編輯 fund 本身的設定時，既有 `events` 會保留。
+- 若修改 `monthlyContribution`、`startMonth` 或 `targetMonth`，規劃提撥會用新設定重新計算整段期間。
+- 目前尚未提供「只從某個月份開始套用新設定」的版本化欄位。
+
+- Editing fund settings preserves existing `events`.
+- Changing `monthlyContribution`, `startMonth`, or `targetMonth` recalculates the planned contribution schedule for the whole covered period.
+- The model does not yet have versioned fields for "apply only from a future month onward."
+
+## 5. 大額準備與支出的關係 / Expense And Fund Linking
+
+### 中文
+
+支出可以用 `linkedFundId` 指定對應大額準備。
+
+如果準備足夠：
+
+- 建立支出交易。
+- 建立一筆 `spend` event。
+- 預算頁不再把這筆已覆蓋金額重複算進生活支出。
+
+如果準備不足，未來應讓使用者選：
+
+1. 補足差額後整筆由準備支付。
+2. 準備只支付目前有的部分，剩下算本月生活支出。
+3. 取消指定準備，整筆算本月生活支出。
+
+### English
+
+An expense may use `linkedFundId` to link to a large-expense fund.
+
+If the fund has enough balance:
+
+- Create the expense transaction.
+- Create a `spend` event.
+- The covered amount should not be counted again as living expense in the budget page.
+
+If the fund balance is insufficient, the future UI should let the user choose:
+
+1. Top up the shortfall and cover the full expense from the fund.
+2. Use only the current fund balance and count the rest as current-month living expense.
+3. Remove the fund link and count the full expense as current-month living expense.
+
+## 6. 交易刪除與編輯規則 / Delete And Edit Rules
+
+### 中文
+
+刪除交易時：
+
+- 若交易有對應大額準備事件，應同步刪除該交易的 `spend` / `topup` events。
+
+編輯交易時：
+
+- 如果一筆已指定準備的交易被修改金額，系統應先解除原本指定。
+- 不自動猜測準備金應該怎麼改。
+- 原本連動的 `spend` / 自動補差額 `topup` 應先移除。
+- 使用者重新決定要不要指定準備、要動用多少準備、差額從哪裡來。
+
+### English
+
+When deleting a transaction:
+
+- If the transaction has linked fund events, remove the linked `spend` / `topup` events as well.
+- If the transaction is an advance, remove its linked `advance_repayment` rows as well.
+
+For transaction editing:
+
+- If a linked transaction amount is edited, unlink it from the fund first.
+- Do not automatically guess how the fund events should change.
+- Remove the previous linked `spend` and automatic shortfall `topup` events first.
+- Let the user decide again whether to use a fund, how much fund balance to use, and where any difference should come from.
+- Advances may be edited only while preserving already-recorded repayments: the new receivable amount cannot be lower than the amount already repaid.
+- Advance repayments may edit amount, date, and receiving account, but the edited amount cannot exceed the remaining receivable limit after other repayments are counted.
+
+## 7. 可自由運用公式 / Free-To-Use Formula
+
+```text
+可自由運用 =
+  本月可支配預算
+  - 本月生活支出
+  - 本月大額準備
+  - 本月手動補入
+```
+
+```text
+freeToUse =
+  monthly budget cap
+  - living expenses
+  - planned fund contributions
+  - manual fund top-ups
 ```
 
 其中：
 
-- `receivableAmount` 來自 `advance`
-- `repayments` 是所有 `advance_repayment` 且 `advanceId` 相同的收款總和
+- `本月可支配預算`：`settings.budgetCap`。
+- `本月生活支出`：本月交易中仍需由當月負擔的個人支出。
+- `本月大額準備`：本月所有大額準備的規劃提撥總額。
+- `本月手動補入`：本月額外補進大額準備的 `topup` 總額。
 
-如果 `outstandingAmount > 0`，就顯示在「待收代墊款」。
+Where:
 
-如果 `outstandingAmount === 0`，視為已結清。
+- `monthly budget cap`: `settings.budgetCap`.
+- `living expenses`: personal expenses that still need to be paid by the current month.
+- `planned fund contributions`: planned allocations for all large-expense funds in the current period.
+- `manual fund top-ups`: extra `topup` events added in the current period.
 
-## accounts
+## 8. 目標月份合理性 / Target Month Feasibility
 
-帳戶資料。
-
-```js
-{
-  id: "a1",
-  name: "現金",
-  type: "asset",
-  isEm: false,
-  initialBalance: 0
-}
-```
-
-欄位說明：
-
-- `id`：帳戶 ID。
-- `name`：帳戶名稱。
-- `type`：目前多數帳戶以 `asset` 表示。
-- `isEm`：是否為緊急預備金。
-- `initialBalance`：初始餘額。
-
-帳戶餘額計算：
+如果使用者設定：
 
 ```text
-帳戶餘額 = initialBalance
-        + income
-        - expense
-        - advance.amount
-        + advance_repayment.amount
-        + transfer in
-        - transfer out
+每月提撥 2,000
+一年後結束
+目標 30,000
 ```
 
-## bsI
+只靠每月提撥最多只有 `24,000`，無法達標。
 
-資產負債表手動項目。
+系統應提醒使用者：
 
-```js
-{
-  id,
-  name,
-  amount,
-  cat: "asset" | "liability",
-  isEm: false
-}
-```
+- 延後目標月份。
+- 提高每月提撥。
+- 降低目標金額。
+- 或保留設定，但之後用手動補入補足。
 
-注意：
-
-代墊應收款不是存在 `bsI`，而是由 `txs` 中尚未結清的 `advance` 動態計算出來。
-
-## wishes
-
-願望清單。
-
-```js
-{
-  id,
-  name,
-  price,
-  cat
-}
-```
-
-目前願望清單會搭配預算剩餘額，用來判斷可購買狀態。
-
-## userCats
-
-使用者自訂分類。
-
-```js
-{
-  income: [],
-  expense: []
-}
-```
-
-注意：
-
-`advance` 使用的是支出分類，因為它代表一筆消費中自己的負擔分類。
-
-## settings
-
-設定資料。
-
-```js
-{
-  budgetCap: 20000,
-  budgetViewMode: "actual" | "spread",
-  catBudgets: {},
-  retLinked: true,
-  retManualAsset: 0
-}
-```
-
-欄位說明：
-
-- `budgetCap`：總預算上限。
-- `budgetViewMode`：預算頁使用實際支出或分攤後支出視角。
-- `catBudgets`：分類預算。
-- `retLinked`：退休試算是否連動資產。
-- `retManualAsset`：退休試算手動資產。
-
-## 統計規則摘要
-
-| 類型 | 收入統計 | 支出統計 | 帳戶餘額 | 預算 | 資產負債 |
-| --- | --- | --- | --- | --- | --- |
-| income | +amount | 無 | +amount | 無 | 反映在帳戶 |
-| expense | 無 | +amount | -amount | `actual` 看全額 / `spread` 看按月認列 | 反映在帳戶 |
-| transfer | 無 | 無 | 轉出 -amount / 轉入 +amount | 無 | 反映在帳戶 |
-| advance | 無 | +ownAmount | -amount | +ownAmount | 未收款列為資產 |
-| advance_repayment | 無 | 無 | +amount | 無 | 減少應收資產 |
-
-## 維護原則
-
-新增交易類型時，必須同時檢查：
-
-- `src/domain/transactions.js`
-- `src/domain/accounts.js`
-- `src/domain/budget.js`
-- `src/views/ledger-view.js`
-- `src/views/overview-view.js`
-- `src/views/cashflow-view.js`
-- `src/views/balance-sheet-view.js`
-
-新增會影響金額的功能時，應先回答：
-
-- 它是不是收入？
-- 它是不是支出？
-- 它是否影響帳戶餘額？
-- 它是否影響預算？
-- 它是否應列入資產或負債？
-- 它是否需要在日期篩選中出現？
-
-## 建議測試案例
-
-代墊案例：
+If the user sets:
 
 ```text
-新增代墊：
-總付款 1200
-自己負擔 400
-對方應還 800
-付款帳戶 現金
-
-預期：
-帳戶餘額 -1200
-支出統計 +400
-預算支出 +400
-待收代墊款 +800
-資產負債表應收 +800
+Monthly contribution: 2,000
+Target after one year
+Target amount: 30,000
 ```
 
-收款案例：
+Monthly contributions alone can only reach `24,000`, so the target is not feasible.
 
-```text
-收到代墊款 800
+The system should warn the user and suggest:
 
-預期：
-帳戶餘額 +800
-收入統計不變
-支出統計不變
-待收代墊款變 0
-資產負債表應收變 0
-```
+- Delay the target month.
+- Increase monthly contribution.
+- Reduce target amount.
+- Keep the setting and later use manual top-ups.
 
-大額分攤案例：
+## 9. 本機與雲端 / Local And Cloud
 
-```text
-新增支出：
-日本旅遊 24000
-分攤 12 個月
-起始月份 2026-04
+### 中文
 
-預期：
-帳戶餘額在 2026-04-20 當天減少 24000
-總覽支出增加 24000
-現金流支出增加 24000
-預算 actual 模式增加 24000
-預算 spread 模式在 2026-04 只認列 2000
-```
+目前限制：
+
+- 本機資料仍使用固定 localStorage key，尚未依 Google `uid` 分流。
+- 雲端資料依 Firebase 使用者 `uid` 儲存。
+- 同一瀏覽器切換多個 Google 帳號時，本機資料可能顯示最近一次載入或同步的內容。
+
+短期方向：
+
+- 先用文件與 UI 說清楚限制。
+- 保持離線可用。
+- 不急著做複雜自動合併。
+
+未來方向：
+
+- 登入時詢問要使用本機、雲端，或嘗試合併。
+- 合併財務資料需要明確衝突規則。
+- 可以提供「清除此裝置資料」功能保護隱私。
+
+### English
+
+Current limitation:
+
+- Local data still uses fixed localStorage keys and is not separated by Google `uid`.
+- Cloud data is stored by Firebase user `uid`.
+- Switching multiple Google accounts in the same browser may show the most recently loaded or synced data.
+
+Short-term direction:
+
+- Document and explain the limitation in the UI.
+- Preserve offline usability.
+- Do not rush complex automatic merging.
+
+Future direction:
+
+- On sign-in, ask whether to use local data, cloud data, or attempt a merge.
+- Merging financial data requires explicit conflict rules.
+- Provide a "clear this device data" action for privacy.
+
+## 10. 退休頁定位 / Retirement Page Positioning
+
+### 中文
+
+退休頁短期維持「個人估算器」：
+
+- 自訂報酬率、通膨、提領、壽命的推估是主邏輯。
+- 4% 法則只是額外參考。
+- 不先擴張成完整投資模擬器。
+- 推估結果不是帳務事實，不應寫回交易或資產負債。
+
+### English
+
+The retirement page should remain a personal estimator in the short term:
+
+- Custom return rate, inflation, withdrawal, and lifespan assumptions are the main logic.
+- The 4% rule is only an additional reference.
+- Do not expand it into a full investment simulation tool yet.
+- Projection results are not accounting facts and should not write back to transactions or the balance sheet.

@@ -60,6 +60,29 @@ Get-ChildItem -Recurse -Filter *.js .\src | ForEach-Object { node --check $_.Ful
 node .\tests\domain.test.mjs
 ```
 
+## 資安檢查
+
+部署前請確認：
+
+- `firestore.rules` 已存在，且 `firebase.json` 有指定這份 rules 檔。
+- 匯入 JSON 的深層驗證測試通過。
+- 惡意字串渲染測試通過，使用者輸入不得形成可執行 HTML。
+- 本機 localStorage 損毀單一欄位時，不會阻止其他正常欄位載入。
+
+Firestore 規則檢查重點：
+
+```text
+artifacts/{appId}/users/{userId}/data/{documentId}
+```
+
+只能允許 `request.auth.uid == userId` 的使用者讀寫。其他路徑預設拒絕。
+
+若要部署 Firestore 規則：
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
 ## Headless smoke test
 
 `test-server.js` 放在：
@@ -86,6 +109,12 @@ D:\桌面\音樂下載\理財網頁其他資料\headless-report.html
 firebase deploy --only hosting
 ```
 
+若這次有修改 `firestore.rules`，請另外部署規則：
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
 部署完成後確認：
 
 ```text
@@ -110,6 +139,7 @@ Unable to find a valid endpoint for function `adminApi`
 
 - 路徑是 `finance-web`。
 - `firebase.json` 沒有 Functions rewrite。
+- `firestore.rules` 已部署到 Firebase 專案。
 - JS 語法檢查通過。
 - 核心 domain 測試通過。
 - Headless smoke test 能產生報告。

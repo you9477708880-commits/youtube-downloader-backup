@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   txs: "fin_v6_txs",
   bsItems: "fin_v6_bsI",
   wishes: "fin_v6_wishes",
+  sinkingFunds: "fin_v6_funds",
   accounts: "fin_v6_accs",
   userCats: "fin_v6_cats",
   settings: "fin_v6_set",
@@ -17,8 +18,10 @@ export const DEFAULT_ACCOUNTS = [
 
 export const DEFAULT_SETTINGS = {
   budgetCap: 20000,
-  budgetViewMode: "actual",
   catBudgets: {},
+  leftoverMode: "manual",
+  investingLabel: "股票 / 黃金",
+  cashReserveLabel: "現金保留",
   retLinked: true,
   retManualAsset: 0,
 };

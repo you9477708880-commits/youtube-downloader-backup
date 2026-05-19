@@ -1,4 +1,5 @@
-import { getPersonalExpenseAmount, isBudgetSpreadTx } from "./transactions.js";
+import { getPersonalExpenseAmount } from "./transactions.js";
+import { getFundAvailableBeforeExpense, getLinkedFundSpendAmount, summarizeFund } from "./sinking-funds.js";
 
 function isDateInRange(date, range) {
   const { start, end } = range || {};
@@ -6,93 +7,37 @@ function isDateInRange(date, range) {
   return date >= start && date <= end;
 }
 
-function addMonths(monthKey, delta) {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText) - 1;
-  const next = new Date(year, month + delta, 1);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function getMonthBounds(monthKey) {
-  const [yearText, monthText] = monthKey.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const start = `${monthKey}-01`;
-  const end = new Date(year, month, 0).toISOString().slice(0, 10);
-  return { start, end };
-}
-
-function doesRangeOverlapMonth(range, monthKey) {
-  const { start, end } = range || {};
-  if (!start || !end) return true;
-  const bounds = getMonthBounds(monthKey);
-  return !(end < bounds.start || start > bounds.end);
-}
-
-export function buildSpreadSchedule(tx) {
-  if (!isBudgetSpreadTx(tx)) return [];
-
-  const months = Math.max(2, Math.round(tx.spreadMonths || 0));
-  const base = Math.floor(tx.amount / months);
-  const remainder = tx.amount - base * months;
-
-  return Array.from({ length: months }, (_, index) => ({
-    monthKey: addMonths(tx.spreadStartMonth, index),
-    amount: base + (index < remainder ? 1 : 0),
-    index,
-    totalMonths: months,
-  }));
-}
-
-export function getBudgetAmountForRange(tx, range, viewMode = "actual") {
-  if (tx.type === "advance") return isDateInRange(tx.date, range) ? getPersonalExpenseAmount(tx) : 0;
-  if (tx.type !== "expense") return 0;
-
-  if (viewMode !== "spread" || !isBudgetSpreadTx(tx)) {
-    return isDateInRange(tx.date, range) ? tx.amount : 0;
-  }
-
-  return buildSpreadSchedule(tx)
-    .filter((entry) => doesRangeOverlapMonth(range, entry.monthKey))
-    .reduce((sum, entry) => sum + entry.amount, 0);
-}
-
-export function getBudgetSpreadItems(state, range) {
+function buildLivingExpenseItems(state, range) {
   return state.txs
-    .filter((tx) => isBudgetSpreadTx(tx))
     .map((tx) => {
-      const schedule = buildSpreadSchedule(tx);
-      const activeEntries = schedule.filter((entry) => doesRangeOverlapMonth(range, entry.monthKey));
-      return {
-        ...tx,
-        schedule,
-        activeEntries,
-        coveredMonths: activeEntries.length,
-        periodAmount: activeEntries.reduce((sum, entry) => sum + entry.amount, 0),
-        monthlyBaseAmount: schedule[0]?.amount || 0,
-      };
-    })
-    .filter((tx) => tx.periodAmount > 0);
-}
+      if (!isDateInRange(tx.date, range)) return null;
 
-function getBudgetCategoryEntries(state, category, range, viewMode) {
-  return state.txs
-    .filter((tx) => tx.cat === category)
-    .map((tx) => {
-      const amount = getBudgetAmountForRange(tx, range, viewMode);
+      let amount = getPersonalExpenseAmount(tx);
+      let subtitle = `${tx.cat || "未分類"} ｜ 實際支出 ${amount}`;
+
+      if (tx.type === "expense" && tx.linkedFundId) {
+        const fund = (state.sinkingFunds || []).find((item) => item.id === tx.linkedFundId);
+        const linkedSpend = fund ? getLinkedFundSpendAmount(fund, tx.id) : 0;
+        const covered = fund
+          ? Math.min(amount, linkedSpend > 0 ? linkedSpend : getFundAvailableBeforeExpense(fund, tx.date, tx.id))
+          : 0;
+        const uncovered = Math.max(0, amount - covered);
+        amount = uncovered;
+        subtitle =
+          covered > 0
+            ? `${tx.cat || "未分類"} ｜ 已用準備 ${covered}${uncovered > 0 ? ` ｜ 差額 ${uncovered}` : " ｜ 本月不另外扣款"}`
+            : `${tx.cat || "未分類"} ｜ 準備不足，列入本月 ${uncovered}`;
+      }
+
       if (amount <= 0) return null;
       return {
         id: tx.id,
-        type: tx.type,
+        type: "living-expense",
         date: tx.date,
-        desc: tx.desc || "",
-        cat: tx.cat,
+        title: tx.desc || tx.cat || "未命名支出",
+        subtitle,
         amount,
-        originalAmount: getPersonalExpenseAmount(tx),
-        isSpread: viewMode === "spread" && isBudgetSpreadTx(tx),
-        spreadLabel: tx.spreadLabel || "",
-        spreadMonths: tx.spreadMonths || 0,
+        category: tx.cat || "",
       };
     })
     .filter(Boolean)
@@ -101,59 +46,60 @@ function getBudgetCategoryEntries(state, category, range, viewMode) {
 
 export function calculateBudgetData(state, range) {
   const cap = state.settings.budgetCap || 0;
-  const viewMode = state.settings.budgetViewMode || "actual";
-  const actualExpense = state.txs.reduce((sum, tx) => sum + getBudgetAmountForRange(tx, range, "actual"), 0);
-  const spreadExpense = state.txs.reduce((sum, tx) => sum + getBudgetAmountForRange(tx, range, "spread"), 0);
-  const expense = viewMode === "spread" ? spreadExpense : actualExpense;
-  const available = Math.max(0, cap - actualExpense);
-  const planningRoom = Math.max(0, cap - spreadExpense);
-  const percentage = cap > 0 ? Math.min(100, (expense / cap) * 100) : 0;
-  const remaining = cap - expense;
+  const funds = (state.sinkingFunds || []).map((fund) => summarizeFund(fund, range));
+  const livingExpenseItems = buildLivingExpenseItems(state, range);
+  const livingExpense = livingExpenseItems.reduce((sum, item) => sum + item.amount, 0);
+  const fundContribution = funds.reduce((sum, fund) => sum + fund.plannedContribution, 0);
+  const manualTopups = funds.reduce((sum, fund) => sum + fund.topupAmount, 0);
+  const freeToUse = Math.max(0, cap - livingExpense - fundContribution - manualTopups);
 
-  const categoryBudgets = Object.entries(state.settings.catBudgets).map(([category, budget]) => {
-    const categoryExpense = state.txs
-      .filter((tx) => tx.cat === category)
-      .reduce((sum, tx) => sum + getBudgetAmountForRange(tx, range, viewMode), 0);
-    const categoryPercentage = budget > 0 ? Math.min(100, (categoryExpense / budget) * 100) : 0;
+  const sourceItems = [
+    ...livingExpenseItems,
+    ...funds
+      .filter((fund) => fund.plannedContribution > 0)
+      .map((fund) => ({
+        id: `plan-${fund.id}`,
+        type: "fund-plan",
+        date: `${fund.startMonth}-01`,
+        title: fund.name,
+        subtitle: `每月提撥 ${fund.monthlyContribution} ｜ 本期規劃 ${fund.plannedContribution}`,
+        amount: fund.plannedContribution,
+        category: fund.category || "",
+      })),
+    ...funds.flatMap((fund) =>
+      fund.topupsInRange.map((event) => ({
+        id: event.id,
+        type: "fund-topup",
+        date: event.date,
+        title: fund.name,
+        subtitle: `手動補入 ｜ ${event.note || "未填備註"}`,
+        amount: event.amount,
+        category: fund.category || "",
+      })),
+    ),
+  ].sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : String(b.id).localeCompare(String(a.id))));
+
+  const categoryBudgets = Object.entries(state.settings.catBudgets || {}).map(([category, budget]) => {
+    const items = livingExpenseItems.filter((item) => item.category === category);
+    const expense = items.reduce((sum, item) => sum + item.amount, 0);
     return {
       category,
       budget,
-      expense: categoryExpense,
-      percentage: categoryPercentage,
-      items: getBudgetCategoryEntries(state, category, range, viewMode),
+      expense,
+      percentage: budget > 0 ? Math.min(100, (expense / budget) * 100) : 0,
+      items,
     };
   });
 
   return {
     cap,
-    actualExpense,
-    spreadExpense,
-    expense,
-    available,
-    planningRoom,
-    percentage,
-    remaining,
-    viewMode,
-    budgetItems: state.txs
-      .map((tx) => {
-        const amount = getBudgetAmountForRange(tx, range, viewMode);
-        if (amount <= 0) return null;
-        return {
-          id: tx.id,
-          type: tx.type,
-          date: tx.date,
-          desc: tx.desc || "",
-          cat: tx.cat || "",
-          amount,
-          originalAmount: getPersonalExpenseAmount(tx),
-          isSpread: viewMode === "spread" && isBudgetSpreadTx(tx),
-          spreadLabel: tx.spreadLabel || "",
-          spreadMonths: tx.spreadMonths || 0,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : b.id - a.id)),
-    spreadItems: getBudgetSpreadItems(state, range),
+    livingExpense,
+    fundContribution,
+    freeToUse,
+    remainingAllocatable: freeToUse,
+    manualTopups,
+    funds,
+    sourceItems,
     categoryBudgets,
   };
 }

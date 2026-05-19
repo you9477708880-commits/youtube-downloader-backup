@@ -72,7 +72,7 @@
       <div class="mc"><div class="lb">期間收入</div><div class="vl text-inc" id="o-i">NT$ 0</div></div>
       <div class="mc"><div class="lb">期間支出</div><div class="vl text-exp" id="o-e">NT$ 0</div></div>
       <div class="mc"><div class="lb">期間結餘</div><div class="vl" id="o-n">NT$ 0</div></div>
-      <div class="mc"><div class="lb">可亂花餘額</div><div class="vl" id="o-bud">—</div></div>
+      <div class="mc"><div class="lb">可自由運用</div><div class="vl" id="o-bud">—</div></div>
     </div>
     
     <div class="card"><div class="ct">花費總覽 (支出分類) <span class="ct-s">依篩選期間</span></div><div id="o-bars"><div class="empty">尚無支出資料</div></div></div>
@@ -89,6 +89,9 @@
         <button type="button" class="sbtn outline" data-action="trigger-import">匯入資料</button>
         <input type="file" id="file-import" class="d-none" accept=".json">
       </div>
+      <div class="text-xs text-gray mt-2">
+        本機資料會保留這台裝置最近一次使用或同步的內容。若同一台裝置切換不同 Google 帳號，本機看到的資料可能會變成最近登入帳號的版本；若要保留獨立副本，建議先匯出備份。
+      </div>
     </div>
 
     <div class="card pad-sm">
@@ -100,7 +103,7 @@
   <!-- 記帳 -->
   <section id="t-lg" class="sec" aria-labelledby="tab-lg">
     <div class="card">
-      <div class="ct">新增交易</div>
+      <div class="ct" id="tx-form-title">新增交易</div>
       <form id="form-tx" class="flex-col">
         <div>
           <fieldset>
@@ -145,34 +148,19 @@
           <div class="text-xs text-gray mt-1">總金額會先從付款帳戶扣除；只有「自己負擔」會算進支出，其餘會列為待收代墊款。</div>
         </div>
 
-        <div id="f-spread-group" class="d-none">
-          <label class="flex-row justify-start gap-2 text-gray mt-1 pointer" style="font-size:13px;">
-            <input type="checkbox" id="i-spread-enable" class="w-16px h-16px">
-            <span>這是一筆大額支出，改用分攤方式計入月預算</span>
-          </label>
-          <div id="f-spread-fields" class="grid-3 d-none mt-2">
-            <div>
-              <label class="flb" for="i-spread-months">分攤月數</label>
-              <input type="number" id="i-spread-months" min="2" placeholder="例如 12">
-            </div>
-            <div>
-              <label class="flb" for="i-spread-start">起始月份</label>
-              <input type="month" id="i-spread-start">
-            </div>
-            <div>
-              <label class="flb" for="i-spread-label">分攤名稱（選填）</label>
-              <input type="text" id="i-spread-label" placeholder="例如 旅遊基金">
-            </div>
-          </div>
-          <div id="i-spread-preview" class="text-xs text-gray mt-1 d-none">每月預算會認列 NT$ 0。</div>
-          <div class="text-xs text-gray mt-1">只會影響預算分析，不會改變帳戶餘額、現金流或原始交易金額。</div>
-        </div>
-        
         <div id="f-cat-group">
           <label class="flb" for="i-cat"><span>類別</span> <button type="button" class="icon-btn text-blue font-bold" data-action="add-custom-cat">+新增</button></label>
           <select id="i-cat"></select>
         </div>
-        
+
+        <div id="f-fund-group">
+          <label class="flb" for="i-fund">對應大額準備（選填）</label>
+          <select id="i-fund">
+            <option value="">不指定</option>
+          </select>
+          <div class="text-xs text-gray mt-1">如果這筆支出是用旅遊、手機或電腦準備金支付，可以在這裡手動指定。準備金不足時，可選擇補足差額，或只用現有準備金支付一部分，剩下算本月支出。</div>
+        </div>
+
         <div>
           <label class="flb" for="i-desc">說明（選填）</label>
           <input type="text" id="i-desc" placeholder="輸入備註或品項名稱...">
@@ -181,7 +169,9 @@
           <label class="flb" for="i-date">日期</label>
           <input type="date" id="i-date" required>
         </div>
-        <button type="submit" class="sbtn">儲存記錄</button>
+        <div id="tx-edit-note" class="text-xs text-gray d-none"></div>
+        <button type="submit" class="sbtn" id="tx-submit-btn">儲存記錄</button>
+        <button type="button" class="sbtn outline d-none" id="tx-cancel-btn">取消編輯</button>
       </form>
     </div>
     
@@ -194,41 +184,68 @@
   <!-- 預算分配 -->
   <section id="t-wl" class="sec" aria-labelledby="tab-wl">
     <div class="card">
-      <div class="ct">1. 總預算設定</div>
-      <div class="seg mt-2 mb-2" aria-label="預算檢視模式">
-        <button type="button" id="bud-mode-actual" class="seg-btn on" data-action="set-budget-view" data-mode="actual">實際支出</button>
-        <button type="button" id="bud-mode-spread" class="seg-btn" data-action="set-budget-view" data-mode="spread">分攤後支出</button>
-      </div>
-      <div id="bud-mode-note" class="text-xs text-gray text-center mb-2">目前以實際交易日認列支出。</div>
+      <div class="ct">1. 本月資金分配</div>
+      <div id="bud-mode-note" class="text-xs text-gray text-center mb-2">先預留生活支出和大額支出準備，再看這個月還剩多少能自由運用。</div>
       <div class="flex-col mb-2">
         <div>
-          <label class="flb" for="bud-cap">全域預算上限（NT$）</label>
+          <label class="flb" for="bud-cap">本月可支配預算（NT$）</label>
           <input type="number" id="bud-cap" value="10000" placeholder="10000" min="0">
         </div>
       </div>
       <div class="bud-sum">
-        <div class="mc"><div class="lb">總預算上限</div><div class="vl text-md" id="bs-cap">NT$ 10,000</div></div>
-        <div class="mc"><div class="lb" id="bs-exp-lbl">期間已支出（實際）</div><div class="vl text-md" id="bs-exp">NT$ 0</div></div>
+        <div class="mc"><div class="lb">本月可支配預算</div><div class="vl text-md" id="bs-cap">NT$ 10,000</div></div>
+        <div class="mc"><div class="lb">本月生活支出</div><div class="vl text-md" id="bs-exp">NT$ 0</div></div>
+        <div class="mc"><div class="lb">本月大額準備</div><div class="vl text-md" id="bs-fund">NT$ 0</div></div>
         <div class="mc"><div class="lb">可自由運用</div><div class="vl text-md text-inc" id="bs-avail">NT$ 10,000</div></div>
-        <div class="mc"><div class="lb">月預算餘裕</div><div class="vl text-md text-inc" id="bs-room">NT$ 10,000</div></div>
       </div>
-      <p class="text-xs text-gray text-center">可自由運用：依實際支出計算，較保守。月預算餘裕：依分攤後支出計算，適合看長期規劃。</p>
+      <p class="text-xs text-gray text-center">可自由運用：扣掉生活支出、本月大額準備，以及你手動補入準備項目的部分後，還能自由決定的錢。</p>
       <div class="bud-track mt-3"><div class="bud-fill" id="ov-fill" style="width:0%"></div></div>
       <div class="bud-labels"><span>NT$ 0</span><span id="ov-cap-lbl" class="text-mono">—</span></div>
       <details class="drill mt-3">
         <summary>
           <div class="sr">
-            <span>本期預算來源明細</span>
+            <span>本月資金分配明細</span>
             <span class="text-sm text-gray">點開查看</span>
           </div>
         </summary>
         <div id="bud-source-list"></div>
       </details>
-      <div class="spread-list mt-3" id="bud-spread-list"></div>
+      <div class="text-xs text-gray text-center mt-3" id="leftover-note">如果你另外手動補入大額支出準備，這裡也會一起反映。</div>
     </div>
 
     <div class="card">
-      <div class="ct">2. 個別類別預算限制 <span class="ct-s">選填</span></div>
+      <div class="ct" id="fund-form-title">2. 大額支出準備</div>
+      <form class="flex-col" id="form-fund">
+        <div><label class="flb" for="sf-name">準備項目名稱</label><input type="text" id="sf-name" placeholder="例如 日本旅遊、手機汰換" required></div>
+        <div class="grid-2">
+          <div><label class="flb" for="sf-cat"><span>分類</span> <button type="button" class="icon-btn text-blue font-bold" data-action="add-fund-cat">+新增</button></label><select id="sf-cat"></select></div>
+          <div><label class="flb" for="sf-target">目標金額（NT$）</label><input type="number" id="sf-target" min="1" placeholder="例如 48000" required></div>
+        </div>
+        <div class="grid-2">
+          <div><label class="flb" for="sf-monthly">每月提撥（NT$）</label><input type="number" id="sf-monthly" min="1" placeholder="例如 2000" required></div>
+          <div><label class="flb" for="sf-start">起始月份</label><input type="month" id="sf-start" required></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label class="flb" for="sf-target-month">預計完成月份（選填）</label>
+            <input type="month" id="sf-target-month">
+            <div class="text-xs text-gray mt-1">若每月提撥加總無法在目標月份達標，系統會先提醒；你仍可建立，之後再用手動補入補足。</div>
+          </div>
+          <div><label class="flb" for="sf-note">備註（選填）</label><input type="text" id="sf-note" placeholder="例如 2027 春季旅遊"></div>
+        </div>
+        <label class="flex-row justify-start gap-2 text-gray mt-1 pointer" style="font-size:13px;">
+          <input type="checkbox" id="sf-carry" class="w-16px h-16px" checked>
+          <span>允許用本月可自由運用手動補入這個準備項目</span>
+        </label>
+        <div id="fund-edit-note" class="text-xs text-gray d-none"></div>
+        <button type="submit" class="sbtn" id="fund-submit-btn">新增準備項目</button>
+        <button type="button" class="sbtn outline d-none" id="fund-cancel-btn">取消編輯</button>
+      </form>
+      <div id="sf-list" class="mt-3"></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">3. 個別類別預算限制 <span class="ct-s">選填</span></div>
       <form class="flex-col" id="form-cat-bud">
         <div class="grid-2">
           <div><label class="flb" for="cb-cat">選擇類別</label><select id="cb-cat"></select></div>
@@ -240,7 +257,7 @@
     </div>
 
     <div class="card">
-      <div class="ct">3. 待購清單 (花費「可亂花的錢」)</div>
+      <div class="ct" id="wish-form-title">4. 待購清單（花費可自由運用）</div>
       <form class="flex-col" id="form-wish">
         <div><label class="flb" for="w-name">物品名稱</label><input type="text" id="w-name" placeholder="例：登山鞋、遊戲機…" required></div>
         <div class="grid-2">
@@ -252,7 +269,9 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="sbtn outline">加入清單</button>
+        <div id="wish-edit-note" class="text-xs text-gray d-none"></div>
+        <button type="submit" class="sbtn outline" id="wish-submit-btn">加入清單</button>
+        <button type="button" class="sbtn outline d-none" id="wish-cancel-btn">取消編輯</button>
       </form>
     </div>
 
@@ -270,7 +289,7 @@
   <!-- 資產負債 -->
   <section id="t-bs" class="sec" aria-labelledby="tab-bs">
     <div class="card">
-      <div class="ct">新增帳戶 / 資產負債</div>
+      <div class="ct" id="bs-form-title">新增帳戶 / 資產負債</div>
       <form class="flex-col" id="form-bs">
         <div><label class="flb" for="bs-n">項目名稱</label><input type="text" id="bs-n" placeholder="例：台幣活存、車貸、外幣" required></div>
         <div class="grid-2">
@@ -290,7 +309,9 @@
           <span>設為 🛡️ 緊急備用金 <span class="text-xs">(不計入退休計畫本金)</span></span>
         </label>
         
-        <button type="submit" class="sbtn">新增項目</button>
+        <div id="bs-edit-note" class="text-xs text-gray d-none"></div>
+        <button type="submit" class="sbtn" id="bs-submit-btn">新增項目</button>
+        <button type="button" class="sbtn outline d-none" id="bs-cancel-btn">取消編輯</button>
       </form>
     </div>
     <div class="card"><div class="ct">資產負債表 <span class="ct-s">即時總和 (不限期間)</span></div><div id="bs-b"></div></div>
@@ -349,6 +370,9 @@
         <button type="button" class="tb" data-action="preset-ret" data-r="10" data-i="3">成長型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬10% 通膨3%</span></button>
         <button type="button" class="tb" data-action="preset-ret" data-r="12" data-i="3">積極型<span class="text-xs text-gray font-mono d-inline-flex w-100 justify-center mt-1">報酬12% 通膨3%</span></button>
       </div>
+      <div class="text-xs text-gray mt-3">
+        參考配置：保守型約股票 20% - 40% / 債券與現金 60% - 80%；平衡型約股票 50% - 60% / 債券 40% - 50%；成長型約股票 70% - 80% / 債券 20% - 30%；積極型約股票 90% 上下 / 債券與現金 10%。
+      </div>
     </div>
     <div class="card">
       <button type="button" class="flex-row icon-btn w-100" data-action="toggle-tbl">
@@ -367,6 +391,28 @@
 </main>
 
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<div id="choice-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="choice-title">
+  <div class="modal-panel">
+    <div class="modal-title" id="choice-title">準備金不足</div>
+    <div class="modal-sub" id="choice-summary"></div>
+    <div class="choice-list">
+      <button type="button" class="choice-card" data-choice="topup">
+        <span class="choice-title">補足差額</span>
+        <span class="choice-desc">先從可自由運用拿差額補進準備金，整筆都算準備金支付。</span>
+      </button>
+      <button type="button" class="choice-card" data-choice="partial">
+        <span class="choice-title">用現有準備金支付一部分</span>
+        <span class="choice-desc">不補錢進準備金，準備金有多少用多少，剩下算本月支出。</span>
+      </button>
+      <button type="button" class="choice-card" data-choice="unlink">
+        <span class="choice-title">取消指定準備</span>
+        <span class="choice-desc">這筆支出不使用準備金，整筆算本月支出。</span>
+      </button>
+    </div>
+    <button type="button" class="sbtn outline" id="choice-cancel">返回修改</button>
+  </div>
+</div>
 
 <!-- legacy inline app moved to ./src/main.js -->
 <script type="module" src="./src/main.js"></script>

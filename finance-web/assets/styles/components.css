@@ -313,6 +313,17 @@
   background: var(--sur2);
 }
 
+.fund-detail-block {
+  margin-top: 10px;
+}
+
+.fund-detail-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tx2);
+}
+
 .detail-row {
   display: flex;
   justify-content: space-between;
@@ -427,6 +438,84 @@
 .wish-price { font-size: 14px; font-weight: 600; font-family: var(--font-mono); text-align: right; }
 .wish-st { font-size: 11px; font-weight: 600; text-align: right; margin-top: 2px; }
 
+.fund-card {
+  border: 1px solid var(--bdr);
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--sur2);
+  margin-bottom: 12px;
+}
+
+.fund-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.fund-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.fund-sub,
+.fund-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--tx3);
+}
+
+.fund-plan-status {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-radius: var(--r);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fund-plan-ok {
+  color: var(--grn);
+  background: var(--grn-bg);
+}
+
+.fund-plan-warn {
+  color: var(--amb);
+  background: var(--amb-bg);
+}
+
+.fund-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.fund-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin-top: 12px;
+}
+
+.fund-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fund-k {
+  font-size: 11px;
+  color: var(--tx3);
+}
+
+.fund-v {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--font-mono);
+}
+
 .toast-container {
   position: fixed;
   bottom: 20px;
@@ -458,6 +547,79 @@
 
 .toast.success { background: var(--grn); }
 .toast.error { background: var(--red); }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(20, 24, 28, 0.42);
+}
+
+.modal-panel {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  border-radius: var(--r);
+  border: 1px solid var(--bdr);
+  background: var(--sur);
+  padding: 18px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.modal-sub {
+  margin-top: 8px;
+  color: var(--tx2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.choice-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.choice-card {
+  width: 100%;
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  background: var(--sur2);
+  color: var(--tx);
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.choice-card:hover,
+.choice-card:focus {
+  border-color: var(--acc);
+  outline: none;
+}
+
+.choice-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.choice-desc {
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 1.5;
+}
 
 @keyframes toastSlideIn {
   from {

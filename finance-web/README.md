@@ -40,6 +40,12 @@ node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:
 firebase deploy --only hosting
 ```
 
+Firestore 規則部署：
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
 ## 維護文件
 
 - `docs/data-model.md`：資料模型。
@@ -47,3 +53,5 @@ firebase deploy --only hosting
 - `docs/report-traceability.md`：報表數字如何追到來源明細。
 - `docs/firebase-status.md`：Firebase 狀態文字規格。
 - `docs/deploy-checklist.md`：部署前檢查。
+- `docs/roadmap.md`：後續開發藍圖。
+- `docs/archive/agent-handoff-2026-05-04.md`：歷史交接文件，僅供追溯舊脈絡。

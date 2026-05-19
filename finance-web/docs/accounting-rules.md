@@ -1,54 +1,74 @@
-# 會計規則與交易影響
+# 會計規則與交易影響 / Accounting Rules And Transaction Effects
 
-這份文件定義理財計算機目前採用的核心會計規則。未來新增功能或修 bug 時，請先確認是否符合這些規則，再修改畫面或報表。
+這份文件定義目前理財計算機採用的核心會計規則。未來新增功能或修 bug 時，請先確認是否符合這些規則。
 
-## 設計原則
+This document defines the app's core accounting rules. Future features and fixes should follow these rules.
 
-- 交易明細 `txs` 是主要事實來源。
-- 報表數字應該由交易、帳戶與設定推導，不要手動儲存第二份總額。
+## 1. 設計原則 / Design Principles
+
+### 中文
+
+- 交易明細 `txs` 是主要帳務事實來源。
+- 報表數字應由交易、帳戶、設定與準備事件推導，不要手動儲存第二份總額。
 - 轉帳不是收入，也不是支出。
 - 代墊不是完整支出，只有自己負擔的部分才算個人支出。
 - 代墊收款不是收入，而是應收款回收。
+- 大額準備的每月提撥是預算規劃，不是帳戶轉帳。
+- 大額準備的 `topup` / `spend` 是準備金事件，不應直接當成一般收入或一般支出。
+- 退休頁是推估工具，不是帳務事實來源。
 
-## 交易類型
+### English
+
+- `txs` is the main accounting source of truth.
+- Report numbers should be derived from transactions, accounts, settings, and fund events. Do not store duplicate totals manually.
+- Transfers are neither income nor expense.
+- Advances are not full personal expenses; only `ownAmount` counts as personal expense.
+- Advance repayments are not income; they are receivable recovery.
+- Planned monthly fund contribution is budget planning, not an account transfer.
+- Fund `topup` / `spend` events are fund events and should not be treated as normal income or normal expenses.
+- The retirement page is a projection tool, not an accounting source of truth.
+
+## 2. 交易類型 / Transaction Types
 
 ### income 收入
-
-收入代表錢流入某個帳戶。
 
 影響：
 
 - 指定帳戶餘額增加 `amount`。
 - 期間收入增加 `amount`。
-- 若分類屬於薪資、獎金、其他收入、被動收入，會進入營運現金流收入。
 - 不增加預算支出。
 - 不直接建立資產負債表手動項目。
 
+Effects:
+
+- Increases the specified account by `amount`.
+- Increases period income by `amount`.
+- Does not increase budget expense.
+- Does not directly create a manual balance-sheet item.
+
 ### expense 支出
-
-支出代表自己真正消費或付出的金額。
-
-若支出有設定「大額支出分攤」，只會改變預算視角，不會改變原始交易金額、帳戶餘額或現金流。
 
 影響：
 
 - 指定帳戶餘額減少 `amount`。
 - 期間支出增加 `amount`。
-- 預算支出在 `actual` 模式下增加 `amount`。
-- 預算支出在 `spread` 模式下，改依分攤月數按月認列。
-- 分類預算跟隨目前預算模式。
 - 現金流支出增加 `amount`。
+- 預算頁生活支出通常增加 `amount`。
+- 若支出指定大額準備，預算頁只計算未被準備覆蓋的部分。
 
-可選欄位：
+Effects:
 
-- `budgetMode`：`normal` 或 `spread`
-- `spreadMonths`：分攤月數
-- `spreadStartMonth`：起始月份，格式 `YYYY-MM`
-- `spreadLabel`：分攤名稱，例如「旅遊基金」
+- Decreases the specified account by `amount`.
+- Increases period expense by `amount`.
+- Increases cash-flow expense by `amount`.
+- Usually increases budget living expense by `amount`.
+- If linked to a large-expense fund, only the uncovered portion counts as budget living expense.
 
 ### transfer 轉帳
 
 轉帳只代表兩個帳戶之間移動資金。
+
+A transfer only moves money between accounts.
 
 影響：
 
@@ -57,40 +77,44 @@
 - 不增加收入。
 - 不增加支出。
 - 不增加預算支出。
-- 不影響現金流收入或支出。
+
+Effects:
+
+- Decreases source account by `amount`.
+- Increases target account by `amount`.
+- Does not increase income.
+- Does not increase expense.
+- Does not increase budget expense.
 
 ### advance 代墊
 
 代墊代表自己先支付全額，但其中一部分是別人之後要還的應收款。
 
-欄位：
-
-- `amount`：實際支付總額。
-- `ownAmount`：自己真正負擔的金額。
-- `receivableAmount`：別人應還金額，通常是 `amount - ownAmount`。
-- `person`：應還款對象。
-- `acc`：付款帳戶。
+An advance means the user paid the full amount first, but part of it is receivable from someone else.
 
 影響：
 
 - 付款帳戶餘額減少 `amount`。
 - 期間支出只增加 `ownAmount`。
 - 預算支出只增加 `ownAmount`。
-- 分類預算只增加 `ownAmount`。
 - 現金流支出只增加 `ownAmount`。
-- 資產負債表增加一筆應收款 `receivableAmount - repayments`。
+- 資產負債表增加未收回的 `receivableAmount - repayments`。
 - 不增加收入。
+
+Effects:
+
+- Decreases payment account by `amount`.
+- Increases period expense only by `ownAmount`.
+- Increases budget expense only by `ownAmount`.
+- Increases cash-flow expense only by `ownAmount`.
+- Adds outstanding `receivableAmount - repayments` to the balance sheet.
+- Does not increase income.
 
 ### advance_repayment 代墊收款
 
-代墊收款代表別人把代墊款還給你。
+代墊收款代表對方把代墊款還給你。
 
-欄位：
-
-- `advanceId`：對應原始 `advance` 交易。
-- `amount`：本次收回金額。
-- `acc`：收款帳戶。
-- `person`：還款對象。
+Advance repayment means someone repaid an advance.
 
 影響：
 
@@ -99,11 +123,16 @@
 - 不增加收入。
 - 不增加支出。
 - 不增加預算收入或支出。
-- 不增加現金流收入。
 
-## 帳戶餘額公式
+Effects:
 
-每個帳戶餘額由以下規則推導：
+- Increases receiving account by `amount`.
+- Reduces the outstanding amount of the linked advance.
+- Does not increase income.
+- Does not increase expense.
+- Does not increase budget income or expense.
+
+## 3. 帳戶餘額公式 / Account Balance Formula
 
 ```text
 accountBalance =
@@ -116,9 +145,11 @@ accountBalance =
   - transferOut.amount
 ```
 
-注意：代墊會讓付款帳戶減少全額，因為現金真的先流出了；但報表支出只認列自己負擔的部分。
+注意：大額準備的每月提撥不是帳戶轉帳，不應直接影響帳戶餘額。
 
-## 應收款公式
+Note: planned monthly fund contributions are not account transfers and should not directly affect account balances.
+
+## 4. 應收款公式 / Receivable Formula
 
 ```text
 outstandingAmount = receivableAmount - sum(advance_repayment.amount)
@@ -126,54 +157,213 @@ outstandingAmount = receivableAmount - sum(advance_repayment.amount)
 
 若 `outstandingAmount > 0`，資產負債表應顯示為應收款資產。
 
-若 `outstandingAmount === 0`，表示該代墊已收回，不再列入未收應收款。
+If `outstandingAmount > 0`, the balance sheet should show it as receivable asset.
 
-## 預算公式
+## 5. 大額支出準備規則 / Large-Expense Fund Rules
 
-```text
-budgetExpense =
-  sum(expense.amount)
-  + sum(advance.ownAmount)
-```
+### 中文
 
-若預算模式為 `spread`，則有分攤設定的 `expense` 不直接使用交易日全額，而改以分攤表計算：
+大額支出準備不是銀行帳戶，也不是資產負債表項目。它是預算規劃工具，用來避免大額支出一次吃掉當月生活支出。
+
+準備金累積由以下內容推導：
 
 ```text
-monthlySpreadAmount = expense.amount / spreadMonths
-periodBudgetExpense =
-  sum(normalExpense.amount in range)
-  + sum(advance.ownAmount in range)
-  + sum(spreadExpense.monthlySpreadAmount in overlapped months)
+準備目前累積 =
+  每月規劃提撥累積
+  + topup events
+  - spend events
 ```
 
-以下交易不應進入預算：
+規則：
 
-- `income`
-- `transfer`
-- `advance_repayment`
-- `advance.receivableAmount`
+- `monthlyContribution` 代表每月規劃提撥，會進入預算頁「本月大額準備」。
+- `topup` 代表額外補入，會扣本月可自由運用。
+- `spend` 代表動用準備，會降低準備目前累積。
+- 支出若被準備覆蓋，不應再重複算進本月生活支出。
+- 支出若部分被準備覆蓋，只有未覆蓋部分算本月生活支出。
 
-## 現金流公式
+### English
 
-目前現金流採用簡化口徑：
+A large-expense fund is not a bank account and not a balance-sheet item. It is a budget planning tool that prevents large expenses from fully consuming the current month's living budget.
 
-- 營運收入：薪資、獎金、其他收入、被動收入。
-- 營運支出：支出與代墊中的自己負擔部分。
-- 投資收入：投資收益、股息收入。
+Fund balance is derived from:
 
 ```text
-netOperating = operatingIncome - operatingExpense
-netTotal = netOperating + investingIncome
+fund balance =
+  accumulated planned monthly contributions
+  + topup events
+  - spend events
 ```
 
-## 維護檢查點
+Rules:
 
-修改交易或報表相關功能時，至少檢查：
+- `monthlyContribution` is planned monthly allocation and appears as current-month fund allocation in the budget page.
+- `topup` means extra money added and reduces current-month free-to-use budget.
+- `spend` means money used from the fund and reduces fund balance.
+- If an expense is covered by a fund, it should not also count as current-month living expense.
+- If an expense is partially covered by a fund, only the uncovered portion counts as current-month living expense.
 
-- 轉帳是否仍不算收入與支出。
-- 代墊是否只把 `ownAmount` 算進支出與預算。
-- 代墊收款是否不算收入。
-- 大額分攤是否只影響預算，不影響帳戶餘額與現金流。
-- `actual` 與 `spread` 模式切換時，原始交易是否仍保持同一筆。
-- 帳戶餘額是否反映真實現金流出入。
-- 資產負債表是否包含未收回的應收款。
+編輯規則：
+
+- 編輯名稱、分類、目標金額、每月提撥、開始月份、目標月份或備註時，既有 `topup` / `spend` events 會保留。
+- 修改 `monthlyContribution`、`startMonth` 或 `targetMonth` 後，系統會依新設定直接重算過去與未來的規劃提撥。
+- 這表示目前採用的是「重新解讀整段規劃」模式，還不是「只影響未來月份」模式。
+
+Editing rules:
+
+- Editing name, category, target amount, monthly contribution, start month, target month, or note preserves existing `topup` / `spend` events.
+- Changing `monthlyContribution`, `startMonth`, or `targetMonth` directly recalculates past and future planned contributions using the new settings.
+- This means the current model reinterprets the whole plan. It does not yet support a "future months only" edit mode.
+
+## 6. 可自由運用公式 / Free-To-Use Formula
+
+```text
+可自由運用 =
+  本月可支配預算
+  - 本月生活支出
+  - 本月大額準備
+  - 本月手動補入
+```
+
+```text
+freeToUse =
+  monthly budget cap
+  - living expenses
+  - planned fund contributions
+  - manual fund top-ups
+```
+
+維護重點：
+
+- `本月生活支出` 必須排除已由準備覆蓋的金額。
+- `本月大額準備` 來自每月規劃提撥。
+- `本月手動補入` 來自本期 `topup` events。
+
+Maintenance points:
+
+- `living expenses` must exclude amounts covered by funds.
+- `planned fund contributions` come from monthly planned contributions.
+- `manual fund top-ups` come from `topup` events in the period.
+
+## 7. 準備金不足時 / When Fund Balance Is Insufficient
+
+### 中文
+
+當支出指定大額準備但準備不足時，未來應讓使用者選：
+
+1. 補足差額後整筆由準備支付。
+2. 準備只支付目前有的部分，剩下算本月生活支出。
+3. 取消指定準備，整筆算本月生活支出。
+
+不應過度自動幫使用者決定錢從哪裡來。
+
+### English
+
+When an expense is linked to a fund but the fund balance is insufficient, the future UI should let the user choose:
+
+1. Top up the shortfall and cover the full expense from the fund.
+2. Use only the current fund balance and count the rest as current-month living expense.
+3. Remove the fund link and count the full expense as current-month living expense.
+
+The system should not over-automate where the money comes from.
+
+## 8. 刪除與交易編輯 / Delete And Transaction Edit Rules
+
+### 中文
+
+刪除交易時：
+
+- 交易相關的 `spend` / `topup` events 必須同步刪除。
+
+編輯交易時：
+
+- 已指定準備的交易若修改金額，應先解除指定。
+- 原本連動的準備事件應先移除。
+- 使用者重新決定是否使用準備、使用多少、差額從哪裡來。
+- 如果交易改成不指定準備，原本相關準備事件應刪除。
+
+### English
+
+When deleting a transaction:
+
+- Related `spend` / `topup` events must be removed as well.
+- If the deleted transaction is an advance, its linked `advance_repayment` rows must be removed as well.
+
+For transaction editing:
+
+- If a linked transaction amount changes, unlink it first.
+- Remove previous linked fund events first.
+- Let the user decide again whether to use a fund, how much to use, and where any difference should come from.
+- If the transaction is edited to no longer use a fund, remove previous related fund events.
+
+### 補充：代墊與還款編輯 / Addendum: Advance And Repayment Editing
+
+- 若代墊已經有還款紀錄，重新編輯後的應收金額不得低於已還款總額。
+- 編輯代墊時，畫面應提示目前已還多少，避免使用者把應收改到與既有還款互相衝突。
+- 還款可修改金額、日期、入帳帳戶，但仍必須保留原本的 `advanceId` 關聯。
+- 編輯某一筆還款時，新的還款金額不得超過「原始應收金額 - 其他還款總額」。
+
+- If repayments already exist, the edited receivable amount of the advance must stay greater than or equal to the total amount already repaid.
+- While editing an advance, the UI should show how much has already been repaid.
+- A repayment may edit amount, date, and receiving account, but it must keep the same `advanceId` link.
+- When editing one repayment, the new repayment amount must not exceed `original receivable amount - total of all other repayments`.
+
+## 9. 本機與雲端限制 / Local And Cloud Limitation
+
+### 中文
+
+目前本機資料仍使用固定 localStorage key，尚未依 Google `uid` 分流。雲端資料則依 Firebase 使用者 `uid` 儲存。
+
+因此，同一瀏覽器切換多個 Google 帳號時，本機資料可能顯示最近一次載入或同步的內容。
+
+短期先用文件與 UI 說明，不急著做複雜合併。未來可在登入時詢問使用本機、使用雲端或嘗試合併，並提供清除此裝置資料功能。
+
+### English
+
+Local data currently uses fixed localStorage keys and is not separated by Google `uid`. Cloud data is stored by Firebase user `uid`.
+
+Therefore, switching multiple Google accounts in the same browser may show the most recently loaded or synced data.
+
+Short term: document and explain this in the UI. Do not rush complex merging. Future sign-in can ask whether to use local data, cloud data, or attempt a merge, and can provide a "clear this device data" action.
+
+## 10. 退休頁定位 / Retirement Page Positioning
+
+### 中文
+
+退休頁維持個人估算器定位：
+
+- 自訂報酬率、通膨、退休年齡、壽命、每月提領是主邏輯。
+- 4% 法則只是額外參考。
+- 不把 4% 法則當成主要警告依據。
+- 推估結果不寫回交易、帳戶或資產負債表。
+
+### English
+
+The retirement page remains a personal estimator:
+
+- Custom return rate, inflation, retirement age, lifespan, and monthly withdrawal are the main logic.
+- The 4% rule is only an additional reference.
+- Do not use the 4% rule as the main warning logic.
+- Projection results should not write back to transactions, accounts, or the balance sheet.
+
+## 11. 維護檢查點 / Maintenance Checklist
+
+修改交易、預算、大額準備、資產負債或退休頁時，請確認：
+
+- 轉帳仍不算收入與支出。
+- 代墊只把 `ownAmount` 算進個人支出。
+- 代墊收款仍不算收入。
+- 大額準備覆蓋的支出沒有重複算進生活支出。
+- 手動補入有扣本月可自由運用。
+- 大額準備每月提撥沒有被誤當成帳戶轉帳。
+- 退休頁結果沒有被當成帳務事實。
+
+When changing transactions, budget, funds, balance sheet, or retirement page, verify:
+
+- Transfers are still neither income nor expense.
+- Advances count only `ownAmount` as personal expense.
+- Advance repayments are still not income.
+- Fund-covered expenses are not counted again as living expenses.
+- Manual top-ups reduce current-month free-to-use budget.
+- Planned monthly fund contributions are not treated as account transfers.
+- Retirement projections are not treated as accounting facts.

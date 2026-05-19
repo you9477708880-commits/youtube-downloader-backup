@@ -270,3 +270,30 @@
 .gap-1 { gap: 4px; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
+
+@media (min-width: 900px) {
+  .hdr-top {
+    padding: 18px 28px;
+  }
+
+  .nav {
+    padding: 0 16px;
+  }
+
+  .nav button {
+    min-width: 120px;
+    padding: 14px 10px;
+    font-size: 14px;
+  }
+
+  .app-content {
+    max-width: none;
+    margin: 0;
+    padding: 24px 28px 40px;
+  }
+
+  .sec {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+}

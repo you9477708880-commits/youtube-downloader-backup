@@ -38,6 +38,7 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
   let principalBalance = principal;
   let contributionBalance = 0;
   let paid = principal;
+  let depletedAtMonthIndex = null;
 
   for (let year = 0; year <= Math.max(0, Math.min(deathAge, 120) - currentAge); year += 1) {
     const age = currentAge + year;
@@ -65,6 +66,10 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
 
         principalBalance *= 1 + principalMonthlyRate;
         contributionBalance *= 1 + contributionMonthlyRate;
+
+        if (depletedAtMonthIndex === null && principalBalance + contributionBalance <= 1) {
+          depletedAtMonthIndex = (age - retirementAge) * 12 + month + 1;
+        }
       }
     }
 
@@ -82,6 +87,19 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
   const retirementValue = retirementRow ? retirementRow.balance : 0;
   const achievement = targetAsset > 0 ? (retirementValue / targetAsset) * 100 : 100;
   const gain = Math.max(0, retirementValue - (retirementRow ? retirementRow.paid : 0));
+  const retirementYears = Math.max(1, deathAge - retirementAge);
+  const retirementMonths = retirementYears * 12;
+  const realAnnualReturn = (1 + principalAnnualReturn) / (1 + inflation) - 1;
+  const realMonthlyReturn = realAnnualReturn / 12;
+  const minimumRequiredAsset =
+    realMonthlyReturn > 0
+      ? monthlyWithdraw * ((1 - Math.pow(1 + realMonthlyReturn, -retirementMonths)) / realMonthlyReturn)
+      : monthlyWithdraw * retirementMonths;
+  const targetTooLow = targetAsset < minimumRequiredAsset;
+  const depletedAgeLabel =
+    depletedAtMonthIndex === null
+      ? ""
+      : `${retirementAge + Math.floor(depletedAtMonthIndex / 12)}歲${depletedAtMonthIndex % 12 ? `${depletedAtMonthIndex % 12}個月` : ""}`;
 
   return {
     retirementReadyAsset,
@@ -97,5 +115,8 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
     inflation,
     monthlyContribution,
     monthlyWithdraw,
+    minimumRequiredAsset,
+    targetTooLow,
+    depletedAgeLabel,
   };
 }
