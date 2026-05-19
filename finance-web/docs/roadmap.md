@@ -367,7 +367,83 @@ Important test directions:
 - Deleting linked transactions should remove linked fund events.
 - Unreachable target month plans should be detectable and visible.
 
-## 8. 相關文件 / Related Documents
+## 8. Git 與部署節奏 / Git And Deployment Cadence
+
+### 中文
+
+開發流程分成三個層級：
+
+1. **本機 commit**
+   - 可以相對頻繁。
+   - 完成一個小段落、文件整理、測試通過的 bug fix，就可以提交。
+   - 目的主要是保留可回復點，不等於正式發布。
+
+2. **遠端 push**
+   - 不需要每次小修改都推送。
+   - 建議在以下情況推送：
+     - 完成一個可描述的功能段落。
+     - 完成一批相關 bug fix。
+     - 準備部署 Firebase Hosting 前。
+     - 一段工作結束，想把本機成果備份到 GitHub。
+     - 涉及資安、資料完整性、帳務計算等高風險修正，且已測試通過。
+   - 一般文件筆記、小型 roadmap 調整或討論性紀錄，可以先留在本機 commit，累積後再推。
+
+3. **正式部署**
+   - 只在需要讓正式網站更新時執行。
+   - push 到 GitHub 不代表已部署。
+   - 部署前應至少通過語法檢查、domain tests，若牽涉 UI 流程再跑 smoke test。
+
+合理頻率建議：
+
+- 日常開發：本機 commit 可以一天多次，push 約一天結束時一次，或完成一批相關工作後一次。
+- 小型文件更新：可累積 2 到 5 筆本機 commit 後再 push。
+- 重要 bug / 資安 / 資料完整性修正：測試通過後可以立即 push，但仍不自動部署。
+- 正式部署：以「功能穩定、測試通過、使用者確認」為準，不以 commit 數量為準。
+
+預設協作規則：
+
+- 修改與測試可以由 Codex 直接協助完成。
+- 本機 commit 前應說明本次提交內容。
+- 遠端 push 與 Firebase deploy 都應視為較正式步驟，預設先徵求確認。
+
+### English
+
+The development flow has three separate levels:
+
+1. **Local commits**
+   - Can be relatively frequent.
+   - Commit after a small completed unit, documentation cleanup, or tested bug fix.
+   - The purpose is a local recovery point, not a release.
+
+2. **Remote push**
+   - Does not need to happen after every small edit.
+   - Push when:
+     - A describable feature slice is complete.
+     - A related batch of bug fixes is complete.
+     - Preparing for Firebase Hosting deployment.
+     - Ending a work session and wanting a GitHub backup.
+     - Security, data-integrity, or accounting-calculation fixes are tested and should be preserved remotely.
+   - Small notes, roadmap tweaks, and discussion records can stay as local commits and be pushed in a later batch.
+
+3. **Production deployment**
+   - Run only when the production website should change.
+   - Pushing to GitHub does not mean the site is deployed.
+   - Before deployment, pass syntax checks and domain tests; run smoke tests when UI flows are affected.
+
+Recommended cadence:
+
+- Daily development: local commits may happen multiple times per day; push once near the end of a work session or after a related batch is complete.
+- Small documentation updates: accumulate 2 to 5 local commits before pushing.
+- Important bug / security / data-integrity fixes: push after tests pass, but do not deploy automatically.
+- Production deployment: based on stable functionality, passing tests, and user confirmation, not commit count.
+
+Default collaboration rule:
+
+- Codex may help edit and test directly.
+- Before a local commit, summarize what is being committed.
+- Remote push and Firebase deploy are more formal steps and should be confirmed first by default.
+
+## 9. 相關文件 / Related Documents
 
 ### 中文
 
@@ -403,7 +479,7 @@ If documents conflict, recommended priority:
 4. `docs/roadmap.md`
 5. `docs/archive/agent-handoff-2026-05-04.md`
 
-## 9. AndroMoney 相容規劃 / AndroMoney Compatibility Plan
+## 10. AndroMoney 相容規劃 / AndroMoney Compatibility Plan
 
 ### 中文
 
