@@ -1,3 +1,4 @@
+import { CURRENT_SCHEMA_VERSION, DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { toMoneyInt } from "./format.js";
 
 function normalizeList(list, normalizeItem) {
@@ -10,10 +11,27 @@ function normalizeCatBudgets(catBudgets) {
   );
 }
 
+function normalizeCategoryText(value, fallback = "") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function normalizeTransactionCategory(tx) {
+  const category = normalizeCategoryText(tx.category, normalizeCategoryText(tx.cat, DEFAULT_SUBCATEGORY));
+  const subcategory = normalizeCategoryText(tx.subcategory, DEFAULT_SUBCATEGORY);
+
+  tx.category = category;
+  tx.subcategory = subcategory;
+  tx.cat = category;
+  return tx;
+}
+
 export function normalizeFinanceStateMoney(state) {
   const next = {
     ...state,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     txs: normalizeList(state.txs, (tx) => {
+      normalizeTransactionCategory(tx);
       tx.amount = toMoneyInt(tx.amount);
       if ("ownAmount" in tx) tx.ownAmount = toMoneyInt(tx.ownAmount);
       if ("receivableAmount" in tx) tx.receivableAmount = Math.max(0, toMoneyInt(tx.receivableAmount));

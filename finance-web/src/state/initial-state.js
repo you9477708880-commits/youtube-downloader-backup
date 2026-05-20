@@ -1,7 +1,8 @@
-import { DEFAULT_ACCOUNTS, DEFAULT_SETTINGS } from "../config/constants.js";
+import { CURRENT_SCHEMA_VERSION, DEFAULT_ACCOUNTS, DEFAULT_SETTINGS } from "../config/constants.js";
 
 export function createInitialState() {
   return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     txType: "expense",
     txs: [],
     bsI: [],

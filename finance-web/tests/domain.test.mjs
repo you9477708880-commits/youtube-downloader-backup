@@ -371,6 +371,43 @@ function testMoneyNormalization() {
   assert.equal(formatMoney("not-a-number"), "NT$ 0");
 }
 
+function testCategorySchemaMigration() {
+  const normalized = normalizeFinanceStateMoney({
+    txs: [
+      { id: 1, type: "expense", amount: 1000, desc: "舊資料", date: "2026-04-01", cat: "餐飲", acc: "cash" },
+      { id: 2, type: "income", amount: 2000, desc: "新資料", date: "2026-04-02", category: "副業收入", subcategory: "網拍", acc: "bank" },
+      { id: 3, type: "expense", amount: 3000, desc: "缺分類", date: "2026-04-03", acc: "cash" },
+    ],
+    bsI: [],
+    wishes: [],
+    accounts: [],
+    sinkingFunds: [],
+    settings: {},
+  });
+
+  assert.equal(normalized.schemaVersion, 2);
+  assert.equal(normalized.txs[0].category, "餐飲");
+  assert.equal(normalized.txs[0].subcategory, "未分類");
+  assert.equal(normalized.txs[0].cat, "餐飲");
+  assert.equal(normalized.txs[1].category, "副業收入");
+  assert.equal(normalized.txs[1].subcategory, "網拍");
+  assert.equal(normalized.txs[1].cat, "副業收入");
+  assert.equal(normalized.txs[2].category, "未分類");
+  assert.equal(normalized.txs[2].subcategory, "未分類");
+
+  const tx = buildTransaction({
+    txType: "expense",
+    amount: "1000",
+    desc: "新交易",
+    date: "2026-04-04",
+    category: "購物",
+    accountId: "cash",
+  });
+  assert.equal(tx.category, "購物");
+  assert.equal(tx.subcategory, "未分類");
+  assert.equal(tx.cat, "購物");
+}
+
 function testTransactionIdsAreNotDateNowOnly() {
   const tx = buildTransaction({
     txType: "expense",
@@ -916,6 +953,7 @@ testFundTargetPlanStatus();
 testBalanceSheet();
 testTraceabilityHelpers();
 testMoneyNormalization();
+testCategorySchemaMigration();
 testTransactionIdsAreNotDateNowOnly();
 testDeletedAccountFallbackKeepsHistoricalBalance();
 testStateMoneyNormalization();

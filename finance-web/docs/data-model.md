@@ -12,6 +12,7 @@ The whole app state is stored as one state object and synced to localStorage / F
 
 ```js
 {
+  schemaVersion: 2,
   txType: "expense",
   txs: [],
   bsI: [],
@@ -31,6 +32,7 @@ The whole app state is stored as one state object and synced to localStorage / F
 ### 中文
 
 - `txs` 是交易事實來源，代表實際發生的收入、支出、轉帳、代墊與代墊收款。
+- `schemaVersion` 是資料形狀版本，目前版本為 `2`。
 - `accounts.initialBalance` 是帳戶起始餘額來源。
 - `bsI` 是手動資產 / 負債來源。
 - `sinkingFunds` 是大額支出準備的設定來源。
@@ -40,6 +42,7 @@ The whole app state is stored as one state object and synced to localStorage / F
 ### English
 
 - `txs` is the source of truth for actual transactions: income, expenses, transfers, advances, and advance repayments.
+- `schemaVersion` records the normalized data-shape version. Current version: `2`.
 - `accounts.initialBalance` is the source for account starting balances.
 - `bsI` stores manual assets and liabilities.
 - `sinkingFunds` stores large-expense fund settings.
@@ -61,9 +64,15 @@ The whole app state is stored as one state object and synced to localStorage / F
   amount,
   desc,
   date,
-  cat
+  cat,
+  category,
+  subcategory
 }
 ```
+
+`category` 是新的主分類欄位，`subcategory` 是新的子分類欄位。舊欄位 `cat` 目前保留作為相容欄位。載入舊資料時，系統會用 `cat` 補出 `category`，並把缺少的 `subcategory` 補成「未分類」。
+
+`category` is the new primary category field, and `subcategory` is the new secondary category field. Legacy `cat` remains as a compatibility field. When older data is loaded, the system fills `category` from `cat` and fills missing `subcategory` with `未分類`.
 
 ### income
 

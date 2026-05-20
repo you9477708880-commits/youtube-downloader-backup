@@ -1,3 +1,4 @@
+import { DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { toMoneyInt } from "../utils/format.js";
 
 export function createTransactionId(prefix = "tx") {
@@ -17,12 +18,21 @@ export function compareTransactionsByDateDesc(a, b) {
   return String(b?.id || "").localeCompare(String(a?.id || ""));
 }
 
+export function getTransactionCategory(tx) {
+  return String(tx?.category || tx?.cat || DEFAULT_SUBCATEGORY);
+}
+
+export function getTransactionSubcategory(tx) {
+  return String(tx?.subcategory || DEFAULT_SUBCATEGORY);
+}
+
 export function buildTransaction({
   txType,
   amount,
   desc,
   date,
   category,
+  subcategory,
   accountId,
   fromAcc,
   toAcc,
@@ -40,22 +50,27 @@ export function buildTransaction({
     amount: toMoneyInt(amount),
     desc: (desc || "").trim(),
     date,
+    category: category || DEFAULT_SUBCATEGORY,
+    subcategory: subcategory || DEFAULT_SUBCATEGORY,
   };
 
   if (txType === "transfer") {
     tx.fromAcc = fromAcc;
     tx.toAcc = toAcc;
     tx.cat = "轉帳";
+    tx.category = "轉帳";
   } else if (txType === "advance") {
     const own = Math.max(0, toMoneyInt(ownAmount));
     tx.acc = accountId;
-    tx.cat = category;
+    tx.category = category || DEFAULT_SUBCATEGORY;
+    tx.cat = tx.category;
     tx.ownAmount = Math.min(own, tx.amount);
     tx.receivableAmount = Math.max(0, tx.amount - tx.ownAmount);
     tx.person = person.trim() || "未指定";
   } else {
     tx.acc = accountId;
-    tx.cat = category;
+    tx.category = category || DEFAULT_SUBCATEGORY;
+    tx.cat = tx.category;
     if (txType === "expense" && linkedFundId) {
       tx.linkedFundId = linkedFundId;
     }
@@ -79,6 +94,8 @@ export function buildAdvanceRepayment({ advanceId, amount, date, accountId, pers
     date,
     acc: accountId,
     cat: "代墊收款",
+    category: "代墊收款",
+    subcategory: DEFAULT_SUBCATEGORY,
     desc: `${person || "對方"} 還款`,
     person: person || "未指定",
   };
@@ -149,7 +166,8 @@ export function summarizeExpenseCategories(txs) {
   txs.forEach((tx) => {
     const expense = getPersonalExpenseAmount(tx);
     if (expense <= 0) return;
-    expenseMap[tx.cat] = (expenseMap[tx.cat] || 0) + expense;
+    const category = getTransactionCategory(tx);
+    expenseMap[category] = (expenseMap[category] || 0) + expense;
   });
   return Object.entries(expenseMap).sort((a, b) => b[1] - a[1]);
 }
@@ -157,11 +175,11 @@ export function summarizeExpenseCategories(txs) {
 export function summarizeCashFlow(txs) {
   const investingIncomeCategories = ["投資收益", "股息收入"];
   const operatingIncome = txs
-    .filter((tx) => tx.type === "income" && !investingIncomeCategories.includes(tx.cat))
+    .filter((tx) => tx.type === "income" && !investingIncomeCategories.includes(getTransactionCategory(tx)))
     .reduce((sum, tx) => sum + tx.amount, 0);
   const operatingExpense = txs.reduce((sum, tx) => sum + getPersonalExpenseAmount(tx), 0);
   const investingIncome = txs
-    .filter((tx) => tx.type === "income" && investingIncomeCategories.includes(tx.cat))
+    .filter((tx) => tx.type === "income" && investingIncomeCategories.includes(getTransactionCategory(tx)))
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   return {

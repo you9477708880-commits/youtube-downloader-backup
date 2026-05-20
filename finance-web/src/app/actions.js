@@ -244,6 +244,7 @@ export function createActions(context) {
         desc: dom.inputDesc.value,
         date: dom.inputDate.value,
         category: dom.inputCategory.value,
+        subcategory: "未分類",
         accountId: dom.inputAccount.value,
         fromAcc: dom.inputFromAccount.value,
         toAcc: dom.inputToAccount.value,

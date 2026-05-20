@@ -60,7 +60,7 @@ function isOptionalMonthString(value) {
 
 function isValidTransaction(tx) {
   if (!isPlainObject(tx) || !isSafeId(tx.id) || !VALID_TX_TYPES.has(tx.type) || !isMoneyLike(tx.amount) || !isDateString(tx.date)) return false;
-  if (!isOptionalString(tx.desc) || !isOptionalString(tx.cat) || !isOptionalId(tx.acc) || !isOptionalId(tx.linkedFundId)) return false;
+  if (!isOptionalString(tx.desc) || !isOptionalString(tx.cat) || !isOptionalString(tx.category, 200) || !isOptionalString(tx.subcategory, 200) || !isOptionalId(tx.acc) || !isOptionalId(tx.linkedFundId)) return false;
   if (!isOptionalId(tx.fromAcc) || !isOptionalId(tx.toAcc) || !isOptionalId(tx.advanceId)) return false;
   if (!isOptionalString(tx.person) || !isOptionalString(tx.spreadLabel)) return false;
   if ("ownAmount" in tx && !isMoneyLike(tx.ownAmount)) return false;
@@ -144,6 +144,7 @@ function isValidSettings(settings) {
 
 export function isValidImportShape(data) {
   if (!isPlainObject(data) || hasDangerousKey(data)) return false;
+  if ("schemaVersion" in data && !Number.isSafeInteger(Number(data.schemaVersion))) return false;
   if (!Array.isArray(data.txs) || !data.txs.every(isValidTransaction)) return false;
   if (!Array.isArray(data.bsI) || !data.bsI.every(isValidBalanceSheetItem)) return false;
   if (!Array.isArray(data.accounts) || !data.accounts.every(isValidAccount)) return false;

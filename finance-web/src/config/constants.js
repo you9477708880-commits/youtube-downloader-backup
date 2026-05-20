@@ -1,4 +1,6 @@
 export const APP_ID = "default-finance-app";
+export const CURRENT_SCHEMA_VERSION = 2;
+export const DEFAULT_SUBCATEGORY = "未分類";
 
 export const STORAGE_KEYS = {
   txs: "fin_v6_txs",
