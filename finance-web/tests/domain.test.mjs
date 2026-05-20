@@ -27,6 +27,7 @@ import { renderLedger } from "../src/views/ledger-view.js";
 import { renderWishlist } from "../src/views/wishlist-view.js";
 import { renderBalanceSheet } from "../src/views/balance-sheet-view.js";
 import { renderRetirement } from "../src/views/retirement-view.js";
+import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../src/services/andromoney-csv.js";
 import { isValidImportShape } from "../src/services/import-export.js";
 import { loadLocalState } from "../src/services/storage-local.js";
 import { createInitialState } from "../src/state/initial-state.js";
@@ -407,6 +408,38 @@ function testCategorySchemaMigration() {
   assert.equal(tx.category, "購物");
   assert.equal(tx.subcategory, "3C");
   assert.equal(tx.cat, "購物");
+}
+
+function testAndroMoneyCsvConversionPreservesTwoCategoryLevels() {
+  const csv = [
+    '"Google Documents","理財幫手AndroMoney","20260518"',
+    '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
+    '"6542","TWD","209","餐飲食品","午餐","20251103","台新銀行","","波奇波奇","","","","uid-meal","1202"',
+    '"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","政府普發","","","","uid-income","1020"',
+    '"6544","TWD","3000","帳目整理","帳目整理","20251105","現金","台新銀行","轉入銀行","","","","uid-transfer","1538"',
+  ].join("\n");
+
+  const parsed = parseAndroMoneyCsv(csv, { accountMap: { 台新銀行: "bank", 現金: "cash" } });
+  assert.deepEqual(parsed.unmappedAccounts, []);
+  assert.equal(parsed.transactions.length, 3);
+  assert.equal(parsed.transactions[0].type, "expense");
+  assert.equal(parsed.transactions[0].category, "餐飲食品");
+  assert.equal(parsed.transactions[0].subcategory, "午餐");
+  assert.equal(parsed.transactions[0].acc, "bank");
+  assert.equal(parsed.transactions[0].externalSource, "andromoney");
+  assert.equal(parsed.transactions[0].externalId, "6542");
+  assert.equal(parsed.transactions[1].type, "income");
+  assert.equal(parsed.transactions[1].acc, "bank");
+  assert.equal(parsed.transactions[2].type, "transfer");
+  assert.equal(parsed.transactions[2].category, "帳目整理");
+  assert.equal(parsed.transactions[2].subcategory, "帳目整理");
+  assert.equal(parsed.transactions[2].fromAcc, "cash");
+  assert.equal(parsed.transactions[2].toAcc, "bank");
+
+  const exported = buildAndroMoneyCsv(parsed.transactions, accounts, { includeBom: false, generatedDate: new Date(2026, 4, 20) });
+  assert.match(exported, /^"Google Documents","理財幫手AndroMoney","20260520"/);
+  assert.match(exported, /"餐飲食品","午餐","20251103","銀行",""/);
+  assert.match(exported, /"一般收入","其他","20251104","","銀行"/);
 }
 
 function testTransactionIdsAreNotDateNowOnly() {
@@ -955,6 +988,7 @@ testBalanceSheet();
 testTraceabilityHelpers();
 testMoneyNormalization();
 testCategorySchemaMigration();
+testAndroMoneyCsvConversionPreservesTwoCategoryLevels();
 testTransactionIdsAreNotDateNowOnly();
 testDeletedAccountFallbackKeepsHistoricalBalance();
 testStateMoneyNormalization();

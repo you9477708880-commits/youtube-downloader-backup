@@ -157,7 +157,8 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 1. **交易分類模型升級**
    - 第一階段資料遷移已完成：舊交易會補齊 `category` / `subcategory`，且 `subcategory` 不會是 `undefined`。
    - 第二階段 UI 輸入已完成：新增 / 編輯交易能輸入主分類與子分類，子分類可從建議選取也可自由輸入。
-   - 下一步是匯入匯出層：為 AndroMoney CSV 保留兩層分類，並決定自訂主分類 / 子分類的管理方式。
+   - 第三階段匯入匯出核心已完成：已建立 AndroMoney CSV 解析 / 產生工具，可保留主分類、子分類、外部 ID 與 uid。
+   - 下一步是 UI 與使用者確認流程：CSV 匯入時要提供帳戶對應畫面，並決定重複外部交易要略過或更新。
    - 新 UI、分組、統計、匯入匯出應只讀取經遷移後的資料形狀，避免舊資料造成白畫面。
 
 ### English
@@ -167,7 +168,8 @@ Recommended immediate priorities:
 1. **Transaction category model upgrade**
    - Phase 1 data migration is complete: older transactions are filled with `category` / `subcategory`, and `subcategory` is never left as `undefined`.
    - Phase 2 UI input is complete: add/edit transaction flows can capture primary category and subcategory, and subcategories can be selected from suggestions or typed freely.
-   - The next step is the import/export layer: AndroMoney CSV should preserve both levels, and custom primary/subcategory management should be decided.
+   - Phase 3 import/export core is complete: AndroMoney CSV parsing and generation helpers can preserve primary category, subcategory, external IDs, and uid values.
+   - The next step is UI and confirmation flow: CSV import should show account mapping, then decide whether duplicate external transactions are skipped or updated.
    - New UI, grouping, reporting, import, and export code should consume the migrated data shape so older data cannot blank the page.
 
 ## 5. 中期重構 / Mid-Term Refactors
@@ -551,6 +553,8 @@ AndroMoney CSV 適合作為「手機端交易交換格式」，但不適合作�
    - 載入舊資料時強制補齊 `subcategory`，不可讓 UI 收到 `undefined`。
    - 補分類模型相關 domain tests 與 smoke scenario。
 3. 建立 AndroMoney CSV 匯入：
+   - 核心 CSV 解析已完成，可將付款帳戶轉成支出、收款帳戶轉成收入、同時有付款與收款時轉成轉帳。
+   - 解析結果會保留 `category`、`subcategory`、`externalSource`、`externalId`、`externalUid` 與 `externalTime`。
    - 自動辨識格式
    - 先顯示匯入預覽
    - 匯入時由使用者手動對應帳戶名稱
@@ -558,6 +562,7 @@ AndroMoney CSV 適合作為「手機端交易交換格式」，但不適合作�
    - 以 `externalSource` / `externalId` / `externalUid` 避免重複匯入
    - CSV 匯入只建立或更新一般交易層，不嘗試與網站完整備份 JSON 合併。
 4. 建立 AndroMoney 相容 CSV 匯出：
+   - 核心 CSV 產生已完成，網站交易可輸出成 AndroMoney 欄位順序，並保留主分類 / 子分類。
    - 只輸出手機端可理解的交易層
    - 不把網站專屬的大額準備事件硬塞進 CSV
 5. 保留單一 JSON 完整備份 / 還原：
@@ -609,6 +614,8 @@ Recommended implementation order:
    - When loading old data, force-fill `subcategory`; UI code must not receive `undefined`.
    - Add category-model domain tests and a smoke scenario.
 3. Implement AndroMoney CSV import:
+   - Core CSV parsing is complete: payment accounts become expenses, receiving accounts become income, and rows with both sides become transfers.
+   - Parsed rows preserve `category`, `subcategory`, `externalSource`, `externalId`, `externalUid`, and `externalTime`.
    - auto-detect the format
    - show a preview before committing
    - ask the user to map account names manually during import
@@ -616,6 +623,7 @@ Recommended implementation order:
    - use `externalSource` / `externalId` / `externalUid` to prevent duplicate imports
    - CSV import only creates or updates the transaction layer; it must not merge with the full website backup JSON.
 4. Implement AndroMoney-compatible CSV export:
+   - Core CSV generation is complete: website transactions can be exported in AndroMoney column order while preserving primary / secondary categories.
    - export only the transaction layer that mobile apps understand
    - do not force website-only large-expense fund events into the CSV
 5. Keep single-JSON full backup/restore:
