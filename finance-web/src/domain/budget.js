@@ -1,4 +1,4 @@
-import { compareTransactionsByDateDesc, getPersonalExpenseAmount } from "./transactions.js";
+import { compareTransactionsByDateDesc, formatTransactionCategory, getPersonalExpenseAmount, getTransactionCategory } from "./transactions.js";
 import { getFundAvailableBeforeExpense, getLinkedFundSpendAmount, summarizeFund } from "./sinking-funds.js";
 
 function isDateInRange(date, range) {
@@ -13,7 +13,9 @@ function buildLivingExpenseItems(state, range) {
       if (!isDateInRange(tx.date, range)) return null;
 
       let amount = getPersonalExpenseAmount(tx);
-      let subtitle = `${tx.cat || "未分類"} ｜ 實際支出 ${amount}`;
+      const category = getTransactionCategory(tx);
+      const categoryLabel = formatTransactionCategory(tx);
+      let subtitle = `${categoryLabel} ｜ 實際支出 ${amount}`;
 
       if (tx.type === "expense" && tx.linkedFundId) {
         const fund = (state.sinkingFunds || []).find((item) => item.id === tx.linkedFundId);
@@ -25,8 +27,8 @@ function buildLivingExpenseItems(state, range) {
         amount = uncovered;
         subtitle =
           covered > 0
-            ? `${tx.cat || "未分類"} ｜ 已用準備 ${covered}${uncovered > 0 ? ` ｜ 差額 ${uncovered}` : " ｜ 本月不另外扣款"}`
-            : `${tx.cat || "未分類"} ｜ 準備不足，列入本月 ${uncovered}`;
+            ? `${categoryLabel} ｜ 已用準備 ${covered}${uncovered > 0 ? ` ｜ 差額 ${uncovered}` : " ｜ 本月不另外扣款"}`
+            : `${categoryLabel} ｜ 準備不足，列入本月 ${uncovered}`;
       }
 
       if (amount <= 0) return null;
@@ -37,7 +39,7 @@ function buildLivingExpenseItems(state, range) {
         title: tx.desc || tx.cat || "未命名支出",
         subtitle,
         amount,
-        category: tx.cat || "",
+        category,
       };
     })
     .filter(Boolean)

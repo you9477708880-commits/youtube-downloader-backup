@@ -149,8 +149,17 @@
         </div>
 
         <div id="f-cat-group">
-          <label class="flb" for="i-cat"><span>類別</span> <button type="button" class="icon-btn text-blue font-bold" data-action="add-custom-cat">+新增</button></label>
-          <select id="i-cat"></select>
+          <div class="grid-2">
+            <div>
+              <label class="flb" for="i-cat"><span>主分類</span> <button type="button" class="icon-btn text-blue font-bold" data-action="add-custom-cat">+新增</button></label>
+              <select id="i-cat"></select>
+            </div>
+            <div>
+              <label class="flb" for="i-subcat">子分類</label>
+              <input type="text" id="i-subcat" list="i-subcat-options" placeholder="未分類">
+              <datalist id="i-subcat-options"></datalist>
+            </div>
+          </div>
         </div>
 
         <div id="f-fund-group">

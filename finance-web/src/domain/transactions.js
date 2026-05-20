@@ -26,6 +26,12 @@ export function getTransactionSubcategory(tx) {
   return String(tx?.subcategory || DEFAULT_SUBCATEGORY);
 }
 
+export function formatTransactionCategory(tx) {
+  const category = getTransactionCategory(tx);
+  const subcategory = getTransactionSubcategory(tx);
+  return subcategory && subcategory !== DEFAULT_SUBCATEGORY ? `${category} / ${subcategory}` : category;
+}
+
 export function buildTransaction({
   txType,
   amount,

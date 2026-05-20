@@ -401,10 +401,11 @@ function testCategorySchemaMigration() {
     desc: "新交易",
     date: "2026-04-04",
     category: "購物",
+    subcategory: "3C",
     accountId: "cash",
   });
   assert.equal(tx.category, "購物");
-  assert.equal(tx.subcategory, "未分類");
+  assert.equal(tx.subcategory, "3C");
   assert.equal(tx.cat, "購物");
 }
 

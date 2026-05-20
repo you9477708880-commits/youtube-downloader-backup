@@ -8,6 +8,7 @@ import {
   getOpenAdvances,
 } from "../domain/transactions.js";
 import { getFundAvailableBeforeExpense, getFundTargetPlanStatus, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
+import { DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { localDateStr, toMoneyInt } from "../utils/format.js";
 
 function createClientId(prefix) {
@@ -46,6 +47,8 @@ export function createActions(context) {
   let editingBsIsAccount = false;
   let editingWishId = null;
 
+  const sameId = (left, right) => String(left) === String(right);
+
   const resetTransactionForm = () => {
     editingTxId = null;
     editingOriginalLinkedFundId = "";
@@ -53,6 +56,7 @@ export function createActions(context) {
     if (dom.inputOwnAmount) dom.inputOwnAmount.value = "";
     if (dom.inputAdvancePerson) dom.inputAdvancePerson.value = "";
     if (dom.inputFund) dom.inputFund.value = "";
+    if (dom.inputSubcategory) dom.inputSubcategory.value = "";
     dom.inputDesc.value = "";
     ui.setTransactionEditMode({ active: false });
   };
@@ -61,7 +65,7 @@ export function createActions(context) {
     editingTxId
       ? {
           ...state,
-          txs: state.txs.filter((tx) => tx.id !== editingTxId),
+          txs: state.txs.filter((tx) => !sameId(tx.id, editingTxId)),
           sinkingFunds: withoutFundEventsLinkedToTransaction(state.sinkingFunds, editingTxId),
         }
       : state;
@@ -174,7 +178,7 @@ export function createActions(context) {
         state.txType = type;
       });
       ui.syncTxType();
-      ui.renderTransactionCategorySelect();
+      ui.renderTransactionCategorySelect({ resetSubcategory: true });
       ui.populateFundOptions();
     },
 
@@ -195,9 +199,10 @@ export function createActions(context) {
         draft.userCats[draft.txType].push(cleanName);
       });
       context.saveState();
-      ui.renderTransactionCategorySelect();
+      ui.renderTransactionCategorySelect({ resetSubcategory: true });
       ui.populateCategoryBudgetOptions();
       dom.inputCategory.value = cleanName;
+      ui.populateTransactionSubcategoryOptions({ reset: true });
       ui.toast.show(`已新增分類：${cleanName}`);
     },
 
@@ -229,7 +234,7 @@ export function createActions(context) {
       }
 
       const state = store.getState();
-      const editingTx = editingTxId ? state.txs.find((item) => item.id === editingTxId) : null;
+      const editingTx = editingTxId ? state.txs.find((item) => sameId(item.id, editingTxId)) : null;
       const baseState = getEditableBaseState(state);
       const linkedFundId = state.txType === "expense" ? dom.inputFund?.value || "" : "";
       const linkedFund = linkedFundId ? baseState.sinkingFunds.find((fund) => fund.id === linkedFundId) : null;
@@ -244,7 +249,7 @@ export function createActions(context) {
         desc: dom.inputDesc.value,
         date: dom.inputDate.value,
         category: dom.inputCategory.value,
-        subcategory: "未分類",
+        subcategory: dom.inputSubcategory?.value.trim() || DEFAULT_SUBCATEGORY,
         accountId: dom.inputAccount.value,
         fromAcc: dom.inputFromAccount.value,
         toAcc: dom.inputToAccount.value,
@@ -319,7 +324,7 @@ export function createActions(context) {
 
       store.update((draft) => {
         if (editingTx) {
-          draft.txs = draft.txs.map((item) => (item.id === editingTx.id ? tx : item));
+          draft.txs = draft.txs.map((item) => (sameId(item.id, editingTx.id) ? tx : item));
           draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, editingTx.id);
         } else {
           draft.txs.unshift(tx);
@@ -379,7 +384,7 @@ export function createActions(context) {
 
     beginEditTx(id) {
       const state = store.getState();
-      const tx = state.txs.find((item) => item.id === id);
+      const tx = state.txs.find((item) => sameId(item.id, id));
       if (!tx) {
         ui.toast.show("找不到這筆交易", "error");
         return;
@@ -401,14 +406,20 @@ export function createActions(context) {
         draft.txType = tx.type;
       });
       ui.syncTxType();
-      ui.renderTransactionCategorySelect();
+      ui.renderTransactionCategorySelect({ resetSubcategory: true });
       ui.populateFundOptions();
       ui.setTransactionEditMode({ active: true, linkedFundName, advanceRepaidAmount });
 
       dom.inputAmount.value = tx.amount ?? "";
       dom.inputDesc.value = tx.desc || "";
       dom.inputDate.value = tx.date || "";
-      dom.inputCategory.value = tx.cat || "";
+      const category = tx.category || tx.cat || "";
+      if (category && ![...dom.inputCategory.options].some((option) => option.value === category)) {
+        dom.inputCategory.append(new Option(category, category));
+      }
+      dom.inputCategory.value = category;
+      ui.populateTransactionSubcategoryOptions();
+      if (dom.inputSubcategory) dom.inputSubcategory.value = tx.subcategory || DEFAULT_SUBCATEGORY;
 
       if (tx.type === "transfer") {
         dom.inputFromAccount.value = tx.fromAcc || "";
@@ -439,8 +450,8 @@ export function createActions(context) {
     delTx(id) {
       if (!window.confirm("確定要刪除這筆交易嗎？")) return;
       store.update((draft) => {
-        const target = draft.txs.find((tx) => tx.id === id);
-        draft.txs = draft.txs.filter((tx) => tx.id !== id && !(target?.type === "advance" && tx.type === "advance_repayment" && String(tx.advanceId) === String(id)));
+        const target = draft.txs.find((tx) => sameId(tx.id, id));
+        draft.txs = draft.txs.filter((tx) => !sameId(tx.id, id) && !(target?.type === "advance" && tx.type === "advance_repayment" && sameId(tx.advanceId, id)));
         draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, id);
       });
       context.saveState();
@@ -450,7 +461,7 @@ export function createActions(context) {
 
     repayAdvance(id) {
       const state = store.getState();
-      const advance = getOpenAdvances(state.txs).find((tx) => tx.id === id);
+      const advance = getOpenAdvances(state.txs).find((tx) => sameId(tx.id, id));
       if (!advance) {
         ui.toast.show("找不到這筆尚未收回的代墊", "error");
         return;
@@ -491,13 +502,13 @@ export function createActions(context) {
 
     editAdvanceRepayment(id) {
       const state = store.getState();
-      const repayment = state.txs.find((tx) => tx.id === id && tx.type === "advance_repayment");
+      const repayment = state.txs.find((tx) => sameId(tx.id, id) && tx.type === "advance_repayment");
       if (!repayment) {
         ui.toast.show("找不到這筆代墊收款", "error");
         return;
       }
 
-      const advance = state.txs.find((tx) => tx.id === repayment.advanceId && tx.type === "advance");
+      const advance = state.txs.find((tx) => sameId(tx.id, repayment.advanceId) && tx.type === "advance");
       if (!advance) {
         ui.toast.show("找不到這筆收款對應的代墊", "error");
         return;
@@ -530,7 +541,7 @@ export function createActions(context) {
       }
 
       store.update((draft) => {
-        const target = draft.txs.find((tx) => tx.id === id);
+        const target = draft.txs.find((tx) => sameId(tx.id, id));
         if (!target) return;
         target.amount = amount;
         target.date = rawDate;

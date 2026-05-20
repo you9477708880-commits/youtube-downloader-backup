@@ -318,6 +318,91 @@ export async function runFundEditRecalculatesScenario(app) {
   }
 }
 
+export function prepareTransactionSubcategoryScenario() {
+  const seededState = {
+    txs: [],
+    bsI: [],
+    wishes: [],
+    sinkingFunds: [],
+    accounts: [
+      { id: "a1", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "a2", name: "銀行帳戶", type: "asset", isEm: false, initialBalance: 0 },
+      { id: "a3", name: "信用卡", type: "liability", isEm: false, initialBalance: 0 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: {
+      budgetCap: 50000,
+      catBudgets: {},
+      leftoverMode: "manual",
+      investingLabel: "股票 / 黃金",
+      cashReserveLabel: "現金保留",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runTransactionSubcategoryScenario(app) {
+  try {
+    document.querySelector('[data-action="tab"][data-target="lg"]')?.click();
+    await waitFor(() => document.getElementById("i-subcat"));
+
+    document.getElementById("i-cat").value = "餐飲";
+    document.getElementById("i-subcat").value = "早餐";
+    document.querySelector('[data-action="set-tx-type"][data-val="income"]').click();
+    await waitFor(() => document.getElementById("i-subcat").value === "未分類");
+    document.getElementById("i-subcat").value = "本薪";
+    document.querySelector('[data-action="set-tx-type"][data-val="expense"]').click();
+    await waitFor(() => document.getElementById("i-subcat").value === "未分類");
+    document.getElementById("i-cat").value = "餐飲";
+    document.getElementById("i-subcat").value = "早餐";
+    document.getElementById("i-cat").value = "交通";
+    document.getElementById("i-cat").dispatchEvent(new Event("change", { bubbles: true }));
+    await waitFor(() => document.getElementById("i-subcat").value === "未分類");
+
+    document.getElementById("i-amt").value = "180";
+    document.getElementById("i-desc").value = "Smoke 午餐";
+    document.getElementById("i-date").value = smokeDate;
+    document.getElementById("i-cat").value = "餐飲";
+    document.getElementById("i-subcat").value = "午餐";
+    document.getElementById("i-acc").value = "a1";
+    document.getElementById("form-tx").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+
+    await waitFor(() => app.store.getState().txs.length === 1);
+    let tx = app.store.getState().txs[0];
+    const ledgerText = document.getElementById("a-tx")?.textContent || "";
+    const passed = tx?.category === "餐飲" && tx?.subcategory === "午餐" && tx?.cat === "餐飲" && ledgerText.includes("餐飲 / 午餐");
+    if (!passed) {
+      throw new Error("transaction-subcategory-state-mismatch");
+    }
+
+    document.querySelector('[data-action="tab"][data-target="lg"]')?.click();
+    await waitFor(() => document.querySelector(`[data-action="edit-tx"][data-id="${tx.id}"]`));
+    document.querySelector(`[data-action="edit-tx"][data-id="${tx.id}"]`).click();
+    await waitFor(() => document.getElementById("i-subcat")?.value === "午餐");
+    document.getElementById("i-subcat").value = "晚餐";
+    document.getElementById("form-tx").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+
+    await waitFor(() => app.store.getState().txs[0]?.subcategory === "晚餐");
+    tx = app.store.getState().txs[0];
+    if (tx?.category !== "餐飲" || tx?.subcategory !== "晚餐") {
+      throw new Error("transaction-subcategory-edit-mismatch");
+    }
+
+    writeSmokeResult("pass", "transaction subcategory saved, edited, and rendered");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}
+
 export function prepareAdvanceEditGuardsScenario() {
   const seededState = {
     txs: [

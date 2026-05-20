@@ -1,4 +1,4 @@
-import { CONSTANTS } from "../config/constants.js";
+import { CATEGORY_SUBCATEGORY_SUGGESTIONS, CONSTANTS, DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { createInitialState } from "../state/initial-state.js";
 import { createStore } from "../state/store.js";
 import { getFilterRange, getFilteredTransactions } from "../state/selectors.js";
@@ -33,6 +33,8 @@ function collectDom(doc = document) {
     inputDesc: $("i-desc", doc),
     inputDate: $("i-date", doc),
     inputCategory: $("i-cat", doc),
+    inputSubcategory: $("i-subcat", doc),
+    inputSubcategoryOptions: $("i-subcat-options", doc),
     inputFund: $("i-fund", doc),
     inputOwnAmount: $("i-own", doc),
     inputAdvancePerson: $("i-person", doc),
@@ -317,13 +319,29 @@ export async function bootstrapFinanceApp(doc = document) {
         .concat(store.getState().sinkingFunds.map((fund) => `<option value="${fund.id}">${escapeHTML(fund.name)}</option>`))
         .join("");
     },
-    renderTransactionCategorySelect() {
+    renderTransactionCategorySelect({ resetSubcategory = false } = {}) {
       const state = store.getState();
       if (state.txType === "transfer") return;
       const categoryType = state.txType === "income" ? "income" : "expense";
       const base = categoryType === "income" ? CONSTANTS.incomeCategories : CONSTANTS.expenseCategories;
       const categories = [...base, ...state.userCats[categoryType]];
+      const previousCategory = dom.inputCategory.value;
       dom.inputCategory.innerHTML = categories.map((category) => `<option>${escapeHTML(category)}</option>`).join("");
+      if (categories.includes(previousCategory)) dom.inputCategory.value = previousCategory;
+      this.populateTransactionSubcategoryOptions({ reset: resetSubcategory });
+    },
+    populateTransactionSubcategoryOptions({ reset = false } = {}) {
+      if (!dom.inputSubcategoryOptions) return;
+      const state = store.getState();
+      const categoryType = state.txType === "income" ? "income" : "expense";
+      const category = dom.inputCategory.value;
+      const suggestionSet = new Set([DEFAULT_SUBCATEGORY]);
+      (CATEGORY_SUBCATEGORY_SUGGESTIONS[categoryType]?.[category] || []).forEach((item) => suggestionSet.add(item));
+      state.txs
+        .filter((tx) => (tx.category || tx.cat) === category && tx.subcategory)
+        .forEach((tx) => suggestionSet.add(tx.subcategory));
+      dom.inputSubcategoryOptions.innerHTML = [...suggestionSet].map((item) => `<option value="${escapeHTML(item)}"></option>`).join("");
+      if (reset && dom.inputSubcategory) dom.inputSubcategory.value = DEFAULT_SUBCATEGORY;
     },
     syncTxType() {
       const { txType } = store.getState();
@@ -435,10 +453,10 @@ export async function bootstrapFinanceApp(doc = document) {
     if (action === "set-tx-type") actions.setTxType(button.dataset.val);
     if (action === "add-custom-cat") actions.addCustomCat();
     if (action === "add-fund-cat") actions.addFundCategory();
-    if (action === "edit-tx") actions.beginEditTx(Number(button.dataset.id));
-    if (action === "edit-repayment") actions.editAdvanceRepayment(Number(button.dataset.id));
-    if (action === "del-tx") actions.delTx(Number(button.dataset.id));
-    if (action === "repay-advance") actions.repayAdvance(Number(button.dataset.id));
+    if (action === "edit-tx") actions.beginEditTx(button.dataset.id);
+    if (action === "edit-repayment") actions.editAdvanceRepayment(button.dataset.id);
+    if (action === "del-tx") actions.delTx(button.dataset.id);
+    if (action === "repay-advance") actions.repayAdvance(button.dataset.id);
     if (action === "edit-bs") actions.beginEditBs(button.dataset.id, button.dataset.isacc === "true");
     if (action === "del-bs") actions.delBs(button.dataset.id, button.dataset.isacc === "true");
     if (action === "toggle-em") actions.toggleEm(button.dataset.id, button.dataset.isacc === "true");
@@ -478,6 +496,7 @@ export async function bootstrapFinanceApp(doc = document) {
   dom.filterPreset.addEventListener("change", (event) => actions.setDatePreset(event.target.value));
   dom.filterStart.addEventListener("change", () => actions.customDate());
   dom.filterEnd.addEventListener("change", () => actions.customDate());
+  dom.inputCategory.addEventListener("change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   dom.balanceType.addEventListener("change", (event) => {
     dom.balanceCategoryWrap.classList.toggle("d-none", event.target.value !== "item");
   });

@@ -1,5 +1,5 @@
 import { getLinkedFundSpendAmount } from "../domain/sinking-funds.js";
-import { getAdvanceOutstanding, getOpenAdvances, groupTransactionsByDate, isBudgetSpreadTx } from "../domain/transactions.js";
+import { formatTransactionCategory, getAdvanceOutstanding, getOpenAdvances, groupTransactionsByDate, isBudgetSpreadTx } from "../domain/transactions.js";
 
 export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
   const accountOptions = state.accounts
@@ -46,7 +46,8 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
         const amount = formatTxAmount(tx);
         const background = tx.type === "income" || repayment ? "bg-inc-light" : tx.type === "expense" || advance ? "bg-exp-light" : "bg-trn-light";
         const accountLabel = transfer ? `${findAccountName(tx.fromAcc)} → ${findAccountName(tx.toAcc)}` : findAccountName(tx.acc);
-        const title = repayment ? "代墊收款" : advance ? `代墊｜${tx.cat}` : transfer ? "轉帳" : tx.cat;
+        const categoryLabel = formatTransactionCategory(tx);
+        const title = repayment ? "代墊收款" : advance ? `代墊｜${categoryLabel}` : transfer ? "轉帳" : categoryLabel;
         const linkedFund = tx.linkedFundId ? findFund(tx.linkedFundId) : null;
         const linkedFundName = tx.linkedFundId ? findFundName(tx.linkedFundId) : "";
         const linkedFundSpend = linkedFund ? Math.min(tx.amount || 0, getLinkedFundSpendAmount(linkedFund, tx.id)) : 0;

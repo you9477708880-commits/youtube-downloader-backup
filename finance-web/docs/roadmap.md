@@ -72,7 +72,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 資料完整性補強已完成：交易、還款與主要前端新增項目的 ID 改為 UUID 優先、刪除帳戶後的歷史交易會歸入 fallback 餘額、交易排序已支援字串 ID、金額顯示與交易建構已加強 NaN 防護。
 - 現金流量表已改為納入所有非投資類別收入，避免自訂收入分類在現金流頁漏算。
 - 雲端同步監聽器已補 `destroy()` 清理方法，可在未來多次初始化或測試環境中解除 auth 與 Firestore snapshot 監聽。
-- 交易分類模型升級第一階段已完成：新增 `schemaVersion: 2`，交易會正規化為 `category` + `subcategory`，舊 `cat` 仍保留作為相容欄位。
+- 交易分類模型升級第二階段已完成：新增 / 編輯交易表單已拆成「主分類 + 子分類」，子分類支援常用建議與自由輸入；帳本、交易明細與預算來源描述會顯示兩層分類，舊 `cat` 仍保留作為相容欄位。
 - `新功能實驗` 已透過 squash merge 整合回 `main`，並已推送到 GitHub 遠端。
 - Firebase Hosting 已部署新版，正式網址 `https://financial-computer.web.app` 已更新。
 
@@ -116,7 +116,7 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 - Data-integrity hardening is complete: transaction, repayment, and primary client-created entity IDs now prefer UUIDs, transactions from deleted accounts are preserved in a fallback balance, transaction sorting supports string IDs, and transaction construction / money display have stronger NaN protection.
 - Cash-flow reporting now includes all non-investment income categories, so custom income categories are not dropped from the cash-flow page.
 - Cloud sync now exposes `destroy()` cleanup so future repeated initialization or tests can unsubscribe from auth and Firestore snapshot listeners.
-- Transaction category model upgrade phase 1 is complete: `schemaVersion: 2` is added, transactions normalize to `category` + `subcategory`, and legacy `cat` remains as a compatibility field.
+- Transaction category model upgrade phase 2 is complete: add/edit transaction forms now separate primary category and subcategory, subcategories support suggestions plus free-form input, and ledger/detail/budget source descriptions show both levels. Legacy `cat` remains as a compatibility field.
 - `新功能實驗` was squash-merged back into `main` and pushed to GitHub.
 - Firebase Hosting has been redeployed; the production URL `https://financial-computer.web.app` is updated.
 
@@ -156,7 +156,8 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 
 1. **交易分類模型升級**
    - 第一階段資料遷移已完成：舊交易會補齊 `category` / `subcategory`，且 `subcategory` 不會是 `undefined`。
-   - 下一步是 UI 與匯入匯出層：讓新增 / 編輯交易能真正輸入主分類與子分類，並為 AndroMoney CSV 保留兩層分類。
+   - 第二階段 UI 輸入已完成：新增 / 編輯交易能輸入主分類與子分類，子分類可從建議選取也可自由輸入。
+   - 下一步是匯入匯出層：為 AndroMoney CSV 保留兩層分類，並決定自訂主分類 / 子分類的管理方式。
    - 新 UI、分組、統計、匯入匯出應只讀取經遷移後的資料形狀，避免舊資料造成白畫面。
 
 ### English
@@ -165,7 +166,8 @@ Recommended immediate priorities:
 
 1. **Transaction category model upgrade**
    - Phase 1 data migration is complete: older transactions are filled with `category` / `subcategory`, and `subcategory` is never left as `undefined`.
-   - The next step is the UI and import/export layer: new/edit transaction flows should allow true primary and secondary category input, and AndroMoney CSV should preserve both levels.
+   - Phase 2 UI input is complete: add/edit transaction flows can capture primary category and subcategory, and subcategories can be selected from suggestions or typed freely.
+   - The next step is the import/export layer: AndroMoney CSV should preserve both levels, and custom primary/subcategory management should be decided.
    - New UI, grouping, reporting, import, and export code should consume the migrated data shape so older data cannot blank the page.
 
 ## 5. 中期重構 / Mid-Term Refactors

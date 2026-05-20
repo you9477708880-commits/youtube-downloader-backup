@@ -1,4 +1,4 @@
-import { compareTransactionsByDateDesc, getPersonalExpenseAmount } from "../domain/transactions.js";
+import { compareTransactionsByDateDesc, formatTransactionCategory, getPersonalExpenseAmount } from "../domain/transactions.js";
 
 export function getTransactionAccountIds(tx) {
   if (tx.type === "transfer") return [tx.fromAcc, tx.toAcc].filter(Boolean);
@@ -25,10 +25,10 @@ export function getTransactionSignedAmount(tx, accountId = "") {
 }
 
 export function getTransactionTitle(tx) {
-  if (tx.type === "income") return `收入：${tx.cat}`;
-  if (tx.type === "expense") return `支出：${tx.cat}`;
+  if (tx.type === "income") return `收入：${formatTransactionCategory(tx)}`;
+  if (tx.type === "expense") return `支出：${formatTransactionCategory(tx)}`;
   if (tx.type === "transfer") return "轉帳";
-  if (tx.type === "advance") return `代墊：${tx.cat}`;
+  if (tx.type === "advance") return `代墊：${formatTransactionCategory(tx)}`;
   if (tx.type === "advance_repayment") return "代墊收款";
   return tx.cat || "交易";
 }
