@@ -185,17 +185,18 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     setActiveTab: (tabId) => setActiveTab(tabId, doc),
     updateCloudStatus(status, meta) {
+      const hasCloudUser = currentUser && !currentUser.isAnonymous;
       if (status === "syncing") {
-        dom.cloudStatus.textContent = "☁️ 同步中";
+        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 同步中" : "💾 僅本機";
         dom.cloudStatus.className = "cloud-st";
-        dom.cloudStatus.dataset.state = "syncing";
+        dom.cloudStatus.dataset.state = hasCloudUser ? "syncing" : "local";
         return;
       }
 
       if (status === "online") {
-        dom.cloudStatus.textContent = meta?.fromCache ? "☁️ 已連線（快取）" : "☁️ 雲端同步";
-        dom.cloudStatus.className = "cloud-st";
-        dom.cloudStatus.dataset.state = meta?.fromCache ? "cache" : "cloud";
+        dom.cloudStatus.textContent = hasCloudUser ? (meta?.fromCache ? "☁️ 已連線（快取）" : "☁️ 雲端同步") : "💾 僅本機";
+        dom.cloudStatus.className = hasCloudUser ? "cloud-st" : "cloud-st off";
+        dom.cloudStatus.dataset.state = hasCloudUser ? (meta?.fromCache ? "cache" : "cloud") : "local";
         return;
       }
 
@@ -390,7 +391,7 @@ export async function bootstrapFinanceApp(doc = document) {
 
   const saveState = async () => {
     saveLocalState(store.getState());
-    if (!cloudSync.enabled) return;
+    if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous) return;
 
     try {
       await cloudSync.save();
@@ -442,9 +443,9 @@ export async function bootstrapFinanceApp(doc = document) {
     if (action === "del-bs") actions.delBs(button.dataset.id, button.dataset.isacc === "true");
     if (action === "toggle-em") actions.toggleEm(button.dataset.id, button.dataset.isacc === "true");
     if (action === "del-cat-budget") actions.delCatBudget(button.dataset.cat);
-    if (action === "edit-wish") actions.beginEditWish(Number(button.dataset.id));
-    if (action === "del-wish") actions.delWish(Number(button.dataset.id));
-    if (action === "mv-wish") actions.mvWish(Number(button.dataset.id), Number(button.dataset.dir));
+    if (action === "edit-wish") actions.beginEditWish(button.dataset.id);
+    if (action === "del-wish") actions.delWish(button.dataset.id);
+    if (action === "mv-wish") actions.mvWish(button.dataset.id, Number(button.dataset.dir));
     if (action === "toggle-tbl") ui.toggleRetirementTable();
     if (action === "preset-ret") actions.presetRet(Number(button.dataset.r), Number(button.dataset.i));
     if (action === "del-fund") actions.delFund(button.dataset.id);

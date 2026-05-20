@@ -844,7 +844,7 @@ export function createActions(context) {
 
     delWish(id) {
       store.update((draft) => {
-        draft.wishes = draft.wishes.filter((wish) => wish.id !== id);
+        draft.wishes = draft.wishes.filter((wish) => String(wish.id) !== String(id));
       });
       context.saveState();
       renderWishlist();
@@ -852,7 +852,7 @@ export function createActions(context) {
 
     mvWish(id, dir) {
       store.update((draft) => {
-        const index = draft.wishes.findIndex((wish) => wish.id === id);
+        const index = draft.wishes.findIndex((wish) => String(wish.id) === String(id));
         if (index < 0) return;
         const nextIndex = index + dir;
         if (nextIndex < 0 || nextIndex >= draft.wishes.length) return;

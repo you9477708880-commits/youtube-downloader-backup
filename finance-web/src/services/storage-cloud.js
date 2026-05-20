@@ -140,6 +140,14 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
         return;
       }
 
+      if (user.isAnonymous) {
+        userId = null;
+        clearSnapshot();
+        emitUser(user);
+        onStatus("local");
+        return;
+      }
+
       userId = user.uid;
       emitUser(user);
       attachSnapshot(user.uid);
@@ -155,6 +163,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       enabled: true,
       error: "",
       save: async () => {
+        if (auth.currentUser?.isAnonymous) return;
         if (!userId) {
           await new Promise((resolve) => {
             saveResolver = resolve;

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances, calculateBalanceSheet } from "../src/domain/accounts.js";
 import { calculateBudgetData } from "../src/domain/budget.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
+import { createActions } from "../src/app/actions.js";
 import {
   getFundSavedAmountAsOf,
   getFundTargetPlanStatus,
@@ -659,6 +660,65 @@ function testWishlistLinkedFundTransactionRendering() {
   assert.match(dom.fundList.innerHTML, /原始支出 NT\$ 30,000 ｜ 準備支付 NT\$ 12,000 ｜ 本月支出 NT\$ 18,000/);
 }
 
+function testWishActionsAcceptRenderedStringIds() {
+  const actionState = {
+    txs: [],
+    sinkingFunds: [],
+    wishes: [
+      { id: "wish-alpha", name: "A", price: 100, cat: "其他" },
+      { id: 901, name: "B", price: 200, cat: "其他" },
+      { id: "wish-omega", name: "C", price: 300, cat: "其他" },
+    ],
+  };
+  let renderCount = 0;
+  let saved = false;
+  const dom = {
+    wishName: { value: "" },
+    wishPrice: { value: "" },
+    wishCategory: { value: "" },
+    root: { getElementById: () => ({ scrollIntoView: () => {} }) },
+  };
+  const ui = {
+    toast: { show: () => {} },
+    setWishEditMode: () => {},
+    setActiveTab: () => {},
+    populateCategoryBudgetOptions: () => {},
+    renderTransactionCategorySelect: () => {},
+    populateFundOptions: () => {},
+  };
+  const store = {
+    getState: () => actionState,
+    update: (updater) => updater(actionState),
+  };
+  const actions = createActions({
+    dom,
+    store,
+    renderAll: () => {},
+    renderWishlist: () => {
+      renderCount += 1;
+    },
+    ui,
+    constants: {},
+    saveState: () => {
+      saved = true;
+    },
+  });
+
+  actions.mvWish("wish-omega", -1);
+  assert.deepEqual(actionState.wishes.map((wish) => wish.id), ["wish-alpha", "wish-omega", 901]);
+
+  actions.mvWish("901", -1);
+  assert.deepEqual(actionState.wishes.map((wish) => wish.id), ["wish-alpha", 901, "wish-omega"]);
+
+  actions.beginEditWish("wish-alpha");
+  assert.equal(dom.wishName.value, "A");
+
+  actions.delWish("wish-alpha");
+  assert.deepEqual(actionState.wishes.map((wish) => wish.id), [901, "wish-omega"]);
+  assert.equal(saved, true);
+  assert.equal(renderCount, 3);
+}
+
 function testLedgerFundTraceRendering() {
   const renderingState = {
     ...state,
@@ -864,6 +924,7 @@ testRetirementKeepsZeroPercentInputs();
 testRetirementViewKeepsZeroPercentInputs();
 testBudgetViewRendering();
 testWishlistLinkedFundTransactionRendering();
+testWishActionsAcceptRenderedStringIds();
 testLedgerFundTraceRendering();
 testBalanceSheetEditButtonsRendering();
 testImportValidationRejectsUnsafeShape();
