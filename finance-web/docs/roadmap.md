@@ -181,7 +181,8 @@ Recommended immediate priorities:
 中期應處理：
 
 1. **DOM 與渲染安全整理**
-   - 合併前已完成一輪 XSS 與屬性跳脫檢查。
+   - 已完成第二輪 XSS 與屬性跳脫檢查，補強大額準備選單的 `value` 屬性跳脫。
+   - 渲染安全回歸測試已擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
    - 後續若大幅新增 UI，仍建議逐步把純文字區塊改成節點建立與 `textContent`，減少新的 `innerHTML` 風險。
 
 2. **本機儲存錯誤隔離**
@@ -209,7 +210,8 @@ Recommended immediate priorities:
 Mid-term work:
 
 1. **DOM and rendering safety cleanup**
-   - A pre-merge XSS and attribute-escaping pass is complete.
+   - A second XSS and attribute-escaping pass is complete, including escaped `value` attributes for large-expense fund options.
+   - Rendering safety regression tests now cover ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
    - If future UI work expands significantly, gradually move pure text regions to node creation plus `textContent` to reduce new `innerHTML` risk.
 
 2. **Local storage error isolation**

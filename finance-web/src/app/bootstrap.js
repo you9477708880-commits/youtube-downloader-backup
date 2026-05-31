@@ -439,7 +439,7 @@ export async function bootstrapFinanceApp(doc = document) {
     },
     populateFundOptions() {
       dom.inputFund.innerHTML = ['<option value="">不指定</option>']
-        .concat(store.getState().sinkingFunds.map((fund) => `<option value="${fund.id}">${escapeHTML(fund.name)}</option>`))
+        .concat(store.getState().sinkingFunds.map((fund) => `<option value="${escapeHTML(fund.id)}">${escapeHTML(fund.name)}</option>`))
         .join("");
     },
     renderTransactionCategorySelect({ resetSubcategory = false } = {}) {

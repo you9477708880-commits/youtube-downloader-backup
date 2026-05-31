@@ -24,6 +24,8 @@ import {
   getTransactionAccountIds,
   getTransactionSignedAmount,
 } from "../src/views/transaction-detail-view.js";
+import { renderOverview } from "../src/views/overview-view.js";
+import { renderCashFlow } from "../src/views/cashflow-view.js";
 import { renderLedger } from "../src/views/ledger-view.js";
 import { renderWishlist } from "../src/views/wishlist-view.js";
 import { renderBalanceSheet } from "../src/views/balance-sheet-view.js";
@@ -962,15 +964,63 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
   const malicious = `"><img src=x onerror=alert(1)>`;
   const renderingState = {
     ...state,
-    accounts: [{ id: "cash", name: malicious, type: "asset", initialBalance: 0 }],
-    txs: [{ id: 401, type: "expense", amount: 1000, desc: malicious, date: "2026-04-01", cat: malicious, acc: "cash" }],
-    sinkingFunds: [],
+    accounts: [{ id: "cash", name: malicious, type: "asset", initialBalance: 0, isEm: false }],
+    txs: [{ id: 401, type: "expense", amount: 1000, desc: malicious, date: "2026-04-01", cat: malicious, category: malicious, subcategory: malicious, acc: "cash" }],
+    bsI: [{ id: malicious, name: malicious, amount: 500, cat: "asset", isEm: false }],
+    wishes: [{ id: malicious, name: malicious, price: 300, cat: malicious }],
+    sinkingFunds: [
+      {
+        id: malicious,
+        name: malicious,
+        category: malicious,
+        targetAmount: 1000,
+        monthlyContribution: 100,
+        startMonth: "2026-04",
+        targetMonth: "2026-12",
+        carryoverEnabled: true,
+        note: malicious,
+        events: [{ id: "event-malicious", type: "topup", amount: 100, date: "2026-04-02", note: malicious }],
+      },
+    ],
+    settings: {
+      ...state.settings,
+      catBudgets: { [malicious]: 2000 },
+    },
   };
-  const dom = {
+  const ledgerDom = {
     advList: { innerHTML: "" },
     oTx: { innerHTML: "" },
     aTx: { innerHTML: "" },
     txCount: { textContent: "" },
+  };
+  const overviewDom = {
+    oIncome: { textContent: "" },
+    oExpense: { textContent: "" },
+    oNet: { textContent: "", className: "" },
+    oBars: { innerHTML: "" },
+  };
+  const cashflowDom = { cashflowBody: { innerHTML: "" } };
+  const balanceDom = { balanceSheetBody: { innerHTML: "" } };
+  const wishlistDom = {
+    budgetCap: { textContent: "" },
+    budgetExpense: { textContent: "" },
+    budgetFundContribution: { textContent: "" },
+    budgetAvailable: { textContent: "" },
+    budgetPlanningRoom: { textContent: "" },
+    overviewFill: { style: { width: "" } },
+    overviewCapLabel: { textContent: "" },
+    overviewBudget: { textContent: "" },
+    budgetModeNote: { textContent: "" },
+    budgetSourceList: { innerHTML: "" },
+    leftoverNote: { textContent: "" },
+    categoryBudgetList: { innerHTML: "" },
+    fundList: { innerHTML: "" },
+    wishList: { innerHTML: "" },
+  };
+  const renderUtils = {
+    formatMoney,
+    escapeHTML,
+    localDateStr: () => "2026-04-01",
   };
   const originalDocument = globalThis.document;
   globalThis.document = {
@@ -982,19 +1032,44 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
       state: renderingState,
       filteredTxs: renderingState.txs,
       constants: { days: ["日", "一", "二", "三", "四", "五", "六"], transactionIcons: {} },
-      utils: {
-        formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
-        escapeHTML,
-      },
-      dom,
+      utils: renderUtils,
+      dom: ledgerDom,
     });
   } finally {
     globalThis.document = originalDocument;
   }
 
-  assert.doesNotMatch(dom.aTx.innerHTML, /<img/i);
-  assert.match(dom.aTx.innerHTML, /&lt;img/);
-  assert.match(dom.aTx.innerHTML, /onerror=alert/);
+  renderOverview({
+    state: renderingState,
+    filteredTxs: renderingState.txs,
+    constants: { expenseColors: ["#000"] },
+    utils: renderUtils,
+    dom: overviewDom,
+  });
+  renderCashFlow({ filteredTxs: renderingState.txs, utils: renderUtils, dom: cashflowDom, state: renderingState });
+  renderBalanceSheet({ state: renderingState, utils: renderUtils, dom: balanceDom });
+  renderWishlist({
+    state: renderingState,
+    filterRange: { start: "2026-04-01", end: "2026-04-30" },
+    constants: { wishCategoryIcons: {} },
+    utils: renderUtils,
+    dom: wishlistDom,
+  });
+
+  const html = [
+    ledgerDom.aTx.innerHTML,
+    overviewDom.oBars.innerHTML,
+    cashflowDom.cashflowBody.innerHTML,
+    balanceDom.balanceSheetBody.innerHTML,
+    wishlistDom.budgetSourceList.innerHTML,
+    wishlistDom.categoryBudgetList.innerHTML,
+    wishlistDom.fundList.innerHTML,
+    wishlistDom.wishList.innerHTML,
+  ].join("\n");
+
+  assert.doesNotMatch(html, /<img/i);
+  assert.doesNotMatch(html, /onerror=alert\(1\)>/i);
+  assert.match(html, /&lt;img/);
 }
 
 testOverviewAndCashFlow();
