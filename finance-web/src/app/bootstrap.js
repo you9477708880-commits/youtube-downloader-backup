@@ -5,6 +5,7 @@ import { getFilterRange, getFilteredTransactions } from "../state/selectors.js";
 import { loadLocalState, saveLocalState } from "../services/storage-local.js";
 import { setupPWA } from "../services/pwa.js";
 import { createCloudSync } from "../services/storage-cloud.js";
+import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
 import { withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
@@ -228,6 +229,7 @@ export async function bootstrapFinanceApp(doc = document) {
   let currentUser = null;
   let authAction = null;
   let pendingAndroMoneyText = "";
+  let cloudConflictDecision = "";
 
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
@@ -565,6 +567,23 @@ export async function bootstrapFinanceApp(doc = document) {
     renderAll,
     renderWishlist: renderWishlistOnly,
   };
+
+  const applyRemoteState = (remoteState) => {
+    const currentState = createInitialState();
+    store.replace(normalizeFinanceStateMoney({
+      ...currentState,
+      ...remoteState,
+      settings: { ...currentState.settings, ...(remoteState.settings || {}) },
+    }));
+    saveLocalState(store.getState());
+    ui.syncFromSettings();
+    syncRetirementInputs();
+    ui.renderTransactionCategorySelect();
+    ui.populateCategoryBudgetOptions();
+    ui.populateFundOptions();
+    ui.syncTxType();
+    renderAll();
+  };
   const actions = createActions(context);
 
   const exportAndroMoneyCsv = () => {
@@ -840,22 +859,53 @@ export async function bootstrapFinanceApp(doc = document) {
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
     onUserChange: (user) => {
       currentUser = user;
+      if (!user || user.isAnonymous) cloudConflictDecision = "";
       ui.renderAuthState(currentUser, true, "");
     },
     onRemoteState: (remoteState) => {
-      const currentState = createInitialState();
-      store.replace(normalizeFinanceStateMoney({
-        ...currentState,
-        ...remoteState,
-        settings: { ...currentState.settings, ...(remoteState.settings || {}) },
-      }));
-      ui.syncFromSettings();
-      syncRetirementInputs();
-      ui.renderTransactionCategorySelect();
-      ui.populateCategoryBudgetOptions();
-      ui.populateFundOptions();
-      ui.syncTxType();
-      renderAll();
+      const localState = store.getState();
+      const localHasData = hasMeaningfulFinanceData(localState);
+      const remoteHasData = hasMeaningfulFinanceData(remoteState);
+      const sameData = areFinanceStatesEquivalent(localState, remoteState);
+
+      if (!remoteHasData && localHasData) {
+        cloudConflictDecision = "local";
+        setTimeout(() => {
+          cloudSync.save().then(() => {
+            toast.show("雲端沒有資料，已上傳本機資料");
+          }).catch(() => {
+            ui.updateCloudStatus("error");
+            toast.show("本機資料上傳雲端失敗，請稍後再試", "error");
+          });
+        }, 0);
+        return;
+      }
+
+      if (!remoteHasData || sameData) {
+        applyRemoteState(remoteState);
+        return;
+      }
+
+      if (localHasData && !cloudConflictDecision) {
+        cloudConflictDecision = window.confirm(buildCloudConflictMessage(currentUser)) ? "cloud" : "local";
+      }
+
+      if (!localHasData || cloudConflictDecision === "cloud") {
+        applyRemoteState(remoteState);
+        toast.show("已使用雲端資料更新本機");
+        return;
+      }
+
+      if (cloudConflictDecision === "local") {
+        setTimeout(() => {
+          cloudSync.save().then(() => {
+            toast.show("已使用本機資料覆蓋雲端");
+          }).catch(() => {
+            ui.updateCloudStatus("error");
+            toast.show("本機資料上傳雲端失敗，請稍後再試", "error");
+          });
+        }, 0);
+      }
     },
   });
 

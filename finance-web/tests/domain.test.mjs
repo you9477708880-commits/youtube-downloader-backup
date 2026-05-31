@@ -33,6 +33,7 @@ import { renderRetirement } from "../src/views/retirement-view.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../src/services/andromoney-csv.js";
 import { isValidImportShape } from "../src/services/import-export.js";
 import { loadLocalState } from "../src/services/storage-local.js";
+import { areFinanceStatesEquivalent, hasMeaningfulFinanceData } from "../src/services/sync-policy.js";
 import { createInitialState } from "../src/state/initial-state.js";
 import { escapeHTML, formatMoney, toMoneyInt } from "../src/utils/format.js";
 import { normalizeFinanceStateMoney } from "../src/utils/normalize-state.js";
@@ -1072,6 +1073,35 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
   assert.match(html, /&lt;img/);
 }
 
+function testCloudSyncPolicyDetectsMeaningfulAndEquivalentData() {
+  const empty = createInitialState();
+  const local = createInitialState();
+  local.txs = [
+    {
+      id: "tx-sync-local",
+      type: "expense",
+      amount: 1000,
+      desc: "本機晚餐",
+      date: "2026-05-01",
+      cat: "餐飲食品",
+      category: "餐飲食品",
+      subcategory: "晚餐",
+      acc: "cash",
+    },
+  ];
+  const sameRemote = {
+    txs: [{ ...local.txs[0], amount: "1000" }],
+  };
+  const differentRemote = {
+    txs: [{ ...local.txs[0], amount: 1200 }],
+  };
+
+  assert.equal(hasMeaningfulFinanceData(empty), false);
+  assert.equal(hasMeaningfulFinanceData(local), true);
+  assert.equal(areFinanceStatesEquivalent(local, sameRemote), true);
+  assert.equal(areFinanceStatesEquivalent(local, differentRemote), false);
+}
+
 testOverviewAndCashFlow();
 testCashFlowIncludesCustomIncomeCategories();
 testAccountBalances();
@@ -1103,5 +1133,6 @@ testBalanceSheetEditButtonsRendering();
 testImportValidationRejectsUnsafeShape();
 testLocalStorageLoadsValidFieldsWhenOneFieldIsBroken();
 testUserControlledStringsAreEscapedInRenderedHtml();
+testCloudSyncPolicyDetectsMeaningfulAndEquivalentData();
 
 console.log("Domain tests passed");

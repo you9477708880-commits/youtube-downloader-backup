@@ -81,6 +81,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 分類預算清理工具已完成：可列出孤立的 `settings.catBudgets` 項目，並由使用者確認後清理；預設分類、自訂分類與仍被歷史交易使用的分類不會被誤刪。
 - DOM 與渲染安全整理已完成第二輪：補強大額準備選單 `value` 屬性跳脫，並把 XSS 回歸測試擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
 - 專案內 smoke runner 已建立：不再依賴外部 `test-server.js`，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與多種 headless 啟動策略間自動重試。
+- 本機 / 雲端資料覆蓋策略已明確化：登入後若本機與雲端都有資料且內容不同，會詢問使用者要用雲端覆蓋本機，或用本機覆蓋雲端；目前不做自動合併。
 
 ### English
 
@@ -131,6 +132,7 @@ The following items are complete and committed on local `main`, but are not yet 
 - Category-budget cleanup is complete: the app can list orphaned `settings.catBudgets` entries and remove them after user confirmation; default categories, custom categories, and categories still referenced by historical transactions are preserved.
 - DOM and rendering safety cleanup phase 2 is complete: large-expense fund option `value` attributes are escaped, and XSS regression coverage now includes ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
 - A project-local smoke runner is implemented: it no longer depends on the external `test-server.js`, uses a clean temporary browser profile, and retries Chrome / Edge with multiple headless launch strategies.
+- The local / cloud overwrite strategy is explicit: if both local and cloud data exist after sign-in and differ, the user chooses whether cloud overwrites local or local overwrites cloud; automatic merging is not implemented.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -171,12 +173,7 @@ The following items are complete and committed on local `main`, but are not yet 
    - 這批內容功能上已完成，但還不能寫成「已推送、已部署」，直到完成 GitHub push 與 Firebase Hosting deploy。
    - 上線前應人工測試：記帳、主分類 / 子分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
 
-2. **本機 / 雲端資料覆蓋策略明確化**
-   - 先不做自動合併。
-   - 若登入 Google 後偵測到本機與雲端都有資料，應提供清楚選擇：使用雲端覆蓋本機，或使用本機覆蓋雲端。
-   - 需要補上使用者看得懂的提示文字，避免誤以為系統會自動安全合併兩份財務資料。
-
-3. **大額準備計畫變更規則收斂**
+2. **大額準備計畫變更規則收斂**
    - 目前修改大額準備設定會重算整段規劃，這已可運作，但長期規則需要更明確。
    - 下一步先定義是否要採「過去月份鎖定、未來月份套用新設定」。
    - 若要實作，應優先採明確的生效月份或 `plan_changed` 事件，不做複雜設定檔版本化。
@@ -190,12 +187,7 @@ Recommended immediate priorities:
    - These items are functionally complete, but should not be marked as pushed/deployed until GitHub push and Firebase Hosting deployment are done.
    - Before release, manually test ledger entry, primary/subcategory input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
 
-2. **Local / cloud overwrite strategy**
-   - Do not implement automatic merging yet.
-   - If both local and cloud data exist after Google sign-in, provide explicit choices: use cloud data over local data, or upload local data over cloud data.
-   - Add user-facing copy that clearly explains the risk so users do not assume the app can safely auto-merge financial data.
-
-3. **Large-expense fund plan-change rules**
+2. **Large-expense fund plan-change rules**
    - Current fund setting edits recalculate the whole plan. This works, but the long-term rule should be made explicit.
    - Next, decide whether past months should be locked while future months use new settings.
    - If implemented, prefer an explicit effective month or `plan_changed` event instead of complex settings-versioning.
