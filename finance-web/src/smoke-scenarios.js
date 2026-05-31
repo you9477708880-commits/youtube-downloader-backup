@@ -403,6 +403,84 @@ export async function runTransactionSubcategoryScenario(app) {
   }
 }
 
+export function prepareAndroMoneyImportScenario() {
+  const seededState = {
+    txs: [],
+    bsI: [],
+    wishes: [],
+    sinkingFunds: [],
+    accounts: [
+      { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "bank", name: "台新銀行", type: "asset", isEm: false, initialBalance: 0 },
+      { id: "card", name: "信用卡", type: "liability", isEm: false, initialBalance: 0 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: {
+      budgetCap: 50000,
+      catBudgets: {},
+      leftoverMode: "manual",
+      investingLabel: "股票 / 黃金",
+      cashReserveLabel: "現金保留",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runAndroMoneyImportScenario(app) {
+  try {
+    const csv = [
+      '"Google Documents","理財幫手AndroMoney","20260518"',
+      '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
+      '"6542","TWD","209","餐飲食品","午餐","20251103","台新銀行","","波奇波奇","","","","uid-meal","1202"',
+      '"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","政府普發","","","","uid-income","1020"',
+    ].join("\n");
+    const file = new File([csv], "AndroMoney.csv", { type: "text/csv" });
+    const input = document.getElementById("file-andromoney-import");
+
+    try {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+    } catch {
+      Object.defineProperty(input, "files", { value: [file], configurable: true });
+    }
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await waitFor(() => !document.getElementById("andromoney-modal").classList.contains("d-none"));
+    document.querySelector('[data-andromoney-account="台新銀行"]').value = "bank";
+    document.getElementById("andromoney-confirm").click();
+    await waitFor(() => app.store.getState().txs.length === 2);
+
+    const [expense, income] = [...app.store.getState().txs].sort((a, b) => String(a.externalId).localeCompare(String(b.externalId)));
+    const passed =
+      expense?.type === "expense" &&
+      expense?.category === "餐飲食品" &&
+      expense?.subcategory === "午餐" &&
+      expense?.acc === "bank" &&
+      expense?.externalSource === "andromoney" &&
+      income?.type === "income" &&
+      income?.acc === "bank" &&
+      document.getElementById("andromoney-modal").classList.contains("d-none");
+
+    if (!passed) {
+      throw new Error("andromoney-import-state-mismatch");
+    }
+
+    writeSmokeResult("pass", "AndroMoney account mapping preview confirmed and transactions imported");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}
+
 export function prepareAdvanceEditGuardsScenario() {
   const seededState = {
     txs: [

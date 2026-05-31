@@ -89,8 +89,13 @@
         <button type="button" class="sbtn outline" data-action="trigger-import">匯入資料</button>
         <input type="file" id="file-import" class="d-none" accept=".json">
       </div>
+      <div class="grid-2 mt-2">
+        <button type="button" class="sbtn outline" data-action="export-andromoney">匯出 AndroMoney CSV</button>
+        <button type="button" class="sbtn outline" data-action="trigger-andromoney-import">匯入 AndroMoney CSV</button>
+        <input type="file" id="file-andromoney-import" class="d-none" accept=".csv,text/csv">
+      </div>
       <div class="text-xs text-gray mt-2">
-        本機資料會保留這台裝置最近一次使用或同步的內容。若同一台裝置切換不同 Google 帳號，本機看到的資料可能會變成最近登入帳號的版本；若要保留獨立副本，建議先匯出備份。
+        JSON 是完整備份 / 還原；AndroMoney CSV 只匯入或匯出一般交易，不會還原大額準備、資產負債或退休設定。
       </div>
     </div>
 
@@ -420,6 +425,19 @@
       </button>
     </div>
     <button type="button" class="sbtn outline" id="choice-cancel">返回修改</button>
+  </div>
+</div>
+
+<div id="andromoney-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="andromoney-title">
+  <div class="modal-panel">
+    <div class="modal-title" id="andromoney-title">匯入 AndroMoney CSV</div>
+    <div class="modal-sub" id="andromoney-summary"></div>
+    <div id="andromoney-accounts" class="flex-col gap-2"></div>
+    <div id="andromoney-preview" class="detail-list mt-3"></div>
+    <div class="grid-2 mt-3">
+      <button type="button" class="sbtn" id="andromoney-confirm">確認匯入</button>
+      <button type="button" class="sbtn outline" id="andromoney-cancel">取消</button>
+    </div>
   </div>
 </div>
 

@@ -5,6 +5,7 @@ import { getFilterRange, getFilteredTransactions } from "../state/selectors.js";
 import { loadLocalState, saveLocalState } from "../services/storage-local.js";
 import { setupPWA } from "../services/pwa.js";
 import { createCloudSync } from "../services/storage-cloud.js";
+import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
 import { createToastManager } from "../ui/toast.js";
 import { $ } from "../ui/dom.js";
@@ -111,6 +112,13 @@ function collectDom(doc = document) {
     wishSubmitButton: $("wish-submit-btn", doc),
     wishCancelButton: $("wish-cancel-btn", doc),
     fileImport: $("file-import", doc),
+    fileAndroMoneyImport: $("file-andromoney-import", doc),
+    androMoneyModal: $("andromoney-modal", doc),
+    androMoneySummary: $("andromoney-summary", doc),
+    androMoneyAccounts: $("andromoney-accounts", doc),
+    androMoneyPreview: $("andromoney-preview", doc),
+    androMoneyConfirm: $("andromoney-confirm", doc),
+    androMoneyCancel: $("andromoney-cancel", doc),
     retireLinked: $("r-linked", doc),
     retireManualWrap: $("r-manual-wrap", doc),
     retireLinkedValue: $("r-linked-val", doc),
@@ -156,6 +164,44 @@ function createFallbackCloudSync() {
   };
 }
 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(String(event.target?.result || ""));
+    reader.onerror = () => reject(new Error("read-failed"));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+function downloadTextFile({ content, filename, type }) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function sameExternalTransaction(left, right) {
+  return (
+    left?.externalSource &&
+    right?.externalSource &&
+    left.externalSource === right.externalSource &&
+    String(left.externalId || "") !== "" &&
+    String(left.externalId || "") === String(right.externalId || "")
+  );
+}
+
+function findDuplicateExternalTransactions(existingTxs, importedTxs) {
+  const existingKeys = new Set(
+    existingTxs
+      .filter((tx) => tx.externalSource && tx.externalId)
+      .map((tx) => `${tx.externalSource}:${tx.externalId}`),
+  );
+  return importedTxs.filter((tx) => existingKeys.has(`${tx.externalSource}:${tx.externalId}`));
+}
+
 export async function bootstrapFinanceApp(doc = document) {
   setupPWA();
 
@@ -169,6 +215,7 @@ export async function bootstrapFinanceApp(doc = document) {
   let cloudSync = createFallbackCloudSync();
   let currentUser = null;
   let authAction = null;
+  let pendingAndroMoneyText = "";
 
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
@@ -308,6 +355,62 @@ export async function bootstrapFinanceApp(doc = document) {
         dom.choiceModal.querySelector(`[data-choice="${defaultChoice}"]`)?.focus();
       });
     },
+    showAndroMoneyImportDialog(parsed) {
+      const state = store.getState();
+      const duplicateCount = findDuplicateExternalTransactions(state.txs, parsed.transactions).length;
+      const accountOptions = state.accounts
+        .map((account) => `<option value="${escapeHTML(account.id)}">${escapeHTML(account.name)}</option>`)
+        .join("");
+      dom.androMoneySummary.textContent =
+        `讀到 ${parsed.transactions.length} 筆交易、${parsed.accountNames.length} 個帳戶名稱。` +
+        (duplicateCount ? ` 其中 ${duplicateCount} 筆看起來已匯入過，確認時會略過。` : "");
+      dom.androMoneyAccounts.innerHTML = parsed.accountNames.length
+        ? parsed.accountNames
+            .map(
+              (name) => `
+                <label class="flex-col gap-1">
+                  <span class="flb">${escapeHTML(name)}</span>
+                  <select data-andromoney-account="${escapeHTML(name)}">${accountOptions}</select>
+                </label>
+              `,
+            )
+            .join("")
+        : '<div class="empty">CSV 裡沒有可對應的帳戶名稱。</div>';
+      dom.androMoneyPreview.innerHTML = parsed.transactions.length
+        ? parsed.transactions
+            .slice(0, 6)
+            .map(
+              (tx) => `
+                <div class="detail-row">
+                  <div class="detail-main">
+                    <div class="detail-title">${escapeHTML(tx.category)} / ${escapeHTML(tx.subcategory)}</div>
+                    <div class="detail-sub">${escapeHTML(tx.date)}｜${escapeHTML(tx.desc || "無備註")}｜${tx.type}</div>
+                  </div>
+                  <div class="detail-amt">${formatMoney(tx.amount)}</div>
+                </div>
+              `,
+            )
+            .join("")
+        : '<div class="empty detail-empty">沒有可匯入的交易。</div>';
+      dom.androMoneyConfirm.disabled = parsed.transactions.length === 0 || parsed.accountNames.length === 0;
+      dom.androMoneyModal.classList.remove("d-none");
+      dom.androMoneyConfirm.focus();
+    },
+    closeAndroMoneyImportDialog() {
+      pendingAndroMoneyText = "";
+      dom.androMoneyModal.classList.add("d-none");
+      dom.androMoneyAccounts.innerHTML = "";
+      dom.androMoneyPreview.innerHTML = "";
+      dom.androMoneySummary.textContent = "";
+    },
+    readAndroMoneyAccountMap() {
+      return Object.fromEntries(
+        [...dom.androMoneyAccounts.querySelectorAll("[data-andromoney-account]")].map((select) => [
+          select.dataset.andromoneyAccount,
+          select.value,
+        ]),
+      );
+    },
     populateCategoryBudgetOptions() {
       const state = store.getState();
       const categories = [...CONSTANTS.expenseCategories, ...state.userCats.expense];
@@ -444,6 +547,47 @@ export async function bootstrapFinanceApp(doc = document) {
   };
   const actions = createActions(context);
 
+  const exportAndroMoneyCsv = () => {
+    const csv = buildAndroMoneyCsv(store.getState().txs, store.getState().accounts);
+    downloadTextFile({
+      content: csv,
+      filename: "AndroMoney.csv",
+      type: "text/csv;charset=utf-8",
+    });
+    toast.show("已匯出 AndroMoney CSV");
+  };
+
+  const openAndroMoneyImport = async (file) => {
+    pendingAndroMoneyText = await readFileAsText(file);
+    const parsed = parseAndroMoneyCsv(pendingAndroMoneyText);
+    ui.showAndroMoneyImportDialog(parsed);
+  };
+
+  const confirmAndroMoneyImport = async () => {
+    if (!pendingAndroMoneyText) return;
+    const accountMap = ui.readAndroMoneyAccountMap();
+    const parsed = parseAndroMoneyCsv(pendingAndroMoneyText, { accountMap });
+    const existing = store.getState().txs;
+    const duplicateCount = findDuplicateExternalTransactions(existing, parsed.transactions).length;
+    const newTransactions = parsed.transactions.filter(
+      (tx) => !existing.some((item) => sameExternalTransaction(item, tx)),
+    );
+
+    if (!newTransactions.length) {
+      toast.show("沒有新的 AndroMoney 交易可匯入");
+      ui.closeAndroMoneyImportDialog();
+      return;
+    }
+
+    store.update((state) => {
+      state.txs = [...newTransactions, ...state.txs];
+    });
+    await saveState();
+    ui.closeAndroMoneyImportDialog();
+    renderAll();
+    toast.show(`已匯入 ${newTransactions.length} 筆交易${duplicateCount ? `，略過 ${duplicateCount} 筆重複` : ""}`);
+  };
+
   doc.body.addEventListener("click", (event) => {
     const button = event.target.closest("[data-action]");
     if (!button) return;
@@ -475,6 +619,8 @@ export async function bootstrapFinanceApp(doc = document) {
       toast.show("已匯出備份");
     }
     if (action === "trigger-import") dom.fileImport.click();
+    if (action === "export-andromoney") exportAndroMoneyCsv();
+    if (action === "trigger-andromoney-import") dom.fileAndroMoneyImport.click();
   });
 
   const bindForm = (id, callback) => {
@@ -504,6 +650,13 @@ export async function bootstrapFinanceApp(doc = document) {
   dom.fundCancelButton.addEventListener("click", () => actions.cancelEditFund());
   dom.bsCancelButton.addEventListener("click", () => actions.cancelEditBs());
   dom.wishCancelButton.addEventListener("click", () => actions.cancelEditWish());
+  dom.androMoneyCancel.addEventListener("click", () => ui.closeAndroMoneyImportDialog());
+  dom.androMoneyConfirm.addEventListener("click", () => {
+    confirmAndroMoneyImport().catch((error) => {
+      console.warn("AndroMoney import failed.", error);
+      toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
+    });
+  });
 
   [
     dom.inputAmount,
@@ -604,6 +757,19 @@ export async function bootstrapFinanceApp(doc = document) {
       toast.show("已匯入資料");
     } catch (error) {
       toast.show(error.message === "invalid-schema" ? "匯入失敗：檔案格式不符合目前資料模型" : "匯入失敗，請確認 JSON 內容", "error");
+    } finally {
+      event.target.value = "";
+    }
+  });
+
+  dom.fileAndroMoneyImport.addEventListener("change", async (event) => {
+    if (!event.target.files?.length) return;
+
+    try {
+      await openAndroMoneyImport(event.target.files[0]);
+    } catch (error) {
+      console.warn("AndroMoney CSV read failed.", error);
+      toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
     } finally {
       event.target.value = "";
     }
