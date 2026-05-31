@@ -158,8 +158,8 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
    - 第一階段資料遷移已完成：舊交易會補齊 `category` / `subcategory`，且 `subcategory` 不會是 `undefined`。
    - 第二階段 UI 輸入已完成：新增 / 編輯交易能輸入主分類與子分類，子分類可從建議選取也可自由輸入。
    - 第三階段匯入匯出核心已完成：已建立 AndroMoney CSV 解析 / 產生工具，可保留主分類、子分類、外部 ID 與 uid。
-   - 第四階段 CSV 匯入 UI 已完成：匯入時會先顯示帳戶對應與交易預覽，使用者確認後才寫入交易；已匯入過的外部交易會先略過。
-   - 下一步是補強重複交易處理選項與匯入預覽細節：例如顯示將略過的項目、允許使用者選擇「略過」或「更新」。
+   - 第五階段重複交易處理已完成：預覽會標示新增 / 已存在，確認時可選擇略過或更新重複外部交易；更新時會保留本機交易 ID，並解除該交易既有的大額準備事件。
+   - 下一步是最後人工測試與合併前整理：確認 CSV 匯入、JSON 備份、記帳、大額準備、預算與雲端同步沒有互相干擾。
    - 新 UI、分組、統計、匯入匯出應只讀取經遷移後的資料形狀，避免舊資料造成白畫面。
 
 ### English
@@ -170,8 +170,8 @@ Recommended immediate priorities:
    - Phase 1 data migration is complete: older transactions are filled with `category` / `subcategory`, and `subcategory` is never left as `undefined`.
    - Phase 2 UI input is complete: add/edit transaction flows can capture primary category and subcategory, and subcategories can be selected from suggestions or typed freely.
    - Phase 3 import/export core is complete: AndroMoney CSV parsing and generation helpers can preserve primary category, subcategory, external IDs, and uid values.
-   - Phase 4 CSV import UI is complete: import shows account mapping and transaction preview first, writes transactions only after confirmation, and currently skips already-imported external transactions.
-   - The next step is richer duplicate handling and preview detail, such as listing skipped rows and allowing the user to choose "skip" or "update".
+   - Phase 5 duplicate handling is complete: the preview marks new / existing rows, and confirmation can skip or update duplicate external transactions. Updates preserve local transaction IDs and unlink existing fund events for that transaction.
+   - The next step is final manual testing and pre-push cleanup: verify CSV import, JSON backup, ledger entry, large-expense funds, budgets, and cloud sync do not interfere with each other.
    - New UI, grouping, reporting, import, and export code should consume the migrated data shape so older data cannot blank the page.
 
 ## 5. 中期重構 / Mid-Term Refactors
@@ -560,7 +560,8 @@ AndroMoney CSV 適合作為「手機端交易交換格式」，但不適合作�
    - 已建立 CSV 匯入 UI：先顯示匯入預覽
    - 匯入時由使用者手動對應帳戶名稱
    - 完整保留主分類與子分類
-   - 目前以 `externalSource` / `externalId` 偵測重複匯入，確認匯入時會略過既有外部交易。
+   - 目前以 `externalSource` / `externalId` 偵測重複匯入，確認匯入時可選擇略過或更新既有外部交易。
+   - 更新既有外部交易時會保留原本本機交易 ID；若該交易有大額準備事件，會先移除關聯，讓使用者之後重新指定。
    - CSV 匯入只建立或更新一般交易層，不嘗試與網站完整備份 JSON 合併。
 4. 建立 AndroMoney 相容 CSV 匯出：
    - 核心 CSV 產生已完成，網站交易可輸出成 AndroMoney 欄位順序，並保留主分類 / 子分類。
@@ -620,7 +621,8 @@ Recommended implementation order:
    - CSV import UI is implemented: show a preview before committing
    - ask the user to map account names manually during import
    - preserve both category levels
-   - currently use `externalSource` / `externalId` to detect duplicate imports and skip existing external transactions on confirmation
+   - currently use `externalSource` / `externalId` to detect duplicate imports; confirmation can skip or update existing external transactions
+   - updating an existing external transaction preserves the local transaction ID; if the transaction has fund events, those links are removed so the user can reassign them later
    - CSV import only creates or updates the transaction layer; it must not merge with the full website backup JSON.
 4. Implement AndroMoney-compatible CSV export:
    - Core CSV generation is complete: website transactions can be exported in AndroMoney column order while preserving primary / secondary categories.

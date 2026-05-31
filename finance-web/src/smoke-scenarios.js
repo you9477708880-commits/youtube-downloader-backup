@@ -405,10 +405,38 @@ export async function runTransactionSubcategoryScenario(app) {
 
 export function prepareAndroMoneyImportScenario() {
   const seededState = {
-    txs: [],
+    txs: [
+      {
+        id: "local-existing-6542",
+        type: "expense",
+        amount: 99,
+        desc: "舊午餐",
+        date: "2025-11-03",
+        cat: "餐飲食品",
+        category: "餐飲食品",
+        subcategory: "早餐",
+        acc: "cash",
+        linkedFundId: "sf-smoke-csv",
+        externalSource: "andromoney",
+        externalId: "6542",
+      },
+    ],
     bsI: [],
     wishes: [],
-    sinkingFunds: [],
+    sinkingFunds: [
+      {
+        id: "sf-smoke-csv",
+        name: "CSV 測試準備",
+        category: "餐飲食品",
+        targetAmount: 1000,
+        monthlyContribution: 100,
+        startMonth: smokeMonth,
+        targetMonth: smokeMonth,
+        carryoverEnabled: true,
+        note: "",
+        events: [{ id: "csv-spend", type: "spend", amount: 99, date: "2025-11-03", linkedTxId: "local-existing-6542" }],
+      },
+    ],
     accounts: [
       { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
       { id: "bank", name: "台新銀行", type: "asset", isEm: false, initialBalance: 0 },
@@ -456,19 +484,30 @@ export async function runAndroMoneyImportScenario(app) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
 
     await waitFor(() => !document.getElementById("andromoney-modal").classList.contains("d-none"));
+    const previewText = document.getElementById("andromoney-preview").textContent || "";
+    const summaryText = document.getElementById("andromoney-summary").textContent || "";
+    if (!previewText.includes("已存在") || !summaryText.includes("已匯入過")) {
+      throw new Error("andromoney-duplicate-preview-missing");
+    }
     document.querySelector('[data-andromoney-account="台新銀行"]').value = "bank";
+    document.getElementById("andromoney-duplicate-mode").value = "update";
     document.getElementById("andromoney-confirm").click();
     await waitFor(() => app.store.getState().txs.length === 2);
 
     const [expense, income] = [...app.store.getState().txs].sort((a, b) => String(a.externalId).localeCompare(String(b.externalId)));
+    const fund = app.store.getState().sinkingFunds.find((item) => item.id === "sf-smoke-csv");
     const passed =
       expense?.type === "expense" &&
+      expense?.id === "local-existing-6542" &&
+      expense?.amount === 209 &&
       expense?.category === "餐飲食品" &&
       expense?.subcategory === "午餐" &&
       expense?.acc === "bank" &&
+      !expense?.linkedFundId &&
       expense?.externalSource === "andromoney" &&
       income?.type === "income" &&
       income?.acc === "bank" &&
+      !fund?.events?.some((event) => String(event.linkedTxId) === "local-existing-6542") &&
       document.getElementById("andromoney-modal").classList.contains("d-none");
 
     if (!passed) {

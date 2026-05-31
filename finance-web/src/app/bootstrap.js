@@ -7,6 +7,7 @@ import { setupPWA } from "../services/pwa.js";
 import { createCloudSync } from "../services/storage-cloud.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
+import { withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
 import { createToastManager } from "../ui/toast.js";
 import { $ } from "../ui/dom.js";
 import { setActiveTab } from "../ui/tabs.js";
@@ -116,6 +117,8 @@ function collectDom(doc = document) {
     androMoneyModal: $("andromoney-modal", doc),
     androMoneySummary: $("andromoney-summary", doc),
     androMoneyAccounts: $("andromoney-accounts", doc),
+    androMoneyDuplicates: $("andromoney-duplicates", doc),
+    androMoneyDuplicateMode: $("andromoney-duplicate-mode", doc),
     androMoneyPreview: $("andromoney-preview", doc),
     androMoneyConfirm: $("andromoney-confirm", doc),
     androMoneyCancel: $("andromoney-cancel", doc),
@@ -193,13 +196,22 @@ function sameExternalTransaction(left, right) {
   );
 }
 
+function externalTransactionKey(tx) {
+  if (!tx?.externalSource || !tx?.externalId) return "";
+  return `${tx.externalSource}:${tx.externalId}`;
+}
+
+function findExternalTransaction(existingTxs, importedTx) {
+  return existingTxs.find((tx) => sameExternalTransaction(tx, importedTx)) || null;
+}
+
 function findDuplicateExternalTransactions(existingTxs, importedTxs) {
   const existingKeys = new Set(
     existingTxs
       .filter((tx) => tx.externalSource && tx.externalId)
-      .map((tx) => `${tx.externalSource}:${tx.externalId}`),
+      .map(externalTransactionKey),
   );
-  return importedTxs.filter((tx) => existingKeys.has(`${tx.externalSource}:${tx.externalId}`));
+  return importedTxs.filter((tx) => existingKeys.has(externalTransactionKey(tx)));
 }
 
 export async function bootstrapFinanceApp(doc = document) {
@@ -357,13 +369,16 @@ export async function bootstrapFinanceApp(doc = document) {
     },
     showAndroMoneyImportDialog(parsed) {
       const state = store.getState();
-      const duplicateCount = findDuplicateExternalTransactions(state.txs, parsed.transactions).length;
+      const duplicates = findDuplicateExternalTransactions(state.txs, parsed.transactions);
+      const duplicateKeys = new Set(duplicates.map(externalTransactionKey));
       const accountOptions = state.accounts
         .map((account) => `<option value="${escapeHTML(account.id)}">${escapeHTML(account.name)}</option>`)
         .join("");
       dom.androMoneySummary.textContent =
         `讀到 ${parsed.transactions.length} 筆交易、${parsed.accountNames.length} 個帳戶名稱。` +
-        (duplicateCount ? ` 其中 ${duplicateCount} 筆看起來已匯入過，確認時會略過。` : "");
+        (duplicates.length ? ` 其中 ${duplicates.length} 筆看起來已匯入過。` : "");
+      dom.androMoneyDuplicates.classList.toggle("d-none", duplicates.length === 0);
+      dom.androMoneyDuplicateMode.value = "skip";
       dom.androMoneyAccounts.innerHTML = parsed.accountNames.length
         ? parsed.accountNames
             .map(
@@ -380,15 +395,18 @@ export async function bootstrapFinanceApp(doc = document) {
         ? parsed.transactions
             .slice(0, 6)
             .map(
-              (tx) => `
+              (tx) => {
+                const duplicate = duplicateKeys.has(externalTransactionKey(tx));
+                return `
                 <div class="detail-row">
                   <div class="detail-main">
-                    <div class="detail-title">${escapeHTML(tx.category)} / ${escapeHTML(tx.subcategory)}</div>
+                    <div class="detail-title">${escapeHTML(tx.category)} / ${escapeHTML(tx.subcategory)}${duplicate ? "｜已存在" : "｜新增"}</div>
                     <div class="detail-sub">${escapeHTML(tx.date)}｜${escapeHTML(tx.desc || "無備註")}｜${tx.type}</div>
                   </div>
                   <div class="detail-amt">${formatMoney(tx.amount)}</div>
                 </div>
-              `,
+              `;
+              },
             )
             .join("")
         : '<div class="empty detail-empty">沒有可匯入的交易。</div>';
@@ -402,6 +420,8 @@ export async function bootstrapFinanceApp(doc = document) {
       dom.androMoneyAccounts.innerHTML = "";
       dom.androMoneyPreview.innerHTML = "";
       dom.androMoneySummary.textContent = "";
+      dom.androMoneyDuplicates.classList.add("d-none");
+      dom.androMoneyDuplicateMode.value = "skip";
     },
     readAndroMoneyAccountMap() {
       return Object.fromEntries(
@@ -568,24 +588,43 @@ export async function bootstrapFinanceApp(doc = document) {
     const accountMap = ui.readAndroMoneyAccountMap();
     const parsed = parseAndroMoneyCsv(pendingAndroMoneyText, { accountMap });
     const existing = store.getState().txs;
+    const duplicateMode = dom.androMoneyDuplicateMode.value || "skip";
     const duplicateCount = findDuplicateExternalTransactions(existing, parsed.transactions).length;
     const newTransactions = parsed.transactions.filter(
       (tx) => !existing.some((item) => sameExternalTransaction(item, tx)),
     );
+    const updateTransactions = duplicateMode === "update"
+      ? parsed.transactions
+          .map((tx) => {
+            const existingTx = findExternalTransaction(existing, tx);
+            return existingTx ? { ...tx, id: existingTx.id } : null;
+          })
+          .filter(Boolean)
+      : [];
 
-    if (!newTransactions.length) {
+    if (!newTransactions.length && !updateTransactions.length) {
       toast.show("沒有新的 AndroMoney 交易可匯入");
       ui.closeAndroMoneyImportDialog();
       return;
     }
 
     store.update((state) => {
-      state.txs = [...newTransactions, ...state.txs];
+      const updateIds = new Set(updateTransactions.map((tx) => String(tx.id)));
+      let nextFunds = state.sinkingFunds;
+      updateIds.forEach((id) => {
+        nextFunds = withoutFundEventsLinkedToTransaction(nextFunds, id);
+      });
+      state.sinkingFunds = nextFunds;
+      state.txs = [
+        ...newTransactions,
+        ...state.txs.map((tx) => updateTransactions.find((item) => String(item.id) === String(tx.id)) || tx),
+      ];
     });
     await saveState();
     ui.closeAndroMoneyImportDialog();
     renderAll();
-    toast.show(`已匯入 ${newTransactions.length} 筆交易${duplicateCount ? `，略過 ${duplicateCount} 筆重複` : ""}`);
+    const skipped = duplicateMode === "skip" ? duplicateCount : 0;
+    toast.show(`已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${skipped ? `，略過 ${skipped} 筆重複` : ""}`);
   };
 
   doc.body.addEventListener("click", (event) => {
