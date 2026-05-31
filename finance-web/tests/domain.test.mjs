@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances, calculateBalanceSheet } from "../src/domain/accounts.js";
 import { calculateBudgetData } from "../src/domain/budget.js";
+import { getUnusedCategoryBudgetNames } from "../src/domain/category-budgets.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
 import { createActions } from "../src/app/actions.js";
 import {
@@ -196,6 +197,29 @@ function testBudget() {
   assert.equal(budget.categoryBudgets.find((item) => item.category === "餐飲").expense, 2000);
   assert.equal(budget.categoryBudgets.find((item) => item.category === "其他支出").expense, 20000);
   assert.equal(budget.sourceItems.length, 6);
+}
+
+function testUnusedCategoryBudgetDetection() {
+  const unused = getUnusedCategoryBudgetNames(
+    {
+      txs: [
+        { id: "tx-custom", type: "expense", amount: 1000, category: "歷史自訂", cat: "歷史自訂", subcategory: "未分類" },
+        { id: "tx-income", type: "income", amount: 2000, category: "不存在收入", cat: "不存在收入" },
+      ],
+      userCats: { income: [], expense: ["仍在自訂"] },
+      settings: {
+        catBudgets: {
+          餐飲: 5000,
+          歷史自訂: 3000,
+          仍在自訂: 2000,
+          孤立分類: 1000,
+        },
+      },
+    },
+    { expenseCategories: ["餐飲"] },
+  );
+
+  assert.deepEqual(unused, ["孤立分類"]);
 }
 
 function testLinkedFundExpenseCoverage() {
@@ -979,6 +1003,7 @@ testAccountBalances();
 testAdvanceReceivable();
 testSinkingFunds();
 testBudget();
+testUnusedCategoryBudgetDetection();
 testLinkedFundExpenseCoverage();
 testLinkedFundPartialCoverageUsesSpendEvent();
 testAutoTopupShortfallBudgetEffect();

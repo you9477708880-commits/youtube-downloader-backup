@@ -200,9 +200,9 @@ Recommended immediate priorities:
    - 未來若要合併，必須先定義單筆資料衝突規則與可回復機制。
 
 5. **分類預算資料清理**
-   - `settings.catBudgets` 可能保留已不再使用的分類預算。
-   - 這不是目前的資安漏洞，也不應在未確認使用者意圖時自動刪除。
-   - 未來可提供「清理未使用分類預算」功能，先列出將移除的項目，再由使用者確認。
+   - 已提供「清理未使用分類預算」功能。
+   - 系統會保留預設支出分類、自訂支出分類，以及歷史交易仍有使用到的分類。
+   - 只有孤立的 `settings.catBudgets` 項目會被列入清理確認，且必須由使用者確認後才移除。
 
 ### English
 
@@ -228,9 +228,9 @@ Mid-term work:
    - Future merge support must define per-record conflict rules and recovery behavior first.
 
 5. **Category-budget data cleanup**
-   - `settings.catBudgets` may keep budget entries for categories that are no longer used.
-   - This is not an active security issue and should not be auto-deleted without confirming user intent.
-   - A future cleanup tool can list unused category budgets first, then remove them only after user confirmation.
+   - A "clean unused category budgets" tool is implemented.
+   - The system preserves default expense categories, custom expense categories, and categories still referenced by historical transactions.
+   - Only orphaned `settings.catBudgets` entries are listed for cleanup, and they are removed only after user confirmation.
 
 6. **AndroMoney compatibility layer**
    - Use AndroMoney CSV as a mobile-compatible transaction interchange format, not as backup/restore for this website.

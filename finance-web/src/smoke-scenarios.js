@@ -520,6 +520,67 @@ export async function runAndroMoneyImportScenario(app) {
   }
 }
 
+export function prepareCategoryBudgetCleanupScenario() {
+  const seededState = {
+    txs: [{ id: "tx-history", type: "expense", amount: 1000, date: smokeDate, cat: "歷史自訂", category: "歷史自訂", subcategory: "未分類", acc: "cash" }],
+    bsI: [],
+    wishes: [],
+    sinkingFunds: [],
+    accounts: [
+      { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "bank", name: "銀行帳戶", type: "asset", isEm: false, initialBalance: 0 },
+      { id: "card", name: "信用卡", type: "liability", isEm: false, initialBalance: 0 },
+    ],
+    userCats: { income: [], expense: ["仍在自訂"] },
+    settings: {
+      budgetCap: 50000,
+      catBudgets: {
+        餐飲: 5000,
+        歷史自訂: 3000,
+        仍在自訂: 2000,
+        孤立分類: 1000,
+      },
+      leftoverMode: "manual",
+      investingLabel: "股票 / 黃金",
+      cashReserveLabel: "現金保留",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runCategoryBudgetCleanupScenario(app) {
+  const originalConfirm = window.confirm;
+
+  try {
+    window.confirm = (message) => message.includes("孤立分類") && !message.includes("餐飲") && !message.includes("歷史自訂") && !message.includes("仍在自訂");
+    document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
+    await waitFor(() => document.querySelector('[data-action="cleanup-cat-budgets"]'));
+    document.querySelector('[data-action="cleanup-cat-budgets"]').click();
+    await waitFor(() => !("孤立分類" in app.store.getState().settings.catBudgets));
+
+    const budgets = app.store.getState().settings.catBudgets;
+    const passed = budgets.餐飲 === 5000 && budgets.歷史自訂 === 3000 && budgets.仍在自訂 === 2000 && !("孤立分類" in budgets);
+    if (!passed) {
+      throw new Error("category-budget-cleanup-state-mismatch");
+    }
+
+    writeSmokeResult("pass", "unused category budget cleanup removed only orphaned budget");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  } finally {
+    window.confirm = originalConfirm;
+  }
+}
+
 export function prepareAdvanceEditGuardsScenario() {
   const seededState = {
     txs: [

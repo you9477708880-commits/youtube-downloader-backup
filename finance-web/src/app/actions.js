@@ -8,6 +8,7 @@ import {
   getOpenAdvances,
 } from "../domain/transactions.js";
 import { getFundAvailableBeforeExpense, getFundTargetPlanStatus, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
+import { getUnusedCategoryBudgetNames } from "../domain/category-budgets.js";
 import { DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { localDateStr, toMoneyInt } from "../utils/format.js";
 
@@ -802,6 +803,26 @@ export function createActions(context) {
       });
       context.saveState();
       renderWishlist();
+    },
+
+    cleanupCatBudgets() {
+      const unusedCategories = getUnusedCategoryBudgetNames(store.getState(), constants);
+      if (!unusedCategories.length) {
+        ui.toast.show("目前沒有需要清理的分類預算");
+        return;
+      }
+
+      const shouldDelete = window.confirm(`將移除 ${unusedCategories.length} 個未使用分類預算：\n${unusedCategories.join("、")}\n\n確定要清理嗎？`);
+      if (!shouldDelete) return;
+
+      store.update((draft) => {
+        unusedCategories.forEach((category) => {
+          delete draft.settings.catBudgets[category];
+        });
+      });
+      context.saveState();
+      renderWishlist();
+      ui.toast.show(`已清理 ${unusedCategories.length} 個未使用分類預算`);
     },
 
     addWish() {
