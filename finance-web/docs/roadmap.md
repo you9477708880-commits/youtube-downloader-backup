@@ -1,9 +1,9 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-05-19  
+最後更新 / Last updated: 2026-05-31  
 目前主線 / Current mainline: `main`  
-最新主線提交 / Latest main commit: see `git log -1 --oneline`  
-目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`.
+最新本機提交 / Latest local commit: `6c0b35f 補強 DOM 渲染安全回歸測試`  
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by 2 commits.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -76,6 +76,11 @@ The current priority is not advanced investment simulation. The priority is to c
 - `新功能實驗` 已透過 squash merge 整合回 `main`，並已推送到 GitHub 遠端。
 - Firebase Hosting 已部署新版，正式網址 `https://financial-computer.web.app` 已更新。
 
+以下項目已在本機 `main` 完成並提交，但尚未推送到 GitHub，也尚未部署到 Firebase Hosting：
+
+- 分類預算清理工具已完成：可列出孤立的 `settings.catBudgets` 項目，並由使用者確認後清理；預設分類、自訂分類與仍被歷史交易使用的分類不會被誤刪。
+- DOM 與渲染安全整理已完成第二輪：補強大額準備選單 `value` 屬性跳脫，並把 XSS 回歸測試擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
+
 ### English
 
 The following items are completed on `main`, pushed, and deployed to Firebase Hosting:
@@ -120,6 +125,11 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 - `新功能實驗` was squash-merged back into `main` and pushed to GitHub.
 - Firebase Hosting has been redeployed; the production URL `https://financial-computer.web.app` is updated.
 
+The following items are complete and committed on local `main`, but are not yet pushed to GitHub or deployed to Firebase Hosting:
+
+- Category-budget cleanup is complete: the app can list orphaned `settings.catBudgets` entries and remove them after user confirmation; default categories, custom categories, and categories still referenced by historical transactions are preserved.
+- DOM and rendering safety cleanup phase 2 is complete: large-expense fund option `value` attributes are escaped, and XSS regression coverage now includes ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
+
 ## 3. 關鍵設計決策 / Key Design Decisions
 
 ### 中文
@@ -154,7 +164,12 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 
 建議優先處理：
 
-1. **交易分類模型升級**
+1. **合併前人工測試與推送決策**
+   - 目前本機 `main` 比 GitHub 遠端多 2 個 commit：分類預算清理工具、DOM 與渲染安全整理。
+   - 下一步應先人工測試：記帳、分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
+   - 測試後再決定是否 push 到 GitHub，並視需要部署 Firebase Hosting。
+
+2. **交易分類模型升級後續收尾**
    - 第一階段資料遷移已完成：舊交易會補齊 `category` / `subcategory`，且 `subcategory` 不會是 `undefined`。
    - 第二階段 UI 輸入已完成：新增 / 編輯交易能輸入主分類與子分類，子分類可從建議選取也可自由輸入。
    - 第三階段匯入匯出核心已完成：已建立 AndroMoney CSV 解析 / 產生工具，可保留主分類、子分類、外部 ID 與 uid。
@@ -166,7 +181,12 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 
 Recommended immediate priorities:
 
-1. **Transaction category model upgrade**
+1. **Manual pre-push testing and push decision**
+   - Local `main` is currently ahead of GitHub by 2 commits: category-budget cleanup and DOM/rendering safety cleanup.
+   - Next, manually test ledger entry, category input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
+   - After testing, decide whether to push to GitHub and whether Firebase Hosting should be redeployed.
+
+2. **Transaction category model follow-up**
    - Phase 1 data migration is complete: older transactions are filled with `category` / `subcategory`, and `subcategory` is never left as `undefined`.
    - Phase 2 UI input is complete: add/edit transaction flows can capture primary category and subcategory, and subcategories can be selected from suggestions or typed freely.
    - Phase 3 import/export core is complete: AndroMoney CSV parsing and generation helpers can preserve primary category, subcategory, external IDs, and uid values.
@@ -181,9 +201,8 @@ Recommended immediate priorities:
 中期應處理：
 
 1. **DOM 與渲染安全整理**
-   - 已完成第二輪 XSS 與屬性跳脫檢查，補強大額準備選單的 `value` 屬性跳脫。
-   - 渲染安全回歸測試已擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
-   - 後續若大幅新增 UI，仍建議逐步把純文字區塊改成節點建立與 `textContent`，減少新的 `innerHTML` 風險。
+   - 目前第二輪已完成並列入「本機完成，尚未推送」。
+   - 後續若大幅新增 UI，才需要逐步把純文字區塊改成節點建立與 `textContent`，減少新的 `innerHTML` 風險。
 
 2. **本機儲存錯誤隔離**
    - 合併前已完成逐欄位解析。
@@ -201,17 +220,15 @@ Recommended immediate priorities:
    - 未來若要合併，必須先定義單筆資料衝突規則與可回復機制。
 
 5. **分類預算資料清理**
-   - 已提供「清理未使用分類預算」功能。
-   - 系統會保留預設支出分類、自訂支出分類，以及歷史交易仍有使用到的分類。
-   - 只有孤立的 `settings.catBudgets` 項目會被列入清理確認，且必須由使用者確認後才移除。
+   - 目前清理工具已完成並列入「本機完成，尚未推送」。
+   - 後續只需在分類模型或分類設定大改時，確認清理規則仍符合新的分類來源。
 
 ### English
 
 Mid-term work:
 
 1. **DOM and rendering safety cleanup**
-   - A second XSS and attribute-escaping pass is complete, including escaped `value` attributes for large-expense fund options.
-   - Rendering safety regression tests now cover ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
+   - The second pass is now complete and listed under "complete locally, not yet pushed".
    - If future UI work expands significantly, gradually move pure text regions to node creation plus `textContent` to reduce new `innerHTML` risk.
 
 2. **Local storage error isolation**
@@ -230,9 +247,8 @@ Mid-term work:
    - Future merge support must define per-record conflict rules and recovery behavior first.
 
 5. **Category-budget data cleanup**
-   - A "clean unused category budgets" tool is implemented.
-   - The system preserves default expense categories, custom expense categories, and categories still referenced by historical transactions.
-   - Only orphaned `settings.catBudgets` entries are listed for cleanup, and they are removed only after user confirmation.
+   - The cleanup tool is now complete and listed under "complete locally, not yet pushed".
+   - Future work only needs to re-check the cleanup rules if the category model or category settings are significantly changed.
 
 6. **AndroMoney compatibility layer**
    - Use AndroMoney CSV as a mobile-compatible transaction interchange format, not as backup/restore for this website.
