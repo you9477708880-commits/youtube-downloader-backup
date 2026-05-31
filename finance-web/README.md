@@ -31,7 +31,7 @@ node .\tests\domain.test.mjs
 Headless smoke test：
 
 ```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless
+node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-subcategory,andro-money-import,category-budget-cleanup --port=4184
 ```
 
 部署：

@@ -80,6 +80,7 @@ The current priority is not advanced investment simulation. The priority is to c
 
 - 分類預算清理工具已完成：可列出孤立的 `settings.catBudgets` 項目，並由使用者確認後清理；預設分類、自訂分類與仍被歷史交易使用的分類不會被誤刪。
 - DOM 與渲染安全整理已完成第二輪：補強大額準備選單 `value` 屬性跳脫，並把 XSS 回歸測試擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
+- 專案內 smoke runner 已建立：不再依賴外部 `test-server.js`，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與多種 headless 啟動策略間自動重試。
 
 ### English
 
@@ -129,6 +130,7 @@ The following items are complete and committed on local `main`, but are not yet 
 
 - Category-budget cleanup is complete: the app can list orphaned `settings.catBudgets` entries and remove them after user confirmation; default categories, custom categories, and categories still referenced by historical transactions are preserved.
 - DOM and rendering safety cleanup phase 2 is complete: large-expense fund option `value` attributes are escaped, and XSS regression coverage now includes ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
+- A project-local smoke runner is implemented: it no longer depends on the external `test-server.js`, uses a clean temporary browser profile, and retries Chrome / Edge with multiple headless launch strategies.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -165,7 +167,7 @@ The following items are complete and committed on local `main`, but are not yet 
 建議優先處理：
 
 1. **本機完成項目的正式上線前檢查**
-   - 目前本機 `main` 比 GitHub 遠端多 3 個 commit：分類預算清理工具、DOM 與渲染安全整理、roadmap 進度盤點。
+   - 目前本機 `main` 比 GitHub 遠端多數個 commit，包含分類預算清理工具、DOM 與渲染安全整理、roadmap 進度盤點與專案內 smoke runner。
    - 這批內容功能上已完成，但還不能寫成「已推送、已部署」，直到完成 GitHub push 與 Firebase Hosting deploy。
    - 上線前應人工測試：記帳、主分類 / 子分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
 
@@ -184,7 +186,7 @@ The following items are complete and committed on local `main`, but are not yet 
 Recommended immediate priorities:
 
 1. **Pre-release check for locally completed work**
-   - Local `main` is currently ahead of GitHub by 3 commits: category-budget cleanup, DOM/rendering safety cleanup, and roadmap progress cleanup.
+   - Local `main` is currently ahead of GitHub by several commits, including category-budget cleanup, DOM/rendering safety cleanup, roadmap progress cleanup, and the project-local smoke runner.
    - These items are functionally complete, but should not be marked as pushed/deployed until GitHub push and Firebase Hosting deployment are done.
    - Before release, manually test ledger entry, primary/subcategory input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
 
@@ -372,26 +374,16 @@ node .\tests\domain.test.mjs
 - Headless smoke test：
 
 ```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --port=4184
+node .\tests\smoke-runner.js --port=4184
 ```
 
-- Headless UI smoke scenario：
+- Headless UI smoke scenarios：
 
 ```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=fund-shortfall-choice --port=4185
+node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness --port=4185
 ```
 
-- 交易編輯 UI smoke scenario：
-
-```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=transaction-edit-unlinks --port=4186
-```
-
-- 大額準備編輯 UI smoke scenario：
-
-```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=fund-edit-recalculates --port=4187
-```
+新的 smoke runner 位於專案內，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與不同 headless 啟動策略間自動重試。
 
 重要測試方向：
 
@@ -421,26 +413,16 @@ node .\tests\domain.test.mjs
 - Headless smoke test:
 
 ```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --port=4184
+node .\tests\smoke-runner.js --port=4184
 ```
 
-- Headless UI smoke scenario:
+- Headless UI smoke scenarios:
 
 ```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=fund-shortfall-choice --port=4185
+node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness --port=4185
 ```
 
-- Transaction-edit UI smoke scenario:
-
-```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=transaction-edit-unlinks --port=4186
-```
-
-- Fund-edit UI smoke scenario:
-
-```powershell
-node 'D:\桌面\音樂下載\理財網頁其他資料\test-server.js' --root='D:\桌面\音樂下載\finance-web' --headless --scenario=fund-edit-recalculates --port=4187
-```
+The new smoke runner lives inside the project. It uses a clean temporary browser profile and automatically retries Chrome / Edge with different headless launch strategies.
 
 Important test directions:
 
