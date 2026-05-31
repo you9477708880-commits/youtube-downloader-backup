@@ -164,35 +164,39 @@ The following items are complete and committed on local `main`, but are not yet 
 
 建議優先處理：
 
-1. **合併前人工測試與推送決策**
-   - 目前本機 `main` 比 GitHub 遠端多 2 個 commit：分類預算清理工具、DOM 與渲染安全整理。
-   - 下一步應先人工測試：記帳、分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
-   - 測試後再決定是否 push 到 GitHub，並視需要部署 Firebase Hosting。
+1. **本機完成項目的正式上線前檢查**
+   - 目前本機 `main` 比 GitHub 遠端多 3 個 commit：分類預算清理工具、DOM 與渲染安全整理、roadmap 進度盤點。
+   - 這批內容功能上已完成，但還不能寫成「已推送、已部署」，直到完成 GitHub push 與 Firebase Hosting deploy。
+   - 上線前應人工測試：記帳、主分類 / 子分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
 
-2. **交易分類模型升級後續收尾**
-   - 第一階段資料遷移已完成：舊交易會補齊 `category` / `subcategory`，且 `subcategory` 不會是 `undefined`。
-   - 第二階段 UI 輸入已完成：新增 / 編輯交易能輸入主分類與子分類，子分類可從建議選取也可自由輸入。
-   - 第三階段匯入匯出核心已完成：已建立 AndroMoney CSV 解析 / 產生工具，可保留主分類、子分類、外部 ID 與 uid。
-   - 第五階段重複交易處理已完成：預覽會標示新增 / 已存在，確認時可選擇略過或更新重複外部交易；更新時會保留本機交易 ID，並解除該交易既有的大額準備事件。
-   - 下一步是最後人工測試與合併前整理：確認 CSV 匯入、JSON 備份、記帳、大額準備、預算與雲端同步沒有互相干擾。
-   - 新 UI、分組、統計、匯入匯出應只讀取經遷移後的資料形狀，避免舊資料造成白畫面。
+2. **本機 / 雲端資料覆蓋策略明確化**
+   - 先不做自動合併。
+   - 若登入 Google 後偵測到本機與雲端都有資料，應提供清楚選擇：使用雲端覆蓋本機，或使用本機覆蓋雲端。
+   - 需要補上使用者看得懂的提示文字，避免誤以為系統會自動安全合併兩份財務資料。
+
+3. **大額準備計畫變更規則收斂**
+   - 目前修改大額準備設定會重算整段規劃，這已可運作，但長期規則需要更明確。
+   - 下一步先定義是否要採「過去月份鎖定、未來月份套用新設定」。
+   - 若要實作，應優先採明確的生效月份或 `plan_changed` 事件，不做複雜設定檔版本化。
 
 ### English
 
 Recommended immediate priorities:
 
-1. **Manual pre-push testing and push decision**
-   - Local `main` is currently ahead of GitHub by 2 commits: category-budget cleanup and DOM/rendering safety cleanup.
-   - Next, manually test ledger entry, category input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
-   - After testing, decide whether to push to GitHub and whether Firebase Hosting should be redeployed.
+1. **Pre-release check for locally completed work**
+   - Local `main` is currently ahead of GitHub by 3 commits: category-budget cleanup, DOM/rendering safety cleanup, and roadmap progress cleanup.
+   - These items are functionally complete, but should not be marked as pushed/deployed until GitHub push and Firebase Hosting deployment are done.
+   - Before release, manually test ledger entry, primary/subcategory input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
 
-2. **Transaction category model follow-up**
-   - Phase 1 data migration is complete: older transactions are filled with `category` / `subcategory`, and `subcategory` is never left as `undefined`.
-   - Phase 2 UI input is complete: add/edit transaction flows can capture primary category and subcategory, and subcategories can be selected from suggestions or typed freely.
-   - Phase 3 import/export core is complete: AndroMoney CSV parsing and generation helpers can preserve primary category, subcategory, external IDs, and uid values.
-   - Phase 5 duplicate handling is complete: the preview marks new / existing rows, and confirmation can skip or update duplicate external transactions. Updates preserve local transaction IDs and unlink existing fund events for that transaction.
-   - The next step is final manual testing and pre-push cleanup: verify CSV import, JSON backup, ledger entry, large-expense funds, budgets, and cloud sync do not interfere with each other.
-   - New UI, grouping, reporting, import, and export code should consume the migrated data shape so older data cannot blank the page.
+2. **Local / cloud overwrite strategy**
+   - Do not implement automatic merging yet.
+   - If both local and cloud data exist after Google sign-in, provide explicit choices: use cloud data over local data, or upload local data over cloud data.
+   - Add user-facing copy that clearly explains the risk so users do not assume the app can safely auto-merge financial data.
+
+3. **Large-expense fund plan-change rules**
+   - Current fund setting edits recalculate the whole plan. This works, but the long-term rule should be made explicit.
+   - Next, decide whether past months should be locked while future months use new settings.
+   - If implemented, prefer an explicit effective month or `plan_changed` event instead of complex settings-versioning.
 
 ## 5. 中期重構 / Mid-Term Refactors
 
@@ -222,6 +226,21 @@ Recommended immediate priorities:
 5. **分類預算資料清理**
    - 目前清理工具已完成並列入「本機完成，尚未推送」。
    - 後續只需在分類模型或分類設定大改時，確認清理規則仍符合新的分類來源。
+
+6. **桌機版核心頁面工作區整理**
+   - 不做全站一次性大改版，先挑高頻頁面逐步整理。
+   - 優先頁面：記帳、預算分配、資產負債。
+   - 目標是讓桌機版不只是放大的手機版，而是更適合長時間整理資料與檢查數字。
+
+7. **月度回顧雛形**
+   - 從理財書產品設計筆記中升級為中期候選。
+   - 先做簡單、可追溯的月結視圖：收入、生活支出、大額準備、可自由運用、資產負債變化。
+   - 不先做複雜建議引擎，只提供使用者自己檢查與回顧的結構。
+
+8. **目標系統整合**
+   - 將待購清單與大額支出準備逐步接起來。
+   - 初期目標是讓使用者能從待購項目建立或連到大額準備，而不是讓兩套功能各自獨立。
+   - 需要避免同一個目標在待購清單、預算與準備金中被重複計算。
 
 ### English
 
@@ -259,6 +278,21 @@ Mid-term work:
    - Do not pair edited CSV files with a separate extension JSON for system restore; that can create mismatched fund links and orphan events.
    - Website-generated CSV should use UTF-8 with BOM to reduce Excel encoding mistakes, while import should accept both UTF-8 and UTF-8 with BOM.
 
+7. **Desktop core-page workspace cleanup**
+   - Do not redesign the whole site at once; improve high-frequency pages incrementally.
+   - Priority pages: ledger, budget allocation, and balance sheet.
+   - The goal is to make desktop feel like a working surface for reviewing and maintaining data, not just a stretched mobile layout.
+
+8. **Monthly review prototype**
+   - Promote this from the finance-book product notes into a mid-term candidate.
+   - Start with a simple and traceable monthly close view: income, living expenses, large-expense funds, free-to-use budget, and balance-sheet changes.
+   - Do not build a complex recommendation engine first; provide a structure for user review.
+
+9. **Goal-system integration**
+   - Gradually connect wishlist items with large-expense funds.
+   - The first goal is to let users create or link a large-expense fund from a wishlist item instead of keeping those features isolated.
+   - Avoid double-counting the same goal across wishlist, budget, and fund balances.
+
 ## 6. 暫緩 / Deferred
 
 ### 中文
@@ -270,13 +304,13 @@ Mid-term work:
 - 完整投資情境模擬。
 - 複雜自動合併本機與雲端資料。
 - 舊 `spread / budgetMode` 的全面移除。
-- 理財書籍產品設計筆記中的遠期體驗功能。
+- 理財書籍產品設計筆記中的完整遠期體驗功能。
 
 暫緩原因：
 
 - 目前更重要的是先穩住金額規則、可追溯性和編輯前置規則。
-- 桌機版與投資模擬會擴大範圍，應在核心帳務規則穩定後再做。
-- 理財書籍筆記提供的是產品方向參考，不應壓過目前的帳務資料模型與 AndroMoney 前置工作。
+- 全站一次性桌機版重設計與完整投資模擬都會擴大範圍，應在核心帳務規則穩定後再做。
+- 理財書籍筆記提供的是產品方向參考；其中「月度回顧」與「目標系統整合」已升級為中期候選，其餘仍先作為遠期參考。
 
 遠期產品參考：
 
@@ -298,13 +332,13 @@ Deferred for now:
 - Full investment scenario simulation.
 - Complex automatic local/cloud data merging.
 - Full removal of legacy `spread / budgetMode`.
-- Long-term experience ideas from the finance-book product design notes.
+- Full long-term experience ideas from the finance-book product design notes.
 
 Reason:
 
 - The current priority is stable money rules, traceability, and editing prerequisites.
-- Desktop redesign and investment simulation would expand scope and should wait until accounting rules are stable.
-- The finance-book notes are product-direction references and should not override the current accounting data model and AndroMoney prerequisites.
+- A full-site desktop redesign and full investment simulation would expand scope and should wait until accounting rules are stable.
+- The finance-book notes are product-direction references; monthly review and goal-system integration are promoted to mid-term candidates, while the rest remains long-term reference.
 
 Long-term product reference:
 
