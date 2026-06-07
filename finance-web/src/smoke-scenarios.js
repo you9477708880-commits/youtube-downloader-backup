@@ -777,3 +777,128 @@ export async function runEditingCompletenessScenario(app) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareDesktopCoreLayoutScenario() {
+  const seededState = {
+    txs: [
+      {
+        id: "layout-income",
+        type: "income",
+        amount: 50000,
+        desc: "Smoke 薪資",
+        date: smokeDate,
+        cat: "薪資",
+        category: "薪資",
+        subcategory: "本薪",
+        acc: "bank",
+      },
+      {
+        id: "layout-expense",
+        type: "expense",
+        amount: 1200,
+        desc: "Smoke 很長很長的晚餐備註用來測試桌機列表是否仍然穩定",
+        date: smokeDate,
+        cat: "餐飲",
+        category: "餐飲",
+        subcategory: "晚餐",
+        acc: "cash",
+      },
+    ],
+    bsI: [{ id: "layout-asset", name: "Smoke 長期資產", amount: 120000, cat: "asset", isEm: false }],
+    wishes: [{ id: "layout-wish", name: "Smoke 待購清單項目", price: 8800, cat: "3C / 電子" }],
+    sinkingFunds: [
+      {
+        id: "layout-fund",
+        name: "Smoke 大額準備",
+        category: "3C",
+        targetAmount: 30000,
+        monthlyContribution: 5000,
+        startMonth: smokeMonth,
+        targetMonth: smokeMonth,
+        carryoverEnabled: true,
+        note: "版面測試",
+        events: [],
+      },
+    ],
+    accounts: [
+      { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "bank", name: "主要銀行帳戶", type: "asset", isEm: false, initialBalance: 200000 },
+      { id: "card", name: "信用卡", type: "liability", isEm: false, initialBalance: -3000 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: {
+      budgetCap: 50000,
+      catBudgets: { 餐飲: 8000 },
+      leftoverMode: "manual",
+      investingLabel: "投資 / 儲蓄",
+      cashReserveLabel: "現金預留",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runDesktopCoreLayoutScenario() {
+  try {
+    const stylesheetLoaded = [...document.styleSheets].some((sheet) => String(sheet.href || "").includes("workspaces.css"));
+    if (!stylesheetLoaded) {
+      throw new Error("workspace-stylesheet-not-loaded");
+    }
+
+    if (!window.matchMedia("(min-width: 900px)").matches) {
+      throw new Error("desktop-breakpoint-not-active");
+    }
+
+    const checks = [
+      { target: "ov", section: "t-ov", workspace: ".ov-workspace", panes: [".ov-filter-zone", ".ov-metric-zone", ".ov-main-zone", ".ov-secondary-zone"] },
+      { target: "lg", section: "t-lg", workspace: ".ledger-workspace", panes: [".ledger-form-pane", ".ledger-list-pane"] },
+      {
+        target: "wl",
+        section: "t-wl",
+        workspace: ".budget-workspace",
+        panes: [".budget-allocation-block", ".budget-funds-block", ".budget-category-block", ".budget-wishlist-block"],
+      },
+      { target: "cf", section: "t-cf", workspace: ".cf-workspace", panes: [".cf-summary-pane", ".cf-detail-pane"] },
+      { target: "bs", section: "t-bs", workspace: ".bs-workspace", panes: [".bs-form-pane", ".bs-report-pane"] },
+      { target: "re", section: "t-re", workspace: ".re-workspace", panes: [".re-metric-zone", ".re-control-zone", ".re-preset-zone", ".re-table-zone"] },
+    ];
+
+    for (const check of checks) {
+      document.querySelector(`[data-action="tab"][data-target="${check.target}"]`)?.click();
+      await waitFor(() => document.getElementById(check.section)?.classList.contains("on"));
+
+      const section = document.getElementById(check.section);
+      const workspace = section.querySelector(check.workspace);
+      if (!workspace) {
+        throw new Error(`missing-workspace-${check.target}`);
+      }
+
+      for (const pane of check.panes) {
+        if (!section.querySelector(pane)) {
+          throw new Error(`missing-pane-${check.target}-${pane}`);
+        }
+      }
+
+      const display = getComputedStyle(workspace).display;
+      if (display !== "grid") {
+        throw new Error(`workspace-not-grid-${check.target}-${display}`);
+      }
+    }
+
+    document.querySelector('[data-action="tab"][data-target="re"]')?.click();
+    document.querySelector('[data-action="toggle-tbl"]')?.click();
+    await waitFor(() => !document.getElementById("tbl-w").classList.contains("d-none"));
+
+    writeSmokeResult("pass", "desktop workspace stylesheet loaded, all core tabs expose grid workspaces, retirement table toggles");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}

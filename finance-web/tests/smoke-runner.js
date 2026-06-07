@@ -134,6 +134,7 @@ function launchPlans(browserPath, userDataDir, url) {
     "--disable-background-mode",
     "--password-store=basic",
     "--use-mock-keychain",
+    "--window-size=1366,900",
     `--user-data-dir=${userDataDir}`,
     "--virtual-time-budget=8000",
     "--dump-dom",

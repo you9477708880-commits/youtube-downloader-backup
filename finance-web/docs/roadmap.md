@@ -83,6 +83,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 專案內 smoke runner 已建立：不再依賴外部 `test-server.js`，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與多種 headless 啟動策略間自動重試。
 - 本機 / 雲端資料覆蓋策略已明確化：登入後若本機與雲端都有資料且內容不同，會詢問使用者要用雲端覆蓋本機，或用本機覆蓋雲端；目前不做自動合併。
 - 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
+- 桌機版核心頁面工作區整理第一輪已完成：總覽、記帳、預算分配、現金流、資產負債與退休頁已新增頁面級 workspace wrapper，桌機 `900px+` 會套用專屬工作區排版；手機維持原本單欄流程。已補 `desktop-core-layout` smoke scenario。
 
 ### English
 
@@ -135,6 +136,7 @@ The following items are complete and committed on local `main`, but are not yet 
 - A project-local smoke runner is implemented: it no longer depends on the external `test-server.js`, uses a clean temporary browser profile, and retries Chrome / Edge with multiple headless launch strategies.
 - The local / cloud overwrite strategy is explicit: if both local and cloud data exist after sign-in and differ, the user chooses whether cloud overwrites local or local overwrites cloud; automatic merging is not implemented.
 - Large-expense fund plan-change rules now use the safe version: keep the current "editing settings recalculates the whole plan" model in the short term, explain it in UI and docs, and do not add `plan_changed` or settings-versioning yet.
+- Desktop core-page workspace cleanup phase 1 is complete: overview, ledger, budget allocation, cash flow, balance sheet, and retirement now have page-level workspace wrappers. Desktop `900px+` uses scoped workspace layouts, while mobile keeps the existing single-column flow. A `desktop-core-layout` smoke scenario is added.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 

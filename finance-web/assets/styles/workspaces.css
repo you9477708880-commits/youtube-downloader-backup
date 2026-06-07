@@ -1,0 +1,139 @@
+/* Desktop-only workspace layouts. Mobile keeps the existing single-column flow. */
+@media (min-width: 900px) {
+  .ov-workspace,
+  .ledger-workspace,
+  .budget-workspace,
+  .cf-workspace,
+  .bs-workspace,
+  .re-workspace {
+    display: grid;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .ov-workspace .card,
+  .ledger-workspace .card,
+  .budget-workspace .card,
+  .cf-workspace .card,
+  .bs-workspace .card,
+  .re-workspace .card {
+    margin-bottom: 0;
+  }
+
+  .ov-workspace {
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+    grid-template-areas:
+      "filter filter"
+      "metrics metrics"
+      "main secondary";
+  }
+
+  .ov-filter-zone { grid-area: filter; }
+  .ov-metric-zone { grid-area: metrics; }
+  .ov-main-zone { grid-area: main; display: grid; gap: 16px; }
+  .ov-secondary-zone { grid-area: secondary; display: grid; gap: 16px; align-self: start; }
+  .ov-metric-zone .grid-2 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .ledger-workspace {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  }
+
+  .ledger-pane {
+    min-width: 0;
+  }
+
+  .ledger-list-pane .tx-meta {
+    min-width: 150px;
+    justify-content: flex-end;
+  }
+
+  .budget-workspace {
+    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.25fr);
+    grid-template-areas:
+      "allocation funds"
+      "category funds"
+      "wishlist wishlist";
+  }
+
+  .budget-allocation-block { grid-area: allocation; }
+  .budget-funds-block { grid-area: funds; }
+  .budget-category-block { grid-area: category; }
+  .budget-wishlist-block {
+    grid-area: wishlist;
+    display: grid;
+    grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .budget-allocation-block,
+  .budget-funds-block,
+  .budget-category-block,
+  .budget-wishlist-block {
+    min-width: 0;
+  }
+
+  .budget-workspace .bud-sum {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .budget-funds-block .fund-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cf-workspace {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  .cf-card {
+    display: grid;
+    gap: 12px;
+  }
+
+  .bs-workspace {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  }
+
+  .bs-form-pane,
+  .bs-report-pane {
+    min-width: 0;
+  }
+
+  .re-workspace {
+    grid-template-areas:
+      "metrics metrics"
+      "controls controls"
+      "presets table";
+    grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1.15fr);
+  }
+
+  .re-metric-zone { grid-area: metrics; }
+  .re-control-zone {
+    grid-area: controls;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .re-preset-zone { grid-area: presets; }
+  .re-table-zone { grid-area: table; }
+  .re-metric-zone .grid-2 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .re-funding-pane,
+  .re-goal-pane,
+  .re-preset-zone,
+  .re-table-zone {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1200px) {
+  .budget-workspace {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.35fr);
+  }
+
+  .ledger-workspace {
+    grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
+  }
+}
