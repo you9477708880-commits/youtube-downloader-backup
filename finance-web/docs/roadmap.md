@@ -82,6 +82,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - DOM 與渲染安全整理已完成第二輪：補強大額準備選單 `value` 屬性跳脫，並把 XSS 回歸測試擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
 - 專案內 smoke runner 已建立：不再依賴外部 `test-server.js`，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與多種 headless 啟動策略間自動重試。
 - 本機 / 雲端資料覆蓋策略已明確化：登入後若本機與雲端都有資料且內容不同，會詢問使用者要用雲端覆蓋本機，或用本機覆蓋雲端；目前不做自動合併。
+- 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
 
 ### English
 
@@ -133,6 +134,7 @@ The following items are complete and committed on local `main`, but are not yet 
 - DOM and rendering safety cleanup phase 2 is complete: large-expense fund option `value` attributes are escaped, and XSS regression coverage now includes ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
 - A project-local smoke runner is implemented: it no longer depends on the external `test-server.js`, uses a clean temporary browser profile, and retries Chrome / Edge with multiple headless launch strategies.
 - The local / cloud overwrite strategy is explicit: if both local and cloud data exist after sign-in and differ, the user chooses whether cloud overwrites local or local overwrites cloud; automatic merging is not implemented.
+- Large-expense fund plan-change rules now use the safe version: keep the current "editing settings recalculates the whole plan" model in the short term, explain it in UI and docs, and do not add `plan_changed` or settings-versioning yet.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -175,10 +177,10 @@ The following items are complete and committed on local `main`, but are not yet 
    - 2026-06-01 上線前自動檢查已跑過：JS 語法檢查、domain tests、以及 `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios 皆通過。
    - 2026-06-01 Browser 外掛備註：Codex Browser/IAB 自動化分頁在本機 URL 導向時被 Browser URL policy 擋住；本輪改用專案內 smoke runner 與受控 headless Chrome 先確認 HTTP 200 與頁面載入。使用者實機手機檢查未發現版面溢出，因此未保留基於不可靠 headless 手機截圖的 UI 變更。
 
-2. **大額準備計畫變更規則收斂**
-   - 目前修改大額準備設定會重算整段規劃，這已可運作，但長期規則需要更明確。
-   - 下一步先定義是否要採「過去月份鎖定、未來月份套用新設定」。
-   - 若要實作，應優先採明確的生效月份或 `plan_changed` 事件，不做複雜設定檔版本化。
+2. **下一個中期候選：桌機版核心頁面工作區整理**
+   - 不做全站一次性大改版。
+   - 優先挑一個高頻頁面做小步調整，例如記帳頁或預算分配頁。
+   - 實作前需先確認目前手機版實機畫面正常，避免再次因截圖誤判造成 UI churn。
 
 ### English
 
@@ -191,10 +193,10 @@ Recommended immediate priorities:
    - 2026-06-01 pre-release automation has been run: JS syntax check, domain tests, and the `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios all passed.
    - 2026-06-01 Browser note: Codex Browser/IAB automation was blocked by Browser URL policy when navigating to the local URL. This validation used the project-local smoke runner plus a controlled headless Chrome HTTP 200/page-load check instead. The user's real mobile check did not show layout overflow, so no UI change based on the unreliable headless mobile screenshot was kept.
 
-2. **Large-expense fund plan-change rules**
-   - Current fund setting edits recalculate the whole plan. This works, but the long-term rule should be made explicit.
-   - Next, decide whether past months should be locked while future months use new settings.
-   - If implemented, prefer an explicit effective month or `plan_changed` event instead of complex settings-versioning.
+2. **Next mid-term candidate: desktop core-page workspace cleanup**
+   - Do not redesign the whole site at once.
+   - Start with one high-frequency page, such as ledger entry or budget allocation.
+   - Before implementation, confirm real-device mobile layout is healthy so screenshot misreads do not cause UI churn again.
 
 ## 5. 中期重構 / Mid-Term Refactors
 
@@ -211,7 +213,7 @@ Recommended immediate priorities:
    - 後續若資料量變大，可再評估儲存防抖或更完整的本機資料修復工具。
 
 3. **大額準備計畫變更規則**
-   - 目前編輯會直接重算整段規劃。
+   - 短期已採安全版本：保留目前直接重算整段規劃的計算方式，並用 UI / 文件提醒使用者。
    - 不優先做完整「設定檔版本化」，避免把大額準備計算變成難以理解的多版本模型。
    - 若未來要讓設定只影響之後月份，應採明確的 `plan_changed` 事件或生效月份規則：過去月份鎖定，未來月份套用新參數。
    - 實作前必須先定義回溯顯示、預算推算與刪改規則。
@@ -253,7 +255,7 @@ Mid-term work:
    - If local data grows large later, consider debounced saving or a more complete local data repair tool.
 
 3. **Fund plan-change rules**
-   - Current fund edits recalculate the entire plan.
+   - The short-term safe version is adopted: keep the current whole-plan recalculation behavior and explain it in UI / docs.
    - Full settings-versioning is not the preferred first step because it would make fund calculations harder to understand.
    - If future edits should affect future months only, use an explicit `plan_changed` event or effective-month rule: past months stay locked and future months use the new parameters.
    - Before implementation, define historical display, budget projection, and edit/delete rules.

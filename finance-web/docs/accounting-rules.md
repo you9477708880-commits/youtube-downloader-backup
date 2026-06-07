@@ -208,12 +208,14 @@ Rules:
 - 編輯名稱、分類、目標金額、每月提撥、開始月份、目標月份或備註時，既有 `topup` / `spend` events 會保留。
 - 修改 `monthlyContribution`、`startMonth` 或 `targetMonth` 後，系統會依新設定直接重算過去與未來的規劃提撥。
 - 這表示目前採用的是「重新解讀整段規劃」模式，還不是「只影響未來月份」模式。
+- 產品決策：短期先保留此計算方式，只在 UI 與文件中明確提醒；不要在沒有完整規格前加入 `plan_changed` 或設定版本化。
 
 Editing rules:
 
 - Editing name, category, target amount, monthly contribution, start month, target month, or note preserves existing `topup` / `spend` events.
 - Changing `monthlyContribution`, `startMonth`, or `targetMonth` directly recalculates past and future planned contributions using the new settings.
 - This means the current model reinterprets the whole plan. It does not yet support a "future months only" edit mode.
+- Product decision: keep this calculation model in the short term and explain it clearly in UI and docs; do not add `plan_changed` or settings-versioning without a full specification.
 
 ## 6. 可自由運用公式 / Free-To-Use Formula
 
