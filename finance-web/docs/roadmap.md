@@ -1,9 +1,9 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-05-31  
+最後更新 / Last updated: 2026-06-01  
 目前主線 / Current mainline: `main`  
-最新本機提交 / Latest local commit: `6c0b35f 補強 DOM 渲染安全回歸測試`  
-目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by 2 commits.
+最新本機提交 / Latest local commit: `7bf9313 明確化本機雲端覆蓋策略`  
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by 6 commits.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -172,6 +172,8 @@ The following items are complete and committed on local `main`, but are not yet 
    - 目前本機 `main` 比 GitHub 遠端多數個 commit，包含分類預算清理工具、DOM 與渲染安全整理、roadmap 進度盤點與專案內 smoke runner。
    - 這批內容功能上已完成，但還不能寫成「已推送、已部署」，直到完成 GitHub push 與 Firebase Hosting deploy。
    - 上線前應人工測試：記帳、主分類 / 子分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
+   - 2026-06-01 上線前自動檢查已跑過：JS 語法檢查、domain tests、以及 `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios 皆通過。
+   - 2026-06-01 Browser 外掛備註：Codex Browser/IAB 自動化分頁在本機 URL 導向時被 Browser URL policy 擋住；本輪改用專案內 smoke runner 與受控 headless Chrome 先確認 HTTP 200 與頁面載入。使用者實機手機檢查未發現版面溢出，因此未保留基於不可靠 headless 手機截圖的 UI 變更。
 
 2. **大額準備計畫變更規則收斂**
    - 目前修改大額準備設定會重算整段規劃，這已可運作，但長期規則需要更明確。
@@ -186,6 +188,8 @@ Recommended immediate priorities:
    - Local `main` is currently ahead of GitHub by several commits, including category-budget cleanup, DOM/rendering safety cleanup, roadmap progress cleanup, and the project-local smoke runner.
    - These items are functionally complete, but should not be marked as pushed/deployed until GitHub push and Firebase Hosting deployment are done.
    - Before release, manually test ledger entry, primary/subcategory input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
+   - 2026-06-01 pre-release automation has been run: JS syntax check, domain tests, and the `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios all passed.
+   - 2026-06-01 Browser note: Codex Browser/IAB automation was blocked by Browser URL policy when navigating to the local URL. This validation used the project-local smoke runner plus a controlled headless Chrome HTTP 200/page-load check instead. The user's real mobile check did not show layout overflow, so no UI change based on the unreliable headless mobile screenshot was kept.
 
 2. **Large-expense fund plan-change rules**
    - Current fund setting edits recalculate the whole plan. This works, but the long-term rule should be made explicit.
