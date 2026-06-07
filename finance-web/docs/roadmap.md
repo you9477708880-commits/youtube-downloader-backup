@@ -2,8 +2,8 @@
 
 最後更新 / Last updated: 2026-06-01  
 目前主線 / Current mainline: `main`  
-最新本機提交 / Latest local commit: `7bf9313 明確化本機雲端覆蓋策略`  
-目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by 6 commits.
+最新本機安全點 / Latest local safety point: `f3ef9f8 建立核心頁面整理前安全點`
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by multiple commits and has not been pushed/deployed for the latest local work.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -178,8 +178,9 @@ The following items are complete and committed on local `main`, but are not yet 
    - 2026-06-01 Browser 外掛備註：Codex Browser/IAB 自動化分頁在本機 URL 導向時被 Browser URL policy 擋住；本輪改用專案內 smoke runner 與受控 headless Chrome 先確認 HTTP 200 與頁面載入。使用者實機手機檢查未發現版面溢出，因此未保留基於不可靠 headless 手機截圖的 UI 變更。
 
 2. **下一個中期候選：桌機版核心頁面工作區整理**
-   - 不做全站一次性大改版。
-   - 優先挑一個高頻頁面做小步調整，例如記帳頁或預算分配頁。
+   - 已建立整理前安全點：`f3ef9f8 建立核心頁面整理前安全點`。
+   - 範圍可涵蓋記帳、預算分配、總覽、現金流、資產負債與退休，但必須分頁分階段執行。
+   - 第一輪只做頁面級桌機工作區與 `900px+` 斷點，不改帳務計算、資料模型、同步規則或匯入匯出語意。
    - 實作前需先確認目前手機版實機畫面正常，避免再次因截圖誤判造成 UI churn。
 
 ### English
@@ -194,8 +195,9 @@ Recommended immediate priorities:
    - 2026-06-01 Browser note: Codex Browser/IAB automation was blocked by Browser URL policy when navigating to the local URL. This validation used the project-local smoke runner plus a controlled headless Chrome HTTP 200/page-load check instead. The user's real mobile check did not show layout overflow, so no UI change based on the unreliable headless mobile screenshot was kept.
 
 2. **Next mid-term candidate: desktop core-page workspace cleanup**
-   - Do not redesign the whole site at once.
-   - Start with one high-frequency page, such as ledger entry or budget allocation.
+   - A pre-cleanup safety point has been created: `f3ef9f8 建立核心頁面整理前安全點`.
+   - The scope may cover ledger, budget allocation, overview, cash flow, balance sheet, and retirement, but implementation must be split by page and phase.
+   - The first pass should only add page-level desktop workspaces and `900px+` breakpoints. It must not change accounting calculations, data models, sync rules, or import/export semantics.
    - Before implementation, confirm real-device mobile layout is healthy so screenshot misreads do not cause UI churn again.
 
 ## 5. 中期重構 / Mid-Term Refactors
@@ -228,9 +230,51 @@ Recommended immediate priorities:
    - 後續只需在分類模型或分類設定大改時，確認清理規則仍符合新的分類來源。
 
 6. **桌機版核心頁面工作區整理**
-   - 不做全站一次性大改版，先挑高頻頁面逐步整理。
-   - 優先頁面：記帳、預算分配、資產負債。
-   - 目標是讓桌機版不只是放大的手機版，而是更適合長時間整理資料與檢查數字。
+   - 目標：讓桌機版成為適合長時間整理資料與檢查數字的工作區，而不是放大的手機版。
+   - 原則：不做全站一次性大改版；只新增頁面級 wrapper/class 與桌機斷點；不要改 `.card`、`.grid-2`、`.grid-3`、`.grid-4` 等全站共用基礎規則。
+   - 樣式位置：目前沒有 `src/styles.css`；實際樣式拆在 `assets/styles/base.css`、`assets/styles/layout.css`、`assets/styles/components.css`、`assets/styles/tokens.css`。
+   - 手機保護：手機仍維持單欄卡片流、橫向可捲 tab、`app-content` 自己垂直捲動、長文字 ellipsis / overflow 防護；任何桌機整理都應限制在 `@media (min-width: 900px)` 或頁面專屬 class。
+   - 不改範圍：第一輪不改帳務計算、資料模型、本機 / 雲端同步、AndroMoney 匯入匯出、大額準備三選一流程、退休推估邏輯。
+
+   分階段計劃：
+
+   1. **Baseline 與測試保護**
+      - 先記錄目前桌機與手機核心頁面狀態。
+      - 補或確認 `desktop-core-layout` 類型 smoke scenario：至少切換總覽、記帳、預算、現金流、資產負債、退休 tab，確認核心容器存在。
+      - 手動測試資料要包含長帳戶名、長分類、長備註、自訂收入、投資收入、代墊、刪除帳戶 fallback、大額準備部分支付與退休連動資產。
+
+   2. **記帳頁工作區**
+      - 在 `#t-lg` 加頁面級桌機 layout shell。
+      - 桌機改成左側新增 / 編輯交易表單、右側交易列表；手機 DOM 順序與視覺順序維持表單在前、列表在後。
+      - 交易列表桌機版可讓金額、帳戶、操作區寬度更穩定，但必須保留大額準備 trace、編輯、刪除、代墊收款等操作。
+      - 若要做 sticky 表單，必須額外驗證 linked fund 編輯後的提示、scroll 行為與不足準備 modal。
+
+   3. **預算分配與大額準備工作區**
+      - 在 `#t-wl` 加頁面級桌機 layout shell。
+      - 桌機優先整理「本月預算摘要 / 來源明細」與「大額支出準備表單 / 清單」的左右工作區。
+      - 大額準備卡片可提升資訊階層與展開內容密度，但保留 `<details>` 語意、既有 `data-action` 與事件計算。
+      - 分類預算與待購清單放入次要區，後續再接目標系統整合，不在第一輪混入產品模型變更。
+
+   4. **總覽與現金流**
+      - 總覽桌機版整理期間篩選、四個核心指標、分類支出與最近交易的掃讀順序。
+      - 現金流可拆成摘要欄與明細 drill-down 欄，但不改 `summarizeCashFlow()` 計算。
+      - 匯入匯出與代墊清單可做次要區安排，避免壓縮核心數字。
+
+   5. **資產負債**
+      - 桌機改成左側新增 / 編輯帳戶與手動資產負債表單、右側資產負債報表。
+      - 保留帳戶、手動資產、應收代墊、負債、淨值與刪除帳戶 fallback 的可追溯顯示。
+      - 不改 `calculateAccountBalances()` 或 `calculateBalanceSheet()` 的計算，只整理工作區。
+
+   6. **退休**
+      - 最後處理，因為參數、range control、年度表格與提示文字最多。
+      - 桌機可把四個指標固定成上方摘要，參數控制拆成兩欄，年度表格維持可展開 / 可捲動。
+      - 繼續分清楚自訂參數推估與 4% 法則參考，不把兩者混成同一套警告。
+
+   7. **驗證與人工檢查**
+      - 自動測試：JS syntax check、domain tests、既有 UI smoke suite。
+      - 新增或更新 layout smoke 後，確認所有核心 tab 可切換且關鍵容器存在。
+      - 手動桌機尺寸：1366x768、1440x900、1920x1080。
+      - 手動手機尺寸：375x667、390x844、430x932；若 headless / plugin 截圖與實機觀察衝突，以實機與 DOM/CSS 檢查優先。
 
 7. **月度回顧雛形**
    - 從理財書產品設計筆記中升級為中期候選。
@@ -279,9 +323,51 @@ Mid-term work:
    - Website-generated CSV should use UTF-8 with BOM to reduce Excel encoding mistakes, while import should accept both UTF-8 and UTF-8 with BOM.
 
 7. **Desktop core-page workspace cleanup**
-   - Do not redesign the whole site at once; improve high-frequency pages incrementally.
-   - Priority pages: ledger, budget allocation, and balance sheet.
-   - The goal is to make desktop feel like a working surface for reviewing and maintaining data, not just a stretched mobile layout.
+   - Goal: make desktop feel like a working surface for reviewing and maintaining data, not just a stretched mobile layout.
+   - Principles: do not redesign the whole site at once; only add page-level wrappers/classes and desktop breakpoints; do not change global foundation rules such as `.card`, `.grid-2`, `.grid-3`, or `.grid-4`.
+   - Style location: there is no `src/styles.css`; current styles live in `assets/styles/base.css`, `assets/styles/layout.css`, `assets/styles/components.css`, and `assets/styles/tokens.css`.
+   - Mobile protection: mobile must keep the single-column card flow, horizontally scrollable tabs, `app-content` vertical scrolling, and existing long-text ellipsis / overflow guards. Desktop cleanup should be scoped to `@media (min-width: 900px)` or page-specific classes.
+   - Out of scope for the first pass: accounting calculations, data models, local/cloud sync, AndroMoney import/export semantics, the insufficient-fund three-choice flow, and retirement projection logic.
+
+   Phased plan:
+
+   1. **Baseline and test protection**
+      - Record the current desktop and mobile state of core pages.
+      - Add or confirm a `desktop-core-layout` smoke scenario: at minimum switch through overview, ledger, budget, cash flow, balance sheet, and retirement tabs and confirm key containers exist.
+      - Manual test data should include long account names, long categories, long notes, custom income, investment income, advances, deleted-account fallback, partial fund coverage, and retirement-linked assets.
+
+   2. **Ledger workspace**
+      - Add a page-level desktop layout shell to `#t-lg`.
+      - On desktop, use a left transaction form and right transaction list. On mobile, keep the current DOM and visual order: form first, list second.
+      - The desktop transaction list may stabilize amount, account, and action widths, but must preserve fund traces, edit, delete, and advance repayment actions.
+      - If sticky form behavior is added, verify linked-fund edit warnings, scroll behavior, and insufficient-fund modal behavior.
+
+   3. **Budget allocation and fund workspace**
+      - Add a page-level desktop layout shell to `#t-wl`.
+      - Prioritize a desktop workspace between monthly budget summary/source details and large-expense fund form/list.
+      - Fund cards may get clearer hierarchy and denser expanded content, but keep `<details>`, existing `data-action`, and current event calculations.
+      - Category budgets and wishlist items should be secondary zones first; goal-system integration should wait until the layout pass is stable.
+
+   4. **Overview and cash flow**
+      - Reorganize period filters, four core metrics, expense categories, and recent transactions for desktop scanning.
+      - Cash flow may split into a summary column and drill-down detail column, but must not change `summarizeCashFlow()`.
+      - Import/export and advance lists may move to secondary areas so they do not crowd core numbers.
+
+   5. **Balance sheet**
+      - On desktop, use a left add/edit form and right balance-sheet report.
+      - Preserve traceable display for accounts, manual assets, advance receivables, liabilities, net worth, and deleted-account fallback.
+      - Do not change `calculateAccountBalances()` or `calculateBalanceSheet()` during layout cleanup.
+
+   6. **Retirement**
+      - Handle this last because it has the most parameters, range controls, table content, and explanatory text.
+      - Desktop can keep four metrics as an upper summary, split controls into two columns, and keep the annual table expandable/scrollable.
+      - Continue separating custom-parameter projections from the 4% rule reference.
+
+   7. **Verification and manual checks**
+      - Automated tests: JS syntax check, domain tests, and the existing UI smoke suite.
+      - After adding or updating layout smoke coverage, confirm all core tabs switch correctly and key containers exist.
+      - Manual desktop sizes: 1366x768, 1440x900, 1920x1080.
+      - Manual mobile sizes: 375x667, 390x844, 430x932. If headless/plugin screenshots conflict with real-device observation, prioritize real-device checks plus DOM/CSS inspection.
 
 8. **Monthly review prototype**
    - Promote this from the finance-book product notes into a mid-term candidate.
