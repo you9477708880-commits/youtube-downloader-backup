@@ -328,6 +328,8 @@ function testMonthlyReviewUsesBudgetLivingExpenseForFundCoverage() {
   assert.equal(review.budget.livingExpense, 27000);
   assert.equal(review.funds.spend, 25000);
   assert.equal(review.budget.budgetShortfall, 2000);
+  assert.ok(review.budgetUseItems.some((item) => item.title === "Phone purchase" && item.amount === 5000));
+  assert.ok(review.budgetUseItems.some((item) => item.type === "fund-plan" && item.amount === 10000));
 }
 
 function testAutoTopupShortfallBudgetEffect() {
@@ -1119,6 +1121,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
   assert.doesNotMatch(html, /<img/i);
   assert.doesNotMatch(html, /onerror=alert\(1\)>/i);
   assert.match(html, /&lt;img/);
+  assert.match(overviewDom.monthlyReview.innerHTML, /主要預算使用來源/);
 }
 
 function testCloudSyncPolicyDetectsMeaningfulAndEquivalentData() {

@@ -13,6 +13,23 @@ function renderTextItems(items, utils) {
   return items.map((item) => `<li>${utils.escapeHTML(item)}</li>`).join("");
 }
 
+function renderBudgetUseItems(items, utils) {
+  if (!items.length) return '<div class="empty detail-empty">本期沒有預算使用來源。</div>';
+  return items
+    .map(
+      (item) => `
+        <div class="detail-row">
+          <div class="detail-main">
+            <div class="detail-title">${utils.escapeHTML(item.title || item.typeLabel)}</div>
+            <div class="detail-sub">${utils.escapeHTML(item.typeLabel)} ｜ ${utils.escapeHTML(item.date || "")}${item.subtitle ? ` ｜ ${utils.escapeHTML(item.subtitle)}` : ""}</div>
+          </div>
+          <div class="detail-amt">${utils.formatMoney(item.amount)}</div>
+        </div>
+      `,
+    )
+    .join("");
+}
+
 export function renderMonthlyReview({ state, filterRange, utils, dom }) {
   if (!dom.monthlyReview) return;
 
@@ -43,6 +60,13 @@ export function renderMonthlyReview({ state, filterRange, utils, dom }) {
       </div>
       <div class="detail-row">
         <div class="detail-main">
+          <div class="detail-title">主要預算使用來源</div>
+          <div class="detail-sub mt-1">依金額列出前 5 筆，資料沿用預算頁來源明細。</div>
+        </div>
+      </div>
+      ${renderBudgetUseItems(review.budgetUseItems, utils)}
+      <div class="detail-row">
+        <div class="detail-main">
           <div class="detail-title">資料來源</div>
           <ul class="detail-sub mt-1">${renderTextItems(review.sourceNotes, utils)}</ul>
         </div>
@@ -50,4 +74,3 @@ export function renderMonthlyReview({ state, filterRange, utils, dom }) {
     </div>
   `;
 }
-

@@ -8,6 +8,13 @@ function isDateInRange(date, range) {
   return date >= start && date <= end;
 }
 
+function describeBudgetSourceType(type) {
+  if (type === "living-expense") return "生活支出";
+  if (type === "fund-plan") return "準備提撥";
+  if (type === "fund-topup") return "手動補入";
+  return "其他";
+}
+
 export function calculateMonthlyReviewData(state, range) {
   const txsInRange = (state.txs || []).filter((tx) => isDateInRange(tx.date, range));
   const overview = summarizeOverview(txsInRange);
@@ -18,6 +25,19 @@ export function calculateMonthlyReviewData(state, range) {
   const fundNetChange = budget.fundContribution + budget.manualTopups - fundSpend;
   const requiredBudgetUse = budget.livingExpense + budget.fundContribution + budget.manualTopups;
   const budgetShortfall = Math.max(0, requiredBudgetUse - budget.cap);
+  const budgetUseItems = budget.sourceItems
+    .filter((item) => item.amount > 0)
+    .map((item) => ({
+      id: item.id,
+      type: item.type,
+      typeLabel: describeBudgetSourceType(item.type),
+      date: item.date,
+      title: item.title,
+      subtitle: item.subtitle,
+      amount: item.amount,
+    }))
+    .sort((a, b) => (b.amount !== a.amount ? b.amount - a.amount : String(b.date || "").localeCompare(String(a.date || ""))))
+    .slice(0, 5);
 
   const prompts = [];
   if (!txsInRange.length) prompts.push("本期沒有交易，先確認篩選月份是否正確。");
@@ -51,6 +71,7 @@ export function calculateMonthlyReviewData(state, range) {
       spend: fundSpend,
       netChange: fundNetChange,
     },
+    budgetUseItems,
     balanceSheet: {
       totalAssets: balanceSheet.totalAssets,
       totalLiabilities: balanceSheet.totalLiabilities,
@@ -66,4 +87,3 @@ export function calculateMonthlyReviewData(state, range) {
     ],
   };
 }
-

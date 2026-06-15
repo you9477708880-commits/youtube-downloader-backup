@@ -978,7 +978,13 @@ export async function runMonthlyReviewScenario() {
     await waitFor(() => (document.getElementById("monthly-review")?.textContent || "").includes("本月收入"));
 
     const text = document.getElementById("monthly-review")?.textContent || "";
-    if (!text.includes("NT$ 50,000") || !text.includes("NT$ 8,000") || !text.includes("動用準備")) {
+    if (
+      !text.includes("NT$ 50,000") ||
+      !text.includes("NT$ 8,000") ||
+      !text.includes("動用準備") ||
+      !text.includes("主要預算使用來源") ||
+      !text.includes("Smoke phone")
+    ) {
       throw new Error(`monthly-review-content-missing: ${text}`);
     }
 
