@@ -668,6 +668,7 @@ export async function bootstrapFinanceApp(doc = document) {
     if (action === "del-cat-budget") actions.delCatBudget(button.dataset.cat);
     if (action === "cleanup-cat-budgets") actions.cleanupCatBudgets();
     if (action === "edit-wish") actions.beginEditWish(button.dataset.id);
+    if (action === "prepare-fund-from-wish") actions.prepareFundFromWish(button.dataset.id);
     if (action === "del-wish") actions.delWish(button.dataset.id);
     if (action === "mv-wish") actions.mvWish(button.dataset.id, Number(button.dataset.dir));
     if (action === "toggle-tbl") ui.toggleRetirementTable();

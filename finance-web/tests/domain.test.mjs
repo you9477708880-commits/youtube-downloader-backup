@@ -859,6 +859,70 @@ function testWishActionsAcceptRenderedStringIds() {
   assert.equal(renderCount, 3);
 }
 
+function testWishCanPrefillFundFormWithoutMutatingState() {
+  const actionState = {
+    txs: [],
+    sinkingFunds: [],
+    wishes: [{ id: "wish-camera", name: "Camera", price: 18000, cat: "擗ㄡ" }],
+  };
+  let saved = false;
+  let renderAllCount = 0;
+  const scrollTarget = { scrollIntoView: () => {} };
+  const dom = {
+    fundName: { value: "" },
+    fundTarget: { value: "" },
+    fundMonthly: { value: "" },
+    fundStart: { value: "2026-05" },
+    fundTargetMonth: { value: "2026-12" },
+    fundNote: { value: "" },
+    fundCarry: { checked: false },
+    fundCategory: {
+      value: "",
+      options: [{ value: "擗ㄡ", textContent: "擗ㄡ" }],
+    },
+    root: { getElementById: (id) => (id === "form-fund" ? scrollTarget : null) },
+  };
+  const ui = {
+    toast: { show: () => {} },
+    setFundEditMode: () => {},
+    setActiveTab: () => {},
+    populateCategoryBudgetOptions: () => {},
+    populateFundOptions: () => {},
+  };
+  const store = {
+    getState: () => actionState,
+    update: (updater) => updater(actionState),
+  };
+  const actions = createActions({
+    dom,
+    store,
+    renderAll: () => {
+      renderAllCount += 1;
+    },
+    renderWishlist: () => {},
+    ui,
+    constants: {},
+    saveState: () => {
+      saved = true;
+    },
+  });
+
+  actions.prepareFundFromWish("wish-camera");
+
+  assert.equal(dom.fundName.value, "Camera");
+  assert.equal(dom.fundTarget.value, 18000);
+  assert.equal(dom.fundMonthly.value, 18000);
+  assert.equal(dom.fundStart.value, "2026-05");
+  assert.equal(dom.fundTargetMonth.value, "");
+  assert.equal(dom.fundCarry.checked, true);
+  assert.equal(dom.fundCategory.value, "擗ㄡ");
+  assert.match(dom.fundNote.value, /Camera/);
+  assert.equal(actionState.sinkingFunds.length, 0);
+  assert.equal(actionState.wishes.length, 1);
+  assert.equal(saved, false);
+  assert.equal(renderAllCount, 1);
+}
+
 function testLedgerFundTraceRendering() {
   const renderingState = {
     ...state,
@@ -1180,6 +1244,7 @@ testRetirementViewKeepsZeroPercentInputs();
 testBudgetViewRendering();
 testWishlistLinkedFundTransactionRendering();
 testWishActionsAcceptRenderedStringIds();
+testWishCanPrefillFundFormWithoutMutatingState();
 testLedgerFundTraceRendering();
 testBalanceSheetEditButtonsRendering();
 testImportValidationRejectsUnsafeShape();

@@ -251,6 +251,7 @@ export function renderWishlist({ state, filterRange, constants, utils, dom }) {
                 <div class="wish-st ${wish.withinBudget ? "text-inc" : "text-exp"}">${wish.withinBudget ? "目前可安排" : "超出可自由運用"}</div>
               </div>
               <button type="button" class="sbtn outline compact ml-1" data-action="edit-wish" data-id="${wishId}">編輯</button>
+              <button type="button" class="sbtn outline compact ml-1" data-action="prepare-fund-from-wish" data-id="${wishId}">建立準備</button>
               <button type="button" class="del-btn text-lg p-1 ml-1" data-action="del-wish" data-id="${wishId}">×</button>
             </div>
           </div>

@@ -993,3 +993,66 @@ export async function runMonthlyReviewScenario() {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareWishFundPrefillScenario() {
+  const seededState = {
+    txs: [],
+    bsI: [],
+    wishes: [{ id: "wish-camera", name: "Smoke camera", price: 18000, cat: "餐飲" }],
+    sinkingFunds: [],
+    accounts: [{ id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 30000 }],
+    userCats: { income: [], expense: [] },
+    settings: {
+      budgetCap: 30000,
+      catBudgets: {},
+      leftoverMode: "manual",
+      investingLabel: "投資",
+      cashReserveLabel: "現金",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runWishFundPrefillScenario(app) {
+  try {
+    document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
+    await waitFor(() => document.getElementById("t-wl")?.classList.contains("on"));
+    await waitFor(() => document.querySelector('[data-action="prepare-fund-from-wish"][data-id="wish-camera"]'));
+
+    document.querySelector('[data-action="prepare-fund-from-wish"][data-id="wish-camera"]')?.click();
+    await waitFor(() => document.getElementById("sf-name")?.value === "Smoke camera");
+
+    const fundName = document.getElementById("sf-name")?.value || "";
+    const fundTarget = document.getElementById("sf-target")?.value || "";
+    const fundMonthly = document.getElementById("sf-monthly")?.value || "";
+    const fundCategory = document.getElementById("sf-cat")?.value || "";
+    const fundNote = document.getElementById("sf-note")?.value || "";
+    const fundCount = app.store.getState().sinkingFunds.length;
+
+    if (
+      fundName !== "Smoke camera" ||
+      fundTarget !== "18000" ||
+      fundMonthly !== "18000" ||
+      fundCategory !== "餐飲" ||
+      !fundNote.includes("Smoke camera") ||
+      fundCount !== 0
+    ) {
+      throw new Error(
+        `wish-fund-prefill-mismatch name=${fundName} target=${fundTarget} monthly=${fundMonthly} category=${fundCategory} fundCount=${fundCount}`,
+      );
+    }
+
+    writeSmokeResult("pass", "wish item prefilled the large-expense fund form without creating a fund");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}

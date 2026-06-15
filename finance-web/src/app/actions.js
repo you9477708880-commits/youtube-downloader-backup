@@ -82,6 +82,14 @@ export function createActions(context) {
     ui.setFundEditMode({ active: false });
   };
 
+  const setFundCategoryIfAvailable = (category) => {
+    if (!category) return false;
+    const option = [...dom.fundCategory.options].find((item) => item.value === category || item.textContent === category);
+    if (!option) return false;
+    dom.fundCategory.value = option.value;
+    return true;
+  };
+
   const readFundFormValues = () => ({
     name: dom.fundName.value.trim(),
     category: dom.fundCategory.value,
@@ -868,6 +876,28 @@ export function createActions(context) {
       dom.wishPrice.value = wish.price ?? "";
       dom.wishCategory.value = wish.cat || "";
       dom.root.getElementById("form-wish")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+
+    prepareFundFromWish(id) {
+      const wish = store.getState().wishes.find((item) => String(item.id) === String(id));
+      if (!wish) {
+        ui.toast.show("找不到這個待購項目。", "error");
+        return;
+      }
+
+      editingFundId = "";
+      this.switchTab("wl");
+      ui.setFundEditMode({ active: false });
+      dom.fundName.value = wish.name || "";
+      dom.fundTarget.value = wish.price ?? "";
+      dom.fundMonthly.value = wish.price ?? "";
+      dom.fundStart.value = dom.fundStart.value || localDateStr(new Date()).slice(0, 7);
+      dom.fundTargetMonth.value = "";
+      dom.fundNote.value = `由待購清單「${wish.name || "未命名項目"}」預填${wish.cat ? `，原分類：${wish.cat}` : ""}`;
+      dom.fundCarry.checked = true;
+      setFundCategoryIfAvailable(wish.cat);
+      dom.root.getElementById("form-fund")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ui.toast.show("已把待購項目帶入大額準備表單，請確認後再新增。");
     },
 
     cancelEditWish() {

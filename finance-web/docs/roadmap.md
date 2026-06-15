@@ -3,7 +3,7 @@
 最後更新 / Last updated: 2026-06-15
 目前主線 / Current mainline: `main`  
 最新已部署安全點 / Latest deployed safety point: `6a994bd 整理核心頁面桌機工作區`
-目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; latest deployed finance-web commit is `6a994bd`. The monthly-review prototype is a local post-deployment change until a later GitHub push and Firebase Hosting deploy are explicitly performed.
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; latest deployed finance-web commit is `6a994bd`. The monthly-review prototype and wishlist-to-fund prefill are local post-deployment changes until a later GitHub push and Firebase Hosting deploy are explicitly performed.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -85,6 +85,7 @@ The current priority is not advanced investment simulation. The priority is to c
 以下項目已在本機完成，但尚未推送或部署：
 
 - 月度回顧原型已完成：總覽頁新增只讀摘要卡片，顯示本月收入、生活支出、大額準備提撥 / 補入、動用準備、可自由運用、帳本淨額、目前淨值與應收代墊；計算沿用既有預算與資產負債 domain，避免重複計算大額準備覆蓋支出。
+- 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
 
 ### English
 
@@ -139,6 +140,7 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 The following item is complete locally, but is not yet pushed or deployed:
 
 - The monthly review prototype is complete: the overview page now has a read-only summary card for monthly income, living expenses, large-expense fund contribution / top-up, fund usage, free-to-use budget, ledger net, current net worth, and advance receivables. Calculations reuse existing budget and balance-sheet domain logic to avoid double-counting fund-covered expenses.
+- The first wishlist-to-fund integration step is complete: a wishlist item can prefill the large-expense fund form with name, target amount, monthly contribution, category, and note. This only pre-fills the form; it does not directly create a fund, create a transaction, or create `topup` / `spend` events.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -174,14 +176,15 @@ The following item is complete locally, but is not yet pushed or deployed:
 
 建議優先處理：
 
-1. **月度回顧原型驗收與提交**
-   - 目前原型已在本機完成，下一步是人工檢查總覽頁呈現是否符合使用習慣。
-   - 若人工檢查沒有問題，再建立本機 commit；是否 push / deploy 另行確認。
-   - 後續若要擴充，才考慮獨立分頁、月變化比較或更完整的月結流程。
+1. **本機新功能人工驗收**
+   - 月度回顧原型與待購項目預填大額準備目前都已在本機完成。
+   - 下一步是人工檢查總覽頁月度回顧，以及待購清單「建立準備」是否符合使用習慣。
+   - 若人工檢查沒有問題，再決定是否 push / deploy。
+   - 後續若要擴充月度回顧，才考慮獨立分頁、月變化比較或更完整的月結流程。
 
-2. **目標系統整合前置設計**
-   - 在月度回顧穩定後，再規劃待購清單與大額準備的連結。
-   - 初期只設計資料規則與 UI 流程，不急著做完整目標系統。
+2. **目標系統整合後續設計**
+   - 已完成第一步預填流程；下一步才討論是否需要正式 linking，例如 wish linkedFundId、完成狀態或從 fund 反查 wish。
+   - 在定義防重複計算規則前，不要讓同一個目標同時被待購清單與準備金重複扣預算。
 
 3. **例行安全與發布檢查**
    - 每批功能完成後，維持語法檢查、domain tests、相關 smoke scenarios。
@@ -191,14 +194,15 @@ The following item is complete locally, but is not yet pushed or deployed:
 
 Recommended immediate priorities:
 
-1. **Monthly review prototype acceptance and commit**
-   - The prototype is complete locally. The next step is manual review of the overview-page presentation.
-   - If the manual review is acceptable, create a local commit; push / deploy should be confirmed separately.
-   - Future expansion can consider a dedicated page, month-over-month comparison, or a fuller monthly close workflow.
+1. **Manual acceptance for local new features**
+   - The monthly review prototype and wishlist-to-fund prefill are complete locally.
+   - The next step is manual review of the overview monthly review and wishlist "create fund" prefill behavior.
+   - If manual review is acceptable, decide separately whether to push / deploy.
+   - Future monthly-review expansion can consider a dedicated page, month-over-month comparison, or a fuller monthly close workflow.
 
-2. **Goal-system integration design**
-   - After the monthly review stabilizes, plan how wishlist items and large-expense funds should connect.
-   - First define data rules and UI flow; do not jump into a full goal system.
+2. **Goal-system integration follow-up design**
+   - The first prefill flow is complete. Future work should decide whether formal linking is needed, such as wish `linkedFundId`, completion state, or fund-to-wish reverse lookup.
+   - Do not let the same goal consume budget through both wishlist planning and fund planning until anti-double-counting rules are defined.
 
 3. **Routine safety and release checks**
    - After each feature batch, continue running syntax checks, domain tests, and relevant smoke scenarios.
