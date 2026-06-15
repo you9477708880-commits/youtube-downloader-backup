@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { DELETED_ACCOUNT_FALLBACK_ID, calculateAccountBalances, calculateBalanceSheet } from "../src/domain/accounts.js";
 import { calculateBudgetData } from "../src/domain/budget.js";
 import { getUnusedCategoryBudgetNames } from "../src/domain/category-budgets.js";
+import { calculateMonthlyReviewData } from "../src/domain/monthly-review.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
 import { createActions } from "../src/app/actions.js";
 import {
@@ -25,6 +26,7 @@ import {
   getTransactionSignedAmount,
 } from "../src/views/transaction-detail-view.js";
 import { renderOverview } from "../src/views/overview-view.js";
+import { renderMonthlyReview } from "../src/views/monthly-review-view.js";
 import { renderCashFlow } from "../src/views/cashflow-view.js";
 import { renderLedger } from "../src/views/ledger-view.js";
 import { renderWishlist } from "../src/views/wishlist-view.js";
@@ -288,6 +290,44 @@ function testLinkedFundPartialCoverageUsesSpendEvent() {
   const budget = calculateBudgetData(linkedState, { start: "2026-04-01", end: "2026-04-30" });
   assert.equal(budget.livingExpense, 27000);
   assert.equal(budget.categoryBudgets.find((item) => item.category === "其他支出").expense, 25000);
+}
+
+function testMonthlyReviewUsesBudgetLivingExpenseForFundCoverage() {
+  const linkedState = {
+    ...state,
+    txs: [
+      ...state.txs,
+      {
+        id: 101,
+        type: "expense",
+        amount: 30000,
+        desc: "Phone purchase",
+        date: "2026-04-26",
+        cat: "Large expense",
+        category: "Large expense",
+        subcategory: "Phone",
+        acc: "bank",
+        linkedFundId: "sf-phone",
+      },
+    ],
+    sinkingFunds: state.sinkingFunds.map((fund) =>
+      fund.id === "sf-phone"
+        ? {
+            ...fund,
+            monthlyContribution: 10000,
+            startMonth: "2026-02",
+            events: [{ id: "sp-partial", type: "spend", amount: 25000, date: "2026-04-26", linkedTxId: 101 }],
+          }
+        : fund,
+    ),
+  };
+
+  const review = calculateMonthlyReviewData(linkedState, { start: "2026-04-01", end: "2026-04-30" });
+  assert.equal(review.income, 41200);
+  assert.equal(review.ledgerExpense, 52000);
+  assert.equal(review.budget.livingExpense, 27000);
+  assert.equal(review.funds.spend, 25000);
+  assert.equal(review.budget.budgetShortfall, 2000);
 }
 
 function testAutoTopupShortfallBudgetEffect() {
@@ -999,6 +1039,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
     oExpense: { textContent: "" },
     oNet: { textContent: "", className: "" },
     oBars: { innerHTML: "" },
+    monthlyReview: { innerHTML: "" },
   };
   const cashflowDom = { cashflowBody: { innerHTML: "" } };
   const balanceDom = { balanceSheetBody: { innerHTML: "" } };
@@ -1047,6 +1088,12 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
     utils: renderUtils,
     dom: overviewDom,
   });
+  renderMonthlyReview({
+    state: renderingState,
+    filterRange: { start: "2026-04-01", end: "2026-04-30" },
+    utils: renderUtils,
+    dom: overviewDom,
+  });
   renderCashFlow({ filteredTxs: renderingState.txs, utils: renderUtils, dom: cashflowDom, state: renderingState });
   renderBalanceSheet({ state: renderingState, utils: renderUtils, dom: balanceDom });
   renderWishlist({
@@ -1060,6 +1107,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
   const html = [
     ledgerDom.aTx.innerHTML,
     overviewDom.oBars.innerHTML,
+    overviewDom.monthlyReview.innerHTML,
     cashflowDom.cashflowBody.innerHTML,
     balanceDom.balanceSheetBody.innerHTML,
     wishlistDom.budgetSourceList.innerHTML,
@@ -1111,6 +1159,7 @@ testBudget();
 testUnusedCategoryBudgetDetection();
 testLinkedFundExpenseCoverage();
 testLinkedFundPartialCoverageUsesSpendEvent();
+testMonthlyReviewUsesBudgetLivingExpenseForFundCoverage();
 testAutoTopupShortfallBudgetEffect();
 testDeleteLinkedFundTransactionCleansEvents();
 testFundTargetPlanStatus();

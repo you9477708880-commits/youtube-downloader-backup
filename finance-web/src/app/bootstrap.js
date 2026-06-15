@@ -18,6 +18,7 @@ import { renderOverview } from "../views/overview-view.js";
 import { renderLedger } from "../views/ledger-view.js";
 import { renderCashFlow } from "../views/cashflow-view.js";
 import { renderBalanceSheet } from "../views/balance-sheet-view.js";
+import { renderMonthlyReview } from "../views/monthly-review-view.js";
 import { renderWishlist } from "../views/wishlist-view.js";
 import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
@@ -62,6 +63,7 @@ function collectDom(doc = document) {
     oNet: $("o-n", doc),
     oBars: $("o-bars", doc),
     oTx: $("o-tx", doc),
+    monthlyReview: $("monthly-review", doc),
     aTx: $("a-tx", doc),
     advList: $("adv-list", doc),
     txCount: $("tx-cnt", doc),
@@ -551,6 +553,7 @@ export async function bootstrapFinanceApp(doc = document) {
     const filteredTxs = getFiltered();
     const filterRange = getFilterRangeValue();
     renderOverview({ state, filteredTxs, constants: CONSTANTS, utils, dom });
+    renderMonthlyReview({ state, filterRange, utils, dom });
     renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
     renderCashFlow({ state, filteredTxs, utils, dom });
     renderBalanceSheet({ state, utils, dom });

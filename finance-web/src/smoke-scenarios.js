@@ -902,3 +902,88 @@ export async function runDesktopCoreLayoutScenario() {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareMonthlyReviewScenario() {
+  const seededState = {
+    txs: [
+      {
+        id: "review-income",
+        type: "income",
+        amount: 50000,
+        desc: "Smoke salary",
+        date: smokeDate,
+        cat: "薪資",
+        category: "薪資",
+        subcategory: "本薪",
+        acc: "bank",
+      },
+      {
+        id: "review-phone",
+        type: "expense",
+        amount: 20000,
+        desc: "Smoke phone",
+        date: smokeDate,
+        cat: "大額支出",
+        category: "大額支出",
+        subcategory: "手機",
+        acc: "bank",
+        linkedFundId: "review-fund",
+      },
+    ],
+    bsI: [],
+    wishes: [],
+    sinkingFunds: [
+      {
+        id: "review-fund",
+        name: "Smoke phone fund",
+        category: "大額支出",
+        targetAmount: 30000,
+        monthlyContribution: 5000,
+        startMonth: smokeMonth,
+        targetMonth: smokeMonth,
+        carryoverEnabled: true,
+        note: "",
+        events: [{ id: "review-spend", type: "spend", amount: 12000, date: smokeDate, linkedTxId: "review-phone" }],
+      },
+    ],
+    accounts: [
+      { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "bank", name: "銀行", type: "asset", isEm: false, initialBalance: 100000 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: {
+      budgetCap: 40000,
+      catBudgets: {},
+      leftoverMode: "manual",
+      investingLabel: "投資",
+      cashReserveLabel: "現金",
+      retLinked: true,
+      retManualAsset: 0,
+    },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runMonthlyReviewScenario() {
+  try {
+    document.querySelector('[data-action="tab"][data-target="ov"]')?.click();
+    await waitFor(() => document.getElementById("t-ov")?.classList.contains("on"));
+    await waitFor(() => (document.getElementById("monthly-review")?.textContent || "").includes("本月收入"));
+
+    const text = document.getElementById("monthly-review")?.textContent || "";
+    if (!text.includes("NT$ 50,000") || !text.includes("NT$ 8,000") || !text.includes("動用準備")) {
+      throw new Error(`monthly-review-content-missing: ${text}`);
+    }
+
+    writeSmokeResult("pass", "monthly review renders income, fund-adjusted living expense, and fund usage");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}

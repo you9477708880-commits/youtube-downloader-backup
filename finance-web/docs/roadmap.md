@@ -1,9 +1,9 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-06-01  
+最後更新 / Last updated: 2026-06-15
 目前主線 / Current mainline: `main`  
-最新本機安全點 / Latest local safety point: `f3ef9f8 建立核心頁面整理前安全點`
-目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; local `main` is currently ahead of GitHub by multiple commits and has not been pushed/deployed for the latest local work.
+最新已部署安全點 / Latest deployed safety point: `6a994bd 整理核心頁面桌機工作區`
+目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; latest deployed finance-web commit is `6a994bd`. The monthly-review prototype is a local post-deployment change until a later GitHub push and Firebase Hosting deploy are explicitly performed.
 
 這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
 
@@ -75,15 +75,16 @@ The current priority is not advanced investment simulation. The priority is to c
 - 交易分類模型升級第二階段已完成：新增 / 編輯交易表單已拆成「主分類 + 子分類」，子分類支援常用建議與自由輸入；帳本、交易明細與預算來源描述會顯示兩層分類，舊 `cat` 仍保留作為相容欄位。
 - `新功能實驗` 已透過 squash merge 整合回 `main`，並已推送到 GitHub 遠端。
 - Firebase Hosting 已部署新版，正式網址 `https://financial-computer.web.app` 已更新。
-
-以下項目已在本機 `main` 完成並提交，但尚未推送到 GitHub，也尚未部署到 Firebase Hosting：
-
 - 分類預算清理工具已完成：可列出孤立的 `settings.catBudgets` 項目，並由使用者確認後清理；預設分類、自訂分類與仍被歷史交易使用的分類不會被誤刪。
 - DOM 與渲染安全整理已完成第二輪：補強大額準備選單 `value` 屬性跳脫，並把 XSS 回歸測試擴大到帳本、總覽、現金流、資產負債、預算來源、大額準備與待購清單。
 - 專案內 smoke runner 已建立：不再依賴外部 `test-server.js`，會使用乾淨暫存瀏覽器資料夾，並在 Chrome / Edge 與多種 headless 啟動策略間自動重試。
 - 本機 / 雲端資料覆蓋策略已明確化：登入後若本機與雲端都有資料且內容不同，會詢問使用者要用雲端覆蓋本機，或用本機覆蓋雲端；目前不做自動合併。
 - 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
 - 桌機版核心頁面工作區整理第一輪已完成：總覽、記帳、預算分配、現金流、資產負債與退休頁已新增頁面級 workspace wrapper，桌機 `900px+` 會套用專屬工作區排版；手機維持原本單欄流程。已補 `desktop-core-layout` smoke scenario。
+
+以下項目已在本機完成，但尚未推送或部署：
+
+- 月度回顧原型已完成：總覽頁新增只讀摘要卡片，顯示本月收入、生活支出、大額準備提撥 / 補入、動用準備、可自由運用、帳本淨額、目前淨值與應收代墊；計算沿用既有預算與資產負債 domain，避免重複計算大額準備覆蓋支出。
 
 ### English
 
@@ -128,15 +129,16 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 - Transaction category model upgrade phase 2 is complete: add/edit transaction forms now separate primary category and subcategory, subcategories support suggestions plus free-form input, and ledger/detail/budget source descriptions show both levels. Legacy `cat` remains as a compatibility field.
 - `新功能實驗` was squash-merged back into `main` and pushed to GitHub.
 - Firebase Hosting has been redeployed; the production URL `https://financial-computer.web.app` is updated.
-
-The following items are complete and committed on local `main`, but are not yet pushed to GitHub or deployed to Firebase Hosting:
-
 - Category-budget cleanup is complete: the app can list orphaned `settings.catBudgets` entries and remove them after user confirmation; default categories, custom categories, and categories still referenced by historical transactions are preserved.
 - DOM and rendering safety cleanup phase 2 is complete: large-expense fund option `value` attributes are escaped, and XSS regression coverage now includes ledger, overview, cash flow, balance sheet, budget source items, large-expense funds, and wishlist rendering.
 - A project-local smoke runner is implemented: it no longer depends on the external `test-server.js`, uses a clean temporary browser profile, and retries Chrome / Edge with multiple headless launch strategies.
 - The local / cloud overwrite strategy is explicit: if both local and cloud data exist after sign-in and differ, the user chooses whether cloud overwrites local or local overwrites cloud; automatic merging is not implemented.
 - Large-expense fund plan-change rules now use the safe version: keep the current "editing settings recalculates the whole plan" model in the short term, explain it in UI and docs, and do not add `plan_changed` or settings-versioning yet.
 - Desktop core-page workspace cleanup phase 1 is complete: overview, ledger, budget allocation, cash flow, balance sheet, and retirement now have page-level workspace wrappers. Desktop `900px+` uses scoped workspace layouts, while mobile keeps the existing single-column flow. A `desktop-core-layout` smoke scenario is added.
+
+The following item is complete locally, but is not yet pushed or deployed:
+
+- The monthly review prototype is complete: the overview page now has a read-only summary card for monthly income, living expenses, large-expense fund contribution / top-up, fund usage, free-to-use budget, ledger net, current net worth, and advance receivables. Calculations reuse existing budget and balance-sheet domain logic to avoid double-counting fund-covered expenses.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 
@@ -172,35 +174,35 @@ The following items are complete and committed on local `main`, but are not yet 
 
 建議優先處理：
 
-1. **本機完成項目的正式上線前檢查**
-   - 目前本機 `main` 比 GitHub 遠端多數個 commit，包含分類預算清理工具、DOM 與渲染安全整理、roadmap 進度盤點與專案內 smoke runner。
-   - 這批內容功能上已完成，但還不能寫成「已推送、已部署」，直到完成 GitHub push 與 Firebase Hosting deploy。
-   - 上線前應人工測試：記帳、主分類 / 子分類輸入、CSV 匯入預覽、分類預算清理、大額準備、待購清單排序與雲端登入狀態。
-   - 2026-06-01 上線前自動檢查已跑過：JS 語法檢查、domain tests、以及 `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios 皆通過。
-   - 2026-06-01 Browser 外掛備註：Codex Browser/IAB 自動化分頁在本機 URL 導向時被 Browser URL policy 擋住；本輪改用專案內 smoke runner 與受控 headless Chrome 先確認 HTTP 200 與頁面載入。使用者實機手機檢查未發現版面溢出，因此未保留基於不可靠 headless 手機截圖的 UI 變更。
+1. **月度回顧原型驗收與提交**
+   - 目前原型已在本機完成，下一步是人工檢查總覽頁呈現是否符合使用習慣。
+   - 若人工檢查沒有問題，再建立本機 commit；是否 push / deploy 另行確認。
+   - 後續若要擴充，才考慮獨立分頁、月變化比較或更完整的月結流程。
 
-2. **下一個中期候選：桌機版核心頁面工作區整理**
-   - 已建立整理前安全點：`f3ef9f8 建立核心頁面整理前安全點`。
-   - 範圍可涵蓋記帳、預算分配、總覽、現金流、資產負債與退休，但必須分頁分階段執行。
-   - 第一輪只做頁面級桌機工作區與 `900px+` 斷點，不改帳務計算、資料模型、同步規則或匯入匯出語意。
-   - 實作前需先確認目前手機版實機畫面正常，避免再次因截圖誤判造成 UI churn。
+2. **目標系統整合前置設計**
+   - 在月度回顧穩定後，再規劃待購清單與大額準備的連結。
+   - 初期只設計資料規則與 UI 流程，不急著做完整目標系統。
+
+3. **例行安全與發布檢查**
+   - 每批功能完成後，維持語法檢查、domain tests、相關 smoke scenarios。
+   - GitHub push 與 Firebase Hosting deploy 仍只在使用者明確要求時執行。
 
 ### English
 
 Recommended immediate priorities:
 
-1. **Pre-release check for locally completed work**
-   - Local `main` is currently ahead of GitHub by several commits, including category-budget cleanup, DOM/rendering safety cleanup, roadmap progress cleanup, and the project-local smoke runner.
-   - These items are functionally complete, but should not be marked as pushed/deployed until GitHub push and Firebase Hosting deployment are done.
-   - Before release, manually test ledger entry, primary/subcategory input, CSV import preview, category-budget cleanup, large-expense funds, wishlist ordering, and cloud sign-in status.
-   - 2026-06-01 pre-release automation has been run: JS syntax check, domain tests, and the `fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness` smoke scenarios all passed.
-   - 2026-06-01 Browser note: Codex Browser/IAB automation was blocked by Browser URL policy when navigating to the local URL. This validation used the project-local smoke runner plus a controlled headless Chrome HTTP 200/page-load check instead. The user's real mobile check did not show layout overflow, so no UI change based on the unreliable headless mobile screenshot was kept.
+1. **Monthly review prototype acceptance and commit**
+   - The prototype is complete locally. The next step is manual review of the overview-page presentation.
+   - If the manual review is acceptable, create a local commit; push / deploy should be confirmed separately.
+   - Future expansion can consider a dedicated page, month-over-month comparison, or a fuller monthly close workflow.
 
-2. **Next mid-term candidate: desktop core-page workspace cleanup**
-   - A pre-cleanup safety point has been created: `f3ef9f8 建立核心頁面整理前安全點`.
-   - The scope may cover ledger, budget allocation, overview, cash flow, balance sheet, and retirement, but implementation must be split by page and phase.
-   - The first pass should only add page-level desktop workspaces and `900px+` breakpoints. It must not change accounting calculations, data models, sync rules, or import/export semantics.
-   - Before implementation, confirm real-device mobile layout is healthy so screenshot misreads do not cause UI churn again.
+2. **Goal-system integration design**
+   - After the monthly review stabilizes, plan how wishlist items and large-expense funds should connect.
+   - First define data rules and UI flow; do not jump into a full goal system.
+
+3. **Routine safety and release checks**
+   - After each feature batch, continue running syntax checks, domain tests, and relevant smoke scenarios.
+   - GitHub push and Firebase Hosting deploy still require explicit user request.
 
 ## 5. 中期重構 / Mid-Term Refactors
 
@@ -209,7 +211,7 @@ Recommended immediate priorities:
 中期應處理：
 
 1. **DOM 與渲染安全整理**
-   - 目前第二輪已完成並列入「本機完成，尚未推送」。
+   - 第二輪已完成、推送並部署。
    - 後續若大幅新增 UI，才需要逐步把純文字區塊改成節點建立與 `textContent`，減少新的 `innerHTML` 風險。
 
 2. **本機儲存錯誤隔離**
@@ -228,10 +230,11 @@ Recommended immediate priorities:
    - 未來若要合併，必須先定義單筆資料衝突規則與可回復機制。
 
 5. **分類預算資料清理**
-   - 目前清理工具已完成並列入「本機完成，尚未推送」。
+   - 清理工具已完成、推送並部署。
    - 後續只需在分類模型或分類設定大改時，確認清理規則仍符合新的分類來源。
 
 6. **桌機版核心頁面工作區整理**
+   - 第一輪已完成、推送並部署；後續只在發現具體桌機使用痛點時再做小步整理。
    - 目標：讓桌機版成為適合長時間整理資料與檢查數字的工作區，而不是放大的手機版。
    - 原則：不做全站一次性大改版；只新增頁面級 wrapper/class 與桌機斷點；不要改 `.card`、`.grid-2`、`.grid-3`、`.grid-4` 等全站共用基礎規則。
    - 樣式位置：目前沒有 `src/styles.css`；實際樣式拆在 `assets/styles/base.css`、`assets/styles/layout.css`、`assets/styles/components.css`、`assets/styles/tokens.css`。
@@ -293,7 +296,7 @@ Recommended immediate priorities:
 Mid-term work:
 
 1. **DOM and rendering safety cleanup**
-   - The second pass is now complete and listed under "complete locally, not yet pushed".
+   - The second pass is complete, pushed, and deployed.
    - If future UI work expands significantly, gradually move pure text regions to node creation plus `textContent` to reduce new `innerHTML` risk.
 
 2. **Local storage error isolation**
@@ -312,7 +315,7 @@ Mid-term work:
    - Future merge support must define per-record conflict rules and recovery behavior first.
 
 5. **Category-budget data cleanup**
-   - The cleanup tool is now complete and listed under "complete locally, not yet pushed".
+   - The cleanup tool is complete, pushed, and deployed.
    - Future work only needs to re-check the cleanup rules if the category model or category settings are significantly changed.
 
 6. **AndroMoney compatibility layer**
@@ -555,6 +558,9 @@ Important test directions:
 預設協作規則：
 
 - 修改與測試可以由 Codex 直接協助完成。
+- 若工作可拆分且工具環境允許，可以優先請子代理處理只讀盤點、測試驗證、或不重疊檔案的局部修改，以降低主對話上下文壓縮造成的工作記憶中斷。
+- 主對話代理仍負責整體判斷、整合 diff、驗收測試與最終回報；子代理不得自行 push、deploy 或擴大範圍。
+- 子代理完成或不再需要時，應主動關閉，避免側邊留下不再使用的代理工作區。
 - 本機 commit 前應說明本次提交內容。
 - 遠端 push 與 Firebase deploy 都應視為較正式步驟，預設先徵求確認。
 
@@ -592,6 +598,9 @@ Recommended cadence:
 Default collaboration rule:
 
 - Codex may help edit and test directly.
+- When the work can be split and the tool environment supports it, prefer using sub-agents for read-only inspection, verification, or disjoint file-scope edits to reduce context-compression interruptions in the main conversation.
+- The main conversation agent remains responsible for judgment, diff integration, test acceptance, and final reporting. Sub-agents must not push, deploy, or expand scope on their own.
+- Close sub-agents when they finish or are no longer needed, so unused side workspaces do not remain open.
 - Before a local commit, summarize what is being committed.
 - Remote push and Firebase deploy are more formal steps and should be confirmed first by default.
 

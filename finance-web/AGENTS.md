@@ -85,6 +85,13 @@ Human approval is required before moving from research/spec into implementation 
 - A broad UI layout change is proposed.
 - A tool or screenshot gives evidence that conflicts with user real-device observations.
 
+Sub-agent usage:
+
+- When the tool environment supports it and the task can be split cleanly, prefer assigning read-only inspection, verification, or disjoint file-scope work to sub-agents.
+- The main agent remains responsible for final judgment, reviewing diffs, integrating results, and reporting to the user.
+- Sub-agents must not push to GitHub, deploy Firebase Hosting, or expand the requested scope.
+- Close sub-agents as soon as their work is complete or no longer needed, so unused side workspaces do not remain open.
+
 ## 6. Testing Commands
 
 Syntax check:
