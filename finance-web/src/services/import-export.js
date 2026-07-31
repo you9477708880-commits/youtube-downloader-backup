@@ -154,13 +154,13 @@ export function isValidImportShape(data) {
   return isValidSettings(data.settings) && isValidUserCats(data.userCats);
 }
 
-export function exportData(state) {
+export function exportData(state, filename = "finance_backup.json") {
   const dataStr = JSON.stringify(state);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "finance_backup.json";
+  anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
 }

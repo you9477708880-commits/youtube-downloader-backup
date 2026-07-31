@@ -117,6 +117,9 @@ Cloud sync write queue tests:
 ```powershell
 node .\tests\latest-write-queue.test.mjs
 node .\tests\storage-cloud.test.mjs
+node .\tests\storage-local.test.mjs
+node .\tests\record-codec.test.mjs
+node .\tests\storage-cloud-records.test.mjs
 ```
 
 Project-local smoke runner:

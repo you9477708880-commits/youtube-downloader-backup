@@ -2,8 +2,159 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function ownsUserData(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function v7MetaPath(appId, userId) {
+      return /databases/$(database)/documents/artifacts/$(appId)/users/$(userId)/sync/finance_v7;
+    }
+
+    function validRecordEnvelope() {
+      return request.resource.data.keys().hasOnly([
+          'kind',
+          'recordId',
+          'payload',
+          'position',
+          'revision',
+          'updatedBy',
+          'updatedAt',
+          'deleted',
+          'deletedAt',
+          'migrationId',
+          'syncSchemaVersion'
+        ])
+        && request.resource.data.kind in [
+          'transaction',
+          'balanceSheetItem',
+          'wish',
+          'account',
+          'sinkingFund',
+          'fundEvent',
+          'settings',
+          'userCategories'
+        ]
+        && request.resource.data.recordId is string
+        && request.resource.data.recordId.size() > 0
+        && request.resource.data.recordId.size() <= 512
+        && request.resource.data.position is int
+        && request.resource.data.position >= 0
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
+        && request.resource.data.updatedBy is string
+        && request.resource.data.updatedBy.size() > 0
+        && request.resource.data.updatedBy.size() <= 200
+        && request.resource.data.migrationId is string
+        && request.resource.data.migrationId.size() <= 200
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.deleted is bool
+        && request.resource.data.syncSchemaVersion == 1
+        && (
+          (!request.resource.data.deleted
+            && request.resource.data.payload is map
+            && request.resource.data.deletedAt == null)
+          ||
+          (request.resource.data.deleted
+            && request.resource.data.payload == null
+            && request.resource.data.deletedAt == request.time)
+        );
+    }
+
+    function validPreparingMeta() {
+      return request.resource.data.keys().hasOnly([
+          'status',
+          'migrationId',
+          'migrationSourceHash',
+          'ownerDeviceId',
+          'syncSchemaVersion',
+          'stateSchemaVersion',
+          'updatedAt'
+        ])
+        && request.resource.data.status == 'preparing'
+        && request.resource.data.migrationId is string
+        && request.resource.data.migrationSourceHash is string
+        && request.resource.data.ownerDeviceId is string
+        && request.resource.data.syncSchemaVersion == 1
+        && request.resource.data.stateSchemaVersion is int
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validActiveMeta() {
+      return request.resource.data.keys().hasOnly([
+          'status',
+          'migrationId',
+          'migrationSourceHash',
+          'ownerDeviceId',
+          'syncSchemaVersion',
+          'stateSchemaVersion',
+          'recordCount',
+          'updatedAt'
+        ])
+        && request.resource.data.status == 'active'
+        && request.resource.data.migrationId == resource.data.migrationId
+        && request.resource.data.migrationSourceHash == resource.data.migrationSourceHash
+        && request.resource.data.ownerDeviceId == resource.data.ownerDeviceId
+        && request.resource.data.syncSchemaVersion == 1
+        && request.resource.data.stateSchemaVersion is int
+        && request.resource.data.recordCount is int
+        && request.resource.data.recordCount >= 0
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validRecordCreateForMeta(appId, userId) {
+      let meta = get(v7MetaPath(appId, userId)).data;
+      return (
+        meta.status == 'preparing'
+        && request.resource.data.migrationId == meta.migrationId
+      )
+      || (
+        meta.status == 'active'
+        && request.resource.data.migrationId == ''
+      );
+    }
+
     match /artifacts/{appId}/users/{userId}/data/{documentId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if ownsUserData(userId);
+      allow write: if ownsUserData(userId)
+        && !exists(v7MetaPath(appId, userId));
+    }
+
+    match /artifacts/{appId}/users/{userId}/sync/{syncId} {
+      allow read: if ownsUserData(userId);
+      allow create: if ownsUserData(userId)
+        && syncId == 'finance_v7'
+        && validPreparingMeta();
+      allow update: if ownsUserData(userId)
+        && syncId == 'finance_v7'
+        && resource.data.status == 'preparing'
+        && (
+          (
+            request.resource.data.status == 'preparing'
+            && validPreparingMeta()
+            && request.resource.data.migrationId == resource.data.migrationId
+            && request.resource.data.ownerDeviceId == resource.data.ownerDeviceId
+          )
+          || validActiveMeta()
+        );
+      allow delete: if false;
+    }
+
+    match /artifacts/{appId}/users/{userId}/sync/{syncId}/records/{recordKey} {
+      allow read: if ownsUserData(userId) && syncId == 'finance_v7';
+      allow create: if ownsUserData(userId)
+        && syncId == 'finance_v7'
+        && validRecordEnvelope()
+        && request.resource.data.revision == 1
+        && validRecordCreateForMeta(appId, userId);
+      allow update: if ownsUserData(userId)
+        && syncId == 'finance_v7'
+        && get(v7MetaPath(appId, userId)).data.status == 'active'
+        && validRecordEnvelope()
+        && request.resource.data.kind == resource.data.kind
+        && request.resource.data.recordId == resource.data.recordId
+        && request.resource.data.migrationId == resource.data.migrationId
+        && request.resource.data.revision == resource.data.revision + 1;
+      allow delete: if false;
     }
 
     match /{document=**} {

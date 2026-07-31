@@ -61,9 +61,24 @@ function testHostingUsesGeneratedAllowlist() {
   });
 }
 
+function testFirestoreRecordBoundaries() {
+  const rules = fs.readFileSync(path.join(projectRoot, "firestore.rules"), "utf8");
+  assert.match(rules, /request\.auth\.uid == userId/);
+  assert.match(rules, /sync\/\{syncId\}\/records\/\{recordKey\}/);
+  assert.match(rules, /request\.resource\.data\.revision == resource\.data\.revision \+ 1/);
+  assert.match(rules, /request\.resource\.data\.revision == 1/);
+  assert.match(rules, /request\.resource\.data\.updatedAt == request\.time/);
+  assert.match(rules, /request\.resource\.data\.deletedAt == request\.time/);
+  assert.match(rules, /request\.resource\.data\.migrationId == meta\.migrationId/);
+  assert.match(rules, /allow write: if ownsUserData\(userId\)\s*&& !exists\(v7MetaPath\(appId, userId\)\)/);
+  assert.match(rules, /allow delete: if false/);
+  assert.match(rules, /get\(v7MetaPath\(appId, userId\)\)\.data\.status == 'active'/);
+}
+
 try {
   testProductionEntryCannotRunSmokeScenarios();
   testHostingUsesGeneratedAllowlist();
+  testFirestoreRecordBoundaries();
   console.log("Security boundary tests passed");
 } finally {
   fs.rmSync(outputRoot, { recursive: true, force: true });

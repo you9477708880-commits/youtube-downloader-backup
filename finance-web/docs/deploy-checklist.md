@@ -65,6 +65,9 @@ node .\tests\domain.test.mjs
 ```powershell
 node .\tests\latest-write-queue.test.mjs
 node .\tests\storage-cloud.test.mjs
+node .\tests\storage-local.test.mjs
+node .\tests\record-codec.test.mjs
+node .\tests\storage-cloud-records.test.mjs
 ```
 
 ## 資安檢查
@@ -88,9 +91,13 @@ Firestore 規則檢查重點：
 
 ```text
 artifacts/{appId}/users/{userId}/data/{documentId}
+artifacts/{appId}/users/{userId}/sync/finance_v7
+artifacts/{appId}/users/{userId}/sync/finance_v7/records/{recordKey}
 ```
 
-只能允許 `request.auth.uid == userId` 的使用者讀寫。其他路徑預設拒絕。
+只能允許 `request.auth.uid == userId` 的使用者讀寫。v7 record create 必須從 revision 1 開始，update 必須剛好加 1，禁止實體 delete；tombstone 必須 `payload == null`。v7 meta active 後，舊 `finance_v6` 不再允許舊版 client 寫入。其他路徑預設拒絕。
+
+第三、四階段不能只部署 Hosting。必須先確認新版 Hosting 與新版 Firestore rules 會在同一個維護窗口發布；若只發布其中一邊，新 client 會因 records 路徑被拒絕，或舊 client 可能繼續覆寫 `finance_v6`。
 
 若要部署 Firestore 規則：
 

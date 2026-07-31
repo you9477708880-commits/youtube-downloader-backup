@@ -39,6 +39,9 @@ node .\tests\security-boundaries.test.js
 ```powershell
 node .\tests\latest-write-queue.test.mjs
 node .\tests\storage-cloud.test.mjs
+node .\tests\storage-local.test.mjs
+node .\tests\record-codec.test.mjs
+node .\tests\storage-cloud-records.test.mjs
 ```
 
 Headless smoke test：

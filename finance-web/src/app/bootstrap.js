@@ -1,10 +1,17 @@
 import { CATEGORY_SUBCATEGORY_SUGGESTIONS, CONSTANTS, DEFAULT_SUBCATEGORY } from "../config/constants.js";
-import { createInitialState } from "../state/initial-state.js";
+import { cloneState, createInitialState } from "../state/initial-state.js";
 import { createStore } from "../state/store.js";
 import { getFilterRange, getFilteredTransactions } from "../state/selectors.js";
-import { loadLocalState, saveLocalState } from "../services/storage-local.js";
+import {
+  LOCAL_STORAGE_SCOPE,
+  loadLocalState,
+  migrateLegacyLocalState,
+  saveRollbackSnapshot,
+  saveLocalState,
+  userStorageScope,
+} from "../services/storage-local.js";
 import { setupPWA } from "../services/pwa.js";
-import { createCloudSync } from "../services/storage-cloud.js";
+import { createRecordCloudSync } from "../services/storage-cloud-records.js";
 import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
@@ -164,10 +171,22 @@ function createFallbackCloudSync() {
     enabled: false,
     error: "",
     save: async () => {},
+    resolveConflict: async () => false,
     signInWithGoogle: async () => false,
     signOutToAnonymous: async () => ({ mode: "local" }),
     getUser: () => null,
   };
+}
+
+function backupFilename(label) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `finance-backup-${label}-${stamp}.json`;
+}
+
+function promptSyncChoice(message) {
+  const answer = window.prompt(`${message}\n\n請輸入 cloud、local 或 cancel：`, "cancel");
+  const normalized = String(answer || "cancel").trim().toLowerCase();
+  return ["cloud", "local"].includes(normalized) ? normalized : "cancel";
 }
 
 function readFileAsText(file) {
@@ -223,7 +242,8 @@ export async function bootstrapFinanceApp(doc = document) {
   const dom = collectDom(doc);
   const toast = createToastManager(doc);
   const baseState = createInitialState();
-  const initialState = loadLocalState(baseState);
+  migrateLegacyLocalState(baseState);
+  const initialState = createInitialState();
   const store = createStore(initialState);
   const utils = { formatMoney, escapeHTML, localDateStr };
 
@@ -233,9 +253,24 @@ export async function bootstrapFinanceApp(doc = document) {
   let pendingAndroMoneyText = "";
   let cloudConflictDecision = "";
   let cloudConflictUserId = "";
+  let localScope = null;
+  let pendingUnboundLocalState = null;
 
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
+
+  const preserveRollback = (state, label) => {
+    if (!localScope) return false;
+    try {
+      saveRollbackSnapshot(state, localScope, label);
+      exportData(state, backupFilename(label));
+      return true;
+    } catch (error) {
+      console.warn("Rollback snapshot could not be saved.", error);
+      toast.show("無法建立覆蓋前復原快照，因此已取消這次同步選擇", "error");
+      return false;
+    }
+  };
 
   const syncRetirementInputs = () => {
     dom.retireAssetValue.textContent = formatMoney(dom.retireAsset.value || 0);
@@ -280,6 +315,13 @@ export async function bootstrapFinanceApp(doc = document) {
         return;
       }
 
+      if (status === "conflict") {
+        dom.cloudStatus.textContent = "☁️ 同步衝突";
+        dom.cloudStatus.className = "cloud-st off";
+        dom.cloudStatus.dataset.state = "conflict";
+        return;
+      }
+
       dom.cloudStatus.textContent = "💾 僅本機";
       dom.cloudStatus.className = "cloud-st off";
       dom.cloudStatus.dataset.state = "local";
@@ -318,7 +360,7 @@ export async function bootstrapFinanceApp(doc = document) {
         dom.authButton.textContent = "Google 登入";
         dom.headerTag.textContent = "本機模式";
         dom.headerTag.dataset.state = "anon";
-        dom.headerTag.title = "目前資料保存在這台裝置，可登入 Google 啟用雲端同步。若切換不同 Google 帳號，本機看到的內容可能會變成最近登入帳號的版本。";
+        dom.headerTag.title = "目前顯示這台裝置的未綁定本機資料。Google 帳號資料會依 UID 分開保存，登出後不會繼續顯示帳號內的財務內容。";
         return;
       }
 
@@ -536,8 +578,8 @@ export async function bootstrapFinanceApp(doc = document) {
   };
 
   const saveState = () => {
-    saveLocalState(store.getState());
-    if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous) return;
+    if (localScope) saveLocalState(store.getState(), localScope);
+    if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous || cloudConflictDecision === "cancel") return;
 
     cloudSync.save().catch(() => {
       ui.updateCloudStatus("error");
@@ -577,7 +619,27 @@ export async function bootstrapFinanceApp(doc = document) {
       ...remoteState,
       settings: { ...currentState.settings, ...(remoteState.settings || {}) },
     }));
-    saveLocalState(store.getState());
+    if (localScope) saveLocalState(store.getState(), localScope);
+    ui.syncFromSettings();
+    syncRetirementInputs();
+    ui.renderTransactionCategorySelect();
+    ui.populateCategoryBudgetOptions();
+    ui.populateFundOptions();
+    ui.syncTxType();
+    renderAll();
+  };
+
+  const switchLocalScope = (user) => {
+    const previousScope = localScope;
+    if (previousScope) saveLocalState(store.getState(), previousScope);
+    const nextScope = user && !user.isAnonymous ? userStorageScope(user.uid) : LOCAL_STORAGE_SCOPE;
+    if (previousScope === LOCAL_STORAGE_SCOPE && nextScope !== LOCAL_STORAGE_SCOPE && hasMeaningfulFinanceData(store.getState())) {
+      pendingUnboundLocalState = cloneState(store.getState());
+    } else if (nextScope === LOCAL_STORAGE_SCOPE) {
+      pendingUnboundLocalState = null;
+    }
+    localScope = nextScope;
+    store.replace(loadLocalState(baseState, localScope));
     ui.syncFromSettings();
     syncRetirementInputs();
     ui.renderTransactionCategorySelect();
@@ -857,11 +919,12 @@ export async function bootstrapFinanceApp(doc = document) {
   actions.setDatePreset("month");
   actions.setTxType("expense");
 
-  cloudSync = await createCloudSync({
+  cloudSync = await createRecordCloudSync({
     getState: () => store.getState(),
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
     onUserChange: (user) => {
       currentUser = user;
+      switchLocalScope(user);
       const nextConflictUserId = user && !user.isAnonymous ? user.uid : "";
       if (nextConflictUserId !== cloudConflictUserId) {
         cloudConflictDecision = "";
@@ -869,11 +932,55 @@ export async function bootstrapFinanceApp(doc = document) {
       }
       ui.renderAuthState(currentUser, true, "");
     },
-    onRemoteState: (remoteState) => {
+    onConflict: ({ localState, remoteState, keys }) => {
+      const choice = promptSyncChoice(
+        `偵測到 ${keys.length} 筆同時修改的雲端資料。\ncloud：保留雲端整筆版本\nlocal：用本機整筆版本重送\ncancel：暫停同步`,
+      );
+      if (choice === "cloud" && !preserveRollback(localState, "before-cloud-conflict")) return;
+      if (choice === "local" && !preserveRollback(remoteState, "before-local-conflict")) return;
+      cloudConflictDecision = choice === "cancel" ? "cancel" : "";
+      setTimeout(() => {
+        cloudSync.resolveConflict(choice).catch(() => {
+          ui.updateCloudStatus("error");
+          toast.show("同步衝突處理失敗，資料仍保留在本機", "error");
+        });
+      }, 0);
+    },
+    onRemoteState: (remoteState, metadata = {}) => {
       const localState = store.getState();
       const localHasData = hasMeaningfulFinanceData(localState);
       const remoteHasData = hasMeaningfulFinanceData(remoteState);
       const sameData = areFinanceStatesEquivalent(localState, remoteState);
+
+      if (cloudConflictDecision === "cancel" && metadata.source === "records") {
+        ui.updateCloudStatus("conflict");
+        return;
+      }
+
+      if (metadata.source === "conflict-resolution") {
+        applyRemoteState(remoteState);
+        return;
+      }
+
+      if (!metadata.initial && metadata.source === "records") {
+        applyRemoteState(remoteState);
+        return;
+      }
+
+      if (!localHasData && !remoteHasData && pendingUnboundLocalState) {
+        const shouldImport = window.confirm(
+          "這個 Google 帳號目前沒有本機或雲端資料。是否將登入前保留在此裝置的本機資料複製到這個帳號？",
+        );
+        if (shouldImport) {
+          store.replace(cloneState(pendingUnboundLocalState));
+          saveLocalState(store.getState(), localScope);
+          pendingUnboundLocalState = null;
+          setTimeout(() => cloudSync.save(), 0);
+          toast.show("已將未綁定本機資料複製到目前帳號");
+          return;
+        }
+        pendingUnboundLocalState = null;
+      }
 
       if (!remoteHasData && localHasData) {
         cloudConflictDecision = "local";
@@ -890,20 +997,37 @@ export async function bootstrapFinanceApp(doc = document) {
 
       if (!remoteHasData || sameData) {
         applyRemoteState(remoteState);
+        if (metadata.migrationRequired) setTimeout(() => cloudSync.save(), 0);
         return;
       }
 
-      if (localHasData && !cloudConflictDecision) {
-        cloudConflictDecision = window.confirm(buildCloudConflictMessage(currentUser)) ? "cloud" : "local";
+      if ((localHasData || metadata.hasPendingOutbox) && !cloudConflictDecision) {
+        cloudConflictDecision = promptSyncChoice(buildCloudConflictMessage(currentUser));
+        if (cloudConflictDecision === "cancel") {
+          ui.updateCloudStatus("conflict");
+          toast.show("已暫停這個帳號的雲端同步；本機與雲端資料都未覆蓋");
+          return;
+        }
       }
 
-      if (!localHasData || cloudConflictDecision === "cloud") {
+      if ((!localHasData && !metadata.hasPendingOutbox) || cloudConflictDecision === "cloud") {
+        if (localHasData && !preserveRollback(localState, "before-cloud-overwrite")) {
+          cloudConflictDecision = "cancel";
+          ui.updateCloudStatus("conflict");
+          return;
+        }
         applyRemoteState(remoteState);
+        if (metadata.migrationRequired) setTimeout(() => cloudSync.save(), 0);
         toast.show("已使用雲端資料更新本機");
         return;
       }
 
       if (cloudConflictDecision === "local") {
+        if (!preserveRollback(remoteState, "before-local-overwrite")) {
+          cloudConflictDecision = "cancel";
+          ui.updateCloudStatus("conflict");
+          return;
+        }
         setTimeout(() => {
           cloudSync.save().then(() => {
             toast.show("已使用本機資料覆蓋雲端");
@@ -915,6 +1039,10 @@ export async function bootstrapFinanceApp(doc = document) {
       }
     },
   });
+
+  if (!cloudSync.enabled && !localScope) {
+    switchLocalScope(null);
+  }
 
   ui.renderAuthState(cloudSync.getUser?.() || currentUser, cloudSync.enabled, cloudSync.error);
 

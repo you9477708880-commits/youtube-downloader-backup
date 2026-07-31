@@ -310,23 +310,23 @@ For transaction editing:
 - A repayment may edit amount, date, and receiving account, but it must keep the same `advanceId` link.
 - When editing one repayment, the new repayment amount must not exceed `original receivable amount - total of all other repayments`.
 
-## 9. 本機與雲端限制 / Local And Cloud Limitation
+## 9. 本機與雲端邊界 / Local And Cloud Boundary
 
 ### 中文
 
-目前本機資料仍使用固定 localStorage key，尚未依 Google `uid` 分流。雲端資料則依 Firebase 使用者 `uid` 儲存。
+本機資料使用未綁定 `local` 與 Firebase `uid` namespace 分流；登出或切換帳號必須替換整份前端 state，不得繼續顯示上一帳號資料。
 
-因此，同一瀏覽器切換多個 Google 帳號時，本機資料可能顯示最近一次載入或同步的內容。
+Firestore 同步以帳務 record 為單位。不同 record 可自動共存；同一 record 的 revision 衝突必須整筆選擇本機或雲端，不得把金額、帳戶、分類或 fund link 自動拼裝。
 
-短期先用文件與 UI 說明，不急著做複雜合併。未來可在登入時詢問使用本機、使用雲端或嘗試合併，並提供清除此裝置資料功能。
+刪除使用 tombstone，避免離線舊裝置重新帶回已刪資料。同步轉接層不得改變 `txs` 與 `sinkingFunds.events` 的帳務事實地位。
 
 ### English
 
-Local data currently uses fixed localStorage keys and is not separated by Google `uid`. Cloud data is stored by Firebase user `uid`.
+Local data is separated into an unbound local namespace and Firebase UID namespaces. Signing out or switching accounts must replace the whole frontend state.
 
-Therefore, switching multiple Google accounts in the same browser may show the most recently loaded or synced data.
+Firestore synchronizes accounting records. Different records may coexist, while a same-record revision conflict requires a whole-record local/cloud choice. Amount, account, category, and fund-link fields must not be guessed or spliced together.
 
-Short term: document and explain this in the UI. Do not rush complex merging. Future sign-in can ask whether to use local data, cloud data, or attempt a merge, and can provide a "clear this device data" action.
+Deletions use tombstones so stale offline devices cannot silently restore removed records. The sync adapter must not change the source-of-truth roles of `txs` and `sinkingFunds.events`.
 
 ## 10. 退休頁定位 / Retirement Page Positioning
 

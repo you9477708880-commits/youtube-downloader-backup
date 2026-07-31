@@ -192,37 +192,27 @@ For future transaction editing:
 
 ### 中文
 
-目前限制：
-
-- 本機資料不是依 Google `uid` 分流。
-- 雲端資料依 Firebase `uid` 儲存。
-- 同一瀏覽器切換多個 Google 帳號時，本機資料可能是最近一次載入或同步的版本。
-
 追溯規則：
 
-- 短期先清楚標示目前是本機模式、雲端同步或離線狀態。
-- 同一登入帳號的本機雲端寫入會序列化，快速連續修改只在目前寫入後補上最新 state。
-- 寫入期間收到的遠端快照會暫存，並與本機送出的 state 比對以辨識 server echo；這只避免同一用戶端亂序，不代表多裝置資料會自動合併。
-- 新 `uid` 的第一個遠端 snapshot 尚未解析前，不把共享本機 state 寫入該帳號；重新上線也不會無條件覆蓋雲端。
-- 不把本機 / 雲端合併做成黑盒。
-- 未來若合併資料，應讓使用者確認資料來源與衝突處理。
+- 本機 snapshot 已依未綁定 `local` 與 Firebase `uid` 分區；帳號切換會替換整個 store，不沿用上一帳號畫面。
+- Firestore 以 record-level 文件保存，revision 是衝突依據；`updatedAt` 只用於稽核和顯示。
+- 不同 record 可自動共存；相同 record 的同版修改會停下來要求整筆選擇，不做欄位級黑盒合併。
+- 刪除會寫 tombstone，不以實體 delete 讓離線舊裝置重新復活資料。
+- 待送標記依 UID 保存；帳號切換會停用舊 listener 和 queue。
+- 遷移必須先完成 records 數量與完整 state round-trip 驗證，`sync/finance_v7` 才能標記為 `active`。
+- JSON 匯出仍是完整、可理解的 state，不包含 revision、tombstone 或同步內部資料。
 
 ### English
 
-Current limitation:
-
-- Local data is not separated by Google `uid`.
-- Cloud data is stored by Firebase `uid`.
-- Switching multiple Google accounts in the same browser may show the most recently loaded or synced data.
-
 Traceability rules:
 
-- Short term: clearly label local mode, cloud sync, or offline state.
-- Cloud writes for the same signed-in user are serialized, and rapid edits append only the latest state after the active write.
-- Remote snapshots received during a write are retained and compared with submitted local states to identify server echoes. This prevents same-client reordering but does not automatically merge data from multiple devices.
-- Shared local state is not written to a new `uid` before its first remote snapshot is resolved, and reconnecting does not unconditionally overwrite cloud data.
-- Do not make local/cloud merging a black box.
-- If data merging is added later, the user should confirm data sources and conflict handling.
+- Local snapshots are separated into the unbound local namespace and Firebase UID namespaces.
+- Firestore uses record-level documents; revision is authoritative for conflicts, while `updatedAt` is audit metadata.
+- Different records can coexist. Same-record concurrent edits require a whole-record choice and never use field-level guessing.
+- Deletions create tombstones so stale offline devices cannot silently resurrect removed data.
+- Pending metadata, listeners, and queues are isolated by UID.
+- Migration activates v7 only after record-count and full-state round-trip verification.
+- JSON export remains a user-readable complete state without sync internals.
 
 ## 8. 退休頁追溯 / Retirement Traceability
 

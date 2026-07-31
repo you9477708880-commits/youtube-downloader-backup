@@ -6,9 +6,9 @@ This document describes the frontend state model and separates accounting facts,
 
 ## 1. State Root
 
-目前整份資料會以單一 state 物件保存，並同步到 localStorage / Firestore。
+前端與 JSON 備份仍使用單一 state 物件；本機以完整 snapshot 保存，Firestore 則由同步轉接層拆成 record-level 文件。
 
-The whole app state is stored as one state object and synced to localStorage / Firestore.
+The frontend and JSON backup still use one state object. Local storage keeps a complete snapshot, while the Firestore adapter projects it into record-level documents.
 
 ```js
 {
@@ -402,51 +402,43 @@ The system should warn the user and suggest:
 
 ### 中文
 
-目前限制：
+目前模型：
 
-- 本機資料仍使用固定 localStorage key，尚未依 Google `uid` 分流。
-- 雲端資料依 Firebase 使用者 `uid` 儲存。
-- 同一瀏覽器切換多個 Google 帳號時，本機資料可能顯示最近一次載入或同步的內容。
+- 未登入資料使用 `fin_v7:state:local`；Google 帳號資料使用 `fin_v7:state:uid:<encoded uid>`，不同帳號不共用本機 snapshot。
+- 舊 `fin_v6_*` 只會複製到未綁定的 `local` namespace，保留舊 key 作為回復來源，不會自動歸入任何 Google 帳號。
+- 登出或切換 Firebase `uid` 時，store 會立即切換到對應 namespace；第一個遠端 snapshot 完成前不開放雲端保存。
+- Firestore v7 使用 `sync/finance_v7` meta 與其下的 `records` collection。交易、帳戶、資產負債項目、待購項目、準備項目、準備事件、設定與自訂分類各自投影成 record。
+- `sinkingFunds.events` 只在同步層拆開；套回前端 state 時會重新組回原本巢狀結構，因此帳務 domain 不需要改寫。
+- 每筆 record 使用穩定 key、`revision`、`updatedBy`、server `updatedAt` 與 deletion tombstone。不同 record 的跨裝置修改可共存。
+- 同一 record 的 revision 競爭不做欄位拼裝；寫入會停止並要求選擇整筆雲端或整筆本機版本。覆蓋前會保存本機 rollback snapshot 並觸發另一份完整 JSON 備份下載；`cancel` 會保留衝突狀態並暫停該登入階段的雲端保存。
+- 一般 mutation group 使用單一 Firestore batch；超過 400 筆差異會拒絕而保留本機資料，不做可能部分成功的分批覆蓋。
+- 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
 
-短期方向：
+後續限制：
 
-- 先用文件與 UI 說清楚限制。
-- 保持離線可用。
-- 同一登入帳號的雲端寫入採序列 queue；快速連續修改時，先完成目前寫入，再補寫最新 state，避免同一用戶端的舊寫入晚到。
-- 本機寫入進行期間收到的遠端快照會暫存；系統會先辨識本機寫入的 server echo，等 queue 與最後一筆 server confirmation 完成後，再決定是否需要套用後續遠端狀態。
-- 切換 Firebase `uid` 後，必須先解析該帳號的第一個非 pending snapshot，才開放一般雲端保存，避免把上一個帳號留在共享 localStorage 的內容先寫進新帳號。
-- 瀏覽器重新上線時不會無條件上傳整份本機 state；Firestore SDK 會自行處理已排入的 pending writes。
-- 不急著做複雜自動合併。
-
-未來方向：
-
-- 登入時詢問要使用本機、雲端，或嘗試合併。
-- 合併財務資料需要明確衝突規則。
-- 可以提供「清除此裝置資料」功能保護隱私。
+- Tombstone 目前永久保留，尚未設計安全的清理期限。
+- 衝突選擇目前使用簡單文字提示，後續可改成有資料摘要的專用 modal。
+- 尚未提供清除 Firestore IndexedDB cache 與本機 namespace 的完整隱私操作。
 
 ### English
 
-Current limitation:
+Current model:
 
-- Local data still uses fixed localStorage keys and is not separated by Google `uid`.
-- Cloud data is stored by Firebase user `uid`.
-- Switching multiple Google accounts in the same browser may show the most recently loaded or synced data.
+- Signed-out data uses `fin_v7:state:local`; Google accounts use `fin_v7:state:uid:<encoded uid>`.
+- Legacy `fin_v6_*` data is copied only to the unbound local namespace and is never automatically assigned to a Google account.
+- Auth changes replace the store with the matching namespace, and cloud saves remain blocked until the first remote snapshot is resolved.
+- Firestore v7 uses a `sync/finance_v7` meta document and a nested `records` collection.
+- Fund events are flattened only in the sync adapter and are rebuilt into `sinkingFunds.events` before entering the domain layer.
+- Records carry stable keys, revisions, server timestamps, writer IDs, and deletion tombstones.
+- Different records merge naturally. A same-record revision conflict pauses and asks for a whole-record cloud/local choice; field-level guessing is not used.
+- Normal mutation groups are one atomic batch and are rejected above 400 changed records.
+- The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.
 
-Short-term direction:
+Remaining limits:
 
-- Document and explain the limitation in the UI.
-- Preserve offline usability.
-- Cloud writes for the same signed-in user use a serial queue. Rapid edits finish the active write and then write only the latest state, preventing out-of-order writes from the same client.
-- Remote snapshots received during a local write are retained while local server echoes are identified. The app waits for the queue and final server confirmation before deciding whether a later remote state should be applied.
-- After the Firebase `uid` changes, normal cloud saves stay blocked until the first non-pending snapshot for that account is resolved. This prevents shared localStorage data from the previous account being written into the new account first.
-- Reconnecting the browser does not unconditionally upload the whole local state; Firestore handles writes that were already pending.
-- Do not rush complex automatic merging.
-
-Future direction:
-
-- On sign-in, ask whether to use local data, cloud data, or attempt a merge.
-- Merging financial data requires explicit conflict rules.
-- Provide a "clear this device data" action for privacy.
+- Tombstone garbage collection is not defined yet.
+- Conflict choice uses a basic text prompt and can later become a dedicated summary modal.
+- A complete device-data clearing action, including Firestore IndexedDB cache, is still pending.
 
 ## 10. 退休頁定位 / Retirement Page Positioning
 
