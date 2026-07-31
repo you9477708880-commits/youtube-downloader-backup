@@ -44,8 +44,6 @@ export function createActions(context) {
   let editingTxId = null;
   let editingOriginalLinkedFundId = "";
   let editingFundId = "";
-  let editingBsId = "";
-  let editingBsIsAccount = false;
   let editingWishId = null;
 
   const sameId = (left, right) => String(left) === String(right);
@@ -100,18 +98,6 @@ export function createActions(context) {
     carryoverEnabled: !!dom.fundCarry.checked,
     note: dom.fundNote.value.trim(),
   });
-
-  const resetBalanceSheetForm = () => {
-    editingBsId = "";
-    editingBsIsAccount = false;
-    dom.balanceName.value = "";
-    dom.balanceType.value = "account";
-    dom.balanceCategoryWrap.classList.add("d-none");
-    dom.balanceCategory.value = "asset";
-    dom.balanceAmount.value = "";
-    dom.balanceEmergency.checked = false;
-    ui.setBalanceSheetEditMode({ active: false });
-  };
 
   const resetWishForm = () => {
     editingWishId = null;
@@ -691,103 +677,6 @@ export function createActions(context) {
         card.open = true;
         card.scrollIntoView({ behavior: "smooth", block: "center" });
       });
-    },
-
-    addBs() {
-      const amount = toMoneyInt(dom.balanceAmount.value);
-      if (amount < 0) {
-        ui.toast.show("金額不能小於 0", "error");
-        return;
-      }
-
-      store.update((draft) => {
-        if (editingBsId) {
-          if (editingBsIsAccount) {
-            const account = draft.accounts.find((item) => String(item.id) === String(editingBsId));
-            if (!account) return;
-            account.name = dom.balanceName.value.trim();
-            account.initialBalance = amount;
-            account.isEm = dom.balanceEmergency.checked;
-          } else {
-            const item = draft.bsI.find((entry) => String(entry.id) === String(editingBsId));
-            if (!item) return;
-            item.name = dom.balanceName.value.trim();
-            item.amount = amount;
-            item.cat = dom.balanceCategory.value;
-            item.isEm = dom.balanceEmergency.checked;
-          }
-        } else if (dom.balanceType.value === "account") {
-          draft.accounts.push({
-            id: createClientId("a"),
-            name: dom.balanceName.value.trim(),
-            type: "asset",
-            isEm: dom.balanceEmergency.checked,
-            initialBalance: amount,
-          });
-        } else {
-          draft.bsI.push({
-            id: createClientId("bs"),
-            name: dom.balanceName.value.trim(),
-            amount,
-            cat: dom.balanceCategory.value,
-            isEm: dom.balanceEmergency.checked,
-          });
-        }
-      });
-
-      const wasEditing = !!editingBsId;
-      resetBalanceSheetForm();
-      context.saveState();
-      renderAll();
-      ui.toast.show(wasEditing ? "已儲存資產負債修改" : "已新增資產 / 負債項目");
-    },
-
-    beginEditBs(id, isAccount) {
-      const state = store.getState();
-      const item = isAccount
-        ? state.accounts.find((entry) => String(entry.id) === String(id))
-        : state.bsI.find((entry) => String(entry.id) === String(id));
-      if (!item) {
-        ui.toast.show("找不到要編輯的項目", "error");
-        return;
-      }
-
-      editingBsId = String(id);
-      editingBsIsAccount = isAccount;
-      this.switchTab("bs");
-      ui.setBalanceSheetEditMode({ active: true, isAccount });
-      dom.balanceType.value = isAccount ? "account" : "item";
-      dom.balanceCategoryWrap.classList.toggle("d-none", isAccount);
-      dom.balanceName.value = item.name || "";
-      dom.balanceAmount.value = isAccount ? item.initialBalance ?? "" : item.amount ?? "";
-      dom.balanceEmergency.checked = !!item.isEm;
-      if (!isAccount) dom.balanceCategory.value = item.cat || "asset";
-      dom.root.getElementById("form-bs")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-
-    cancelEditBs() {
-      resetBalanceSheetForm();
-      ui.toast.show("已取消編輯");
-    },
-
-    delBs(id, isAccount) {
-      if (!window.confirm("確定要刪除這個項目嗎？")) return;
-      store.update((draft) => {
-        if (isAccount) draft.accounts = draft.accounts.filter((account) => account.id !== id);
-        else draft.bsI = draft.bsI.filter((item) => String(item.id) !== String(id));
-      });
-      context.saveState();
-      renderAll();
-    },
-
-    toggleEm(id, isAccount) {
-      store.update((draft) => {
-        const list = isAccount ? draft.accounts : draft.bsI;
-        const item = list.find((entry) => String(entry.id) === String(id));
-        if (item) item.isEm = !item.isEm;
-      });
-      context.saveState();
-      renderAll();
     },
 
     setCatBudget() {

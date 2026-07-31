@@ -6,6 +6,7 @@ const root = new URL("../", import.meta.url);
 const projectRoot = decodeURIComponent(root.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const syntaxRoots = ["src", "tests", "scripts"];
 const testFiles = [
+  "tests/balance-sheet-controller.test.mjs",
   "tests/storage-local.test.mjs",
   "tests/record-codec.test.mjs",
   "tests/latest-write-queue.test.mjs",

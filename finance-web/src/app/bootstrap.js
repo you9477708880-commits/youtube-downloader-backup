@@ -29,6 +29,7 @@ import { renderMonthlyReview } from "../views/monthly-review-view.js";
 import { renderWishlist } from "../views/wishlist-view.js";
 import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
+import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
 
 function collectDom(doc = document) {
   return {
@@ -613,6 +614,7 @@ export async function bootstrapFinanceApp(doc = document) {
   };
 
   const applyRemoteState = (remoteState) => {
+    balanceSheetController.reset();
     const currentState = createInitialState();
     store.replace(normalizeFinanceStateMoney({
       ...currentState,
@@ -630,6 +632,7 @@ export async function bootstrapFinanceApp(doc = document) {
   };
 
   const switchLocalScope = (user) => {
+    balanceSheetController.reset();
     const previousScope = localScope;
     if (previousScope) saveLocalState(store.getState(), previousScope);
     const nextScope = user && !user.isAnonymous ? userStorageScope(user.uid) : LOCAL_STORAGE_SCOPE;
@@ -648,7 +651,33 @@ export async function bootstrapFinanceApp(doc = document) {
     ui.syncTxType();
     renderAll();
   };
-  const actions = createActions(context);
+  const baseActions = createActions(context);
+  const balanceSheetController = createBalanceSheetController({
+    elements: {
+      root: dom.root,
+      name: dom.balanceName,
+      type: dom.balanceType,
+      categoryWrap: dom.balanceCategoryWrap,
+      category: dom.balanceCategory,
+      amount: dom.balanceAmount,
+      emergency: dom.balanceEmergency,
+    },
+    store,
+    toast,
+    setEditMode: (value) => ui.setBalanceSheetEditMode(value),
+    saveState,
+    renderAll,
+    navigate: (tabId) => baseActions.switchTab(tabId),
+    confirmDelete: (message) => window.confirm(message),
+  });
+  const actions = {
+    ...baseActions,
+    addBs: balanceSheetController.addBs,
+    beginEditBs: balanceSheetController.beginEditBs,
+    cancelEditBs: balanceSheetController.cancelEditBs,
+    delBs: balanceSheetController.delBs,
+    toggleEm: balanceSheetController.toggleEm,
+  };
 
   const exportAndroMoneyCsv = () => {
     const csv = buildAndroMoneyCsv(store.getState().txs, store.getState().accounts);
@@ -869,6 +898,7 @@ export async function bootstrapFinanceApp(doc = document) {
 
     try {
       const nextState = await importData(event.target.files[0]);
+      balanceSheetController.reset();
       store.replace(nextState);
       saveState();
       ui.syncFromSettings();
@@ -908,7 +938,7 @@ export async function bootstrapFinanceApp(doc = document) {
   ui.syncTxType();
   ui.setTransactionEditMode({ active: false });
   ui.setFundEditMode({ active: false });
-  ui.setBalanceSheetEditMode({ active: false });
+  balanceSheetController.reset();
   ui.setWishEditMode({ active: false });
   ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
@@ -972,6 +1002,7 @@ export async function bootstrapFinanceApp(doc = document) {
           "這個 Google 帳號目前沒有本機或雲端資料。是否將登入前保留在此裝置的本機資料複製到這個帳號？",
         );
         if (shouldImport) {
+          balanceSheetController.reset();
           store.replace(cloneState(pendingUnboundLocalState));
           saveLocalState(store.getState(), localScope);
           pendingUnboundLocalState = null;
