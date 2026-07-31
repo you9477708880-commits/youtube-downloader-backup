@@ -84,7 +84,8 @@ function escapeRegExp(value) {
 
 function createServer() {
   return http.createServer((req, res) => {
-    const requestPath = (req.url || "/").split("?")[0];
+    const requestUrl = new URL(req.url || "/", "http://127.0.0.1");
+    const requestPath = requestUrl.pathname;
     const filePath = safeJoin(root, requestPath);
 
     if (!filePath) {
@@ -93,7 +94,7 @@ function createServer() {
       return;
     }
 
-    fs.readFile(filePath, (error, data) => {
+    fs.readFile(filePath, (error, originalData) => {
       if (error) {
         res.writeHead(404);
         res.end("Not Found");
@@ -101,6 +102,19 @@ function createServer() {
       }
 
       const ext = path.extname(filePath).toLowerCase();
+      let data = originalData;
+      if (ext === ".html" && requestUrl.searchParams.get("__smoke_runner") === "1") {
+        const productionEntry = '<script type="module" src="./src/main.js"></script>';
+        const smokeEntry = '<script type="module" src="./tests/smoke-entry.js"></script>';
+        const html = data.toString("utf8");
+        if (!html.includes(productionEntry)) {
+          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("Smoke runner could not locate the production module entry.");
+          return;
+        }
+        data = Buffer.from(html.replace(productionEntry, smokeEntry), "utf8");
+      }
+
       res.writeHead(200, {
         "Content-Type": mimeTypes[ext] || "application/octet-stream",
         "Cache-Control": "no-store",
@@ -349,7 +363,7 @@ function writeReport(results) {
 }
 
 async function testScenario(baseUrl, scenario) {
-  const url = `${baseUrl}/${encodeURI(entry)}${scenario ? `?smoke=${encodeURIComponent(scenario)}` : ""}`;
+  const url = `${baseUrl}/${encodeURI(entry)}${scenario ? `?__smoke_runner=1&smoke=${encodeURIComponent(scenario)}` : ""}`;
   const candidates = browserCandidates();
   if (!candidates.length) {
     return { ok: false, scenario, url, stderr: "No Chrome or Edge executable found." };

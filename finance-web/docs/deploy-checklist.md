@@ -68,6 +68,14 @@ node .\tests\domain.test.mjs
 - 匯入 JSON 的深層驗證測試通過。
 - 惡意字串渲染測試通過，使用者輸入不得形成可執行 HTML。
 - 本機 localStorage 損毀單一欄位時，不會阻止其他正常欄位載入。
+- 正式 `src/main.js` 不得載入 smoke scenarios；smoke runner 只能透過本機測試伺服器注入測試入口。
+- Hosting 發布目錄不得包含 `docs/`、`tests/`、`functions/`、Firestore 規則、EPUB 或 `src/smoke-scenarios.js`。
+
+執行部署與測試入口安全邊界檢查：
+
+```powershell
+node .\tests\security-boundaries.test.js
+```
 
 Firestore 規則檢查重點：
 
@@ -123,6 +131,14 @@ D:\桌面\音樂下載\理財網頁其他資料\headless-report.html
 firebase deploy --only hosting
 ```
 
+Hosting 的 `predeploy` 會先執行：
+
+```powershell
+node .\scripts\prepare-hosting.js
+```
+
+這個步驟會重新建立 `.firebase-public`，而 Firebase Hosting 只會發布該目錄。正式發布內容採允許清單，只包含 `index.html`、`404.html`、`assets/`、正式 `src/` 與 `admin/`；`src/smoke-scenarios.js` 會被排除。
+
 若這次有修改 `firestore.rules`，請另外部署規則：
 
 ```powershell
@@ -156,4 +172,5 @@ Unable to find a valid endpoint for function `adminApi`
 - `firestore.rules` 已部署到 Firebase 專案。
 - JS 語法檢查通過。
 - 核心 domain 測試通過。
+- 安全邊界測試通過。
 - Headless smoke test 能產生報告。

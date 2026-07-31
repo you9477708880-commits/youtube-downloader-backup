@@ -28,6 +28,12 @@ Get-ChildItem -Recurse -Filter *.js .\src | ForEach-Object { node --check $_.Ful
 node .\tests\domain.test.mjs
 ```
 
+部署與測試入口安全邊界：
+
+```powershell
+node .\tests\security-boundaries.test.js
+```
+
 Headless smoke test：
 
 ```powershell
@@ -39,6 +45,8 @@ node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-subcat
 ```powershell
 firebase deploy --only hosting
 ```
+
+Hosting 部署前會自動執行 `scripts/prepare-hosting.js`，只把正式網站需要的檔案放入 `.firebase-public`。文件、測試、Functions 原始碼、Firestore 規則、EPUB 與 smoke scenario 不會進入 Hosting 發布目錄。
 
 Firestore 規則部署：
 

@@ -106,6 +106,12 @@ Domain tests:
 node .\tests\domain.test.mjs
 ```
 
+Security boundary tests:
+
+```powershell
+node .\tests\security-boundaries.test.js
+```
+
 Project-local smoke runner:
 
 ```powershell

@@ -3,7 +3,10 @@
     "rules": "firestore.rules"
   },
   "hosting": {
-    "public": ".",
+    "public": ".firebase-public",
+    "predeploy": [
+      "node scripts/prepare-hosting.js"
+    ],
     "headers": [
       {
         "source": "**",
