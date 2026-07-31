@@ -60,6 +60,13 @@ Get-ChildItem -Recurse -Filter *.js .\src | ForEach-Object { node --check $_.Ful
 node .\tests\domain.test.mjs
 ```
 
+## 雲端同步寫入測試
+
+```powershell
+node .\tests\latest-write-queue.test.mjs
+node .\tests\storage-cloud.test.mjs
+```
+
 ## 資安檢查
 
 部署前請確認：
@@ -172,5 +179,6 @@ Unable to find a valid endpoint for function `adminApi`
 - `firestore.rules` 已部署到 Firebase 專案。
 - JS 語法檢查通過。
 - 核心 domain 測試通過。
+- 雲端同步寫入 queue 測試通過。
 - 安全邊界測試通過。
 - Headless smoke test 能產生報告。

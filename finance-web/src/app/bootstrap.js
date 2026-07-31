@@ -232,6 +232,7 @@ export async function bootstrapFinanceApp(doc = document) {
   let authAction = null;
   let pendingAndroMoneyText = "";
   let cloudConflictDecision = "";
+  let cloudConflictUserId = "";
 
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
@@ -534,15 +535,13 @@ export async function bootstrapFinanceApp(doc = document) {
     },
   };
 
-  const saveState = async () => {
+  const saveState = () => {
     saveLocalState(store.getState());
     if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous) return;
 
-    try {
-      await cloudSync.save();
-    } catch {
+    cloudSync.save().catch(() => {
       ui.updateCloudStatus("error");
-    }
+    });
   };
 
   const renderWishlistOnly = () =>
@@ -642,7 +641,7 @@ export async function bootstrapFinanceApp(doc = document) {
         ...state.txs.map((tx) => updateTransactions.find((item) => String(item.id) === String(tx.id)) || tx),
       ];
     });
-    await saveState();
+    saveState();
     ui.closeAndroMoneyImportDialog();
     renderAll();
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
@@ -809,7 +808,7 @@ export async function bootstrapFinanceApp(doc = document) {
     try {
       const nextState = await importData(event.target.files[0]);
       store.replace(nextState);
-      await saveState();
+      saveState();
       ui.syncFromSettings();
       syncRetirementInputs();
       ui.renderTransactionCategorySelect();
@@ -863,7 +862,11 @@ export async function bootstrapFinanceApp(doc = document) {
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
     onUserChange: (user) => {
       currentUser = user;
-      if (!user || user.isAnonymous) cloudConflictDecision = "";
+      const nextConflictUserId = user && !user.isAnonymous ? user.uid : "";
+      if (nextConflictUserId !== cloudConflictUserId) {
+        cloudConflictDecision = "";
+        cloudConflictUserId = nextConflictUserId;
+      }
       ui.renderAuthState(currentUser, true, "");
     },
     onRemoteState: (remoteState) => {

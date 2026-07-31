@@ -87,6 +87,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 月度回顧原型已完成：總覽頁新增只讀摘要卡片，顯示本月收入、生活支出、大額準備提撥 / 補入、動用準備、可自由運用、帳本淨額、目前淨值與應收代墊；計算沿用既有預算與資產負債 domain，避免重複計算大額準備覆蓋支出。
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
 - 資料安全邊界已在本機補強：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。需在使用者確認後重新部署 Hosting，線上站才會套用此安全邊界。
+- 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。
 
 ### English
 
@@ -143,6 +144,7 @@ The following item is complete locally, but is not yet pushed or deployed:
 - The monthly review prototype is complete: the overview page now has a read-only summary card for monthly income, living expenses, large-expense fund contribution / top-up, fund usage, free-to-use budget, ledger net, current net worth, and advance receivables. Calculations reuse existing budget and balance-sheet domain logic to avoid double-counting fund-covered expenses.
 - The first wishlist-to-fund integration step is complete: a wishlist item can prefill the large-expense fund form with name, target amount, monthly contribution, category, and note. This only pre-fills the form; it does not directly create a fund, create a transaction, or create `topup` / `spend` events.
 - Local data-safety boundaries are hardened: the production entry no longer accepts `?smoke=` to seed test data; the smoke runner injects a separate test entry only from its local server; Firebase Hosting now builds an allowlisted `.firebase-public` directory that excludes docs, tests, Functions, rules, EPUB files, and smoke scenarios. Hosting must be redeployed after user confirmation before the live site receives this boundary.
+- Cloud writes for one signed-in user now use a local serial queue: rapid edits no longer write the whole state concurrently and instead append only the latest state after the active write; remote snapshots received during a write are retained and compared with submitted local states to identify server echoes; account changes retire the old queue and wait for the new `uid`'s first snapshot before enabling saves; reconnecting does not unconditionally overwrite cloud data. This phase does not add automatic merging or change the accounting data model.
 
 ## 3. 關鍵設計決策 / Key Design Decisions
 

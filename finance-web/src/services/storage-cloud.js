@@ -1,4 +1,7 @@
 import { APP_ID } from "../config/constants.js";
+import { cloneState } from "../state/initial-state.js";
+import { areFinanceStatesEquivalent } from "./sync-policy.js";
+import { createLatestWriteQueue } from "./latest-write-queue.js";
 
 function toUserProfile(user) {
   if (!user) return null;
@@ -8,6 +11,10 @@ function toUserProfile(user) {
     displayName: user.displayName || "",
     email: user.email || "",
   };
+}
+
+function isBrowserOnline() {
+  return globalThis.navigator?.onLine !== false;
 }
 
 function waitForAuthUser(authMod, auth, predicate, timeoutMs = 6000) {
@@ -27,7 +34,7 @@ function waitForAuthUser(authMod, auth, predicate, timeoutMs = 6000) {
   });
 }
 
-export async function createCloudSync({ onRemoteState, onStatus, onUserChange, getState }) {
+export async function createCloudSync({ onRemoteState, onStatus, onUserChange, getState, firebaseModules = null }) {
   try {
     const globalConfig = globalThis.__firebase_config || "{}";
     const firebaseConfig = typeof globalConfig === "string" ? JSON.parse(globalConfig) : globalConfig;
@@ -45,13 +52,15 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       };
     }
 
-    const [{ initializeApp }, authMod, firestoreMod] = await Promise.all([
-      import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
-      import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"),
-    ]);
+    const [appMod, authMod, firestoreMod] = firebaseModules
+      ? [firebaseModules.app, firebaseModules.auth, firebaseModules.firestore]
+      : await Promise.all([
+          import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
+          import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
+          import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"),
+        ]);
 
-    const app = initializeApp(firebaseConfig);
+    const app = appMod.initializeApp(firebaseConfig);
     const auth = authMod.getAuth(app);
     const db = firestoreMod.initializeFirestore(app, {
       localCache: firestoreMod.persistentLocalCache({
@@ -63,7 +72,10 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
     let currentUser = null;
     let syncing = false;
     let authTransitioning = false;
-    let saveResolver = null;
+    let authGeneration = 0;
+    let saveQueue = null;
+    let saveReady = false;
+    let deferredRemoteSnapshot = null;
     let unsubscribeSnapshot = null;
     let unsubscribeAuth = null;
 
@@ -80,42 +92,118 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
+      saveQueue?.destroy();
+      saveQueue = null;
+      saveReady = false;
+      deferredRemoteSnapshot = null;
       syncing = false;
     };
 
     const save = async () => {
-      if (!userId) return;
-      syncing = true;
-      onStatus("syncing");
-      const docRef = firestoreMod.doc(db, "artifacts", appId, "users", userId, "data", "finance_v6");
-      await firestoreMod.setDoc(docRef, getState());
-      syncing = false;
-      onStatus(navigator.onLine ? "online" : "offline");
+      const activeQueue = saveQueue;
+      if (!userId || !activeQueue || !saveReady || auth.currentUser?.uid !== userId) return;
+      await activeQueue.enqueue(cloneState(getState()));
     };
 
-    const attachSnapshot = (uid) => {
+    const attachSnapshot = (uid, generation) => {
       clearSnapshot();
       onStatus("syncing");
       const docRef = firestoreMod.doc(db, "artifacts", appId, "users", uid, "data", "finance_v6");
-      unsubscribeSnapshot = firestoreMod.onSnapshot(
-        docRef,
-        (snapshot) => {
-          if (snapshot.exists() && !syncing) {
-            onRemoteState(snapshot.data());
-            onStatus("online", snapshot.metadata);
-          } else if (!snapshot.exists()) {
-            save().catch(() => {
-              if (!authTransitioning && auth.currentUser?.uid === uid) onStatus("error");
-            });
+      let userQueue = null;
+      let submittedStates = [];
+      let initialRemoteResolved = false;
+      let initialDocumentCreateRequested = false;
+      userQueue = createLatestWriteQueue({
+        write: async (state) => {
+          submittedStates.push(state);
+          if (submittedStates.length > 10) submittedStates = submittedStates.slice(-10);
+          try {
+            await firestoreMod.setDoc(docRef, state);
+          } catch (error) {
+            submittedStates = submittedStates.filter((item) => item !== state);
+            throw error;
+          }
+        },
+        onStart: () => {
+          if (saveQueue !== userQueue || generation !== authGeneration) return;
+          syncing = true;
+          onStatus("syncing");
+        },
+        onIdle: (error) => {
+          if (saveQueue !== userQueue || generation !== authGeneration) return;
+          syncing = false;
+
+          if (error) {
+            if (!authTransitioning && auth.currentUser?.uid === uid) onStatus("error");
+            return;
           }
 
-          if (saveResolver) {
-            saveResolver();
-            saveResolver = null;
+          if (submittedStates.length) {
+            onStatus("syncing");
+            return;
+          }
+
+          const pendingRemote = deferredRemoteSnapshot;
+          deferredRemoteSnapshot = null;
+          if (pendingRemote && !areFinanceStatesEquivalent(getState(), pendingRemote.state)) {
+            onRemoteState(pendingRemote.state);
+          }
+          onStatus(isBrowserOnline() ? "online" : "offline", pendingRemote?.metadata);
+        },
+      });
+      saveQueue = userQueue;
+
+      unsubscribeSnapshot = firestoreMod.onSnapshot(
+        docRef,
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          if (saveQueue !== userQueue || generation !== authGeneration || auth.currentUser?.uid !== uid) return;
+
+          if (snapshot.metadata.hasPendingWrites) {
+            onStatus(syncing ? "syncing" : (isBrowserOnline() ? "online" : "offline"), snapshot.metadata);
+            return;
+          }
+
+          if (!initialRemoteResolved) {
+            initialRemoteResolved = true;
+            saveReady = true;
+          }
+
+          if (snapshot.exists()) {
+            const remoteState = snapshot.data();
+            const submittedIndex = submittedStates.findIndex((state) => areFinanceStatesEquivalent(state, remoteState));
+            if (submittedIndex >= 0) {
+              submittedStates.splice(0, submittedIndex + 1);
+              if (submittedStates.length === 0) {
+                deferredRemoteSnapshot = null;
+              }
+              if (!syncing && submittedStates.length === 0) {
+                onStatus(isBrowserOnline() ? "online" : "offline", snapshot.metadata);
+              }
+              return;
+            }
+
+            if (syncing || submittedStates.length) {
+              deferredRemoteSnapshot = { state: remoteState, metadata: snapshot.metadata };
+            } else if (!areFinanceStatesEquivalent(getState(), remoteState)) {
+              onRemoteState(remoteState);
+              onStatus("online", snapshot.metadata);
+            } else {
+              onStatus("online", snapshot.metadata);
+            }
+          } else {
+            if (!initialDocumentCreateRequested) {
+              initialDocumentCreateRequested = true;
+              save().catch(() => {
+                if (!authTransitioning && auth.currentUser?.uid === uid) onStatus("error");
+              });
+            }
           }
         },
         () => {
-          if (!authTransitioning && auth.currentUser?.uid === uid) onStatus("error");
+          if (saveQueue === userQueue && generation === authGeneration && !authTransitioning && auth.currentUser?.uid === uid) {
+            onStatus("error");
+          }
         },
       );
     };
@@ -132,6 +220,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
     };
 
     unsubscribeAuth = authMod.onAuthStateChanged(auth, (user) => {
+      const generation = ++authGeneration;
       if (!user) {
         userId = null;
         clearSnapshot();
@@ -150,7 +239,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
 
       userId = user.uid;
       emitUser(user);
-      attachSnapshot(user.uid);
+      attachSnapshot(user.uid, generation);
     });
 
     initAuth().catch((error) => {
@@ -164,11 +253,6 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       error: "",
       save: async () => {
         if (auth.currentUser?.isAnonymous) return;
-        if (!userId) {
-          await new Promise((resolve) => {
-            saveResolver = resolve;
-          });
-        }
         return save();
       },
       signInWithGoogle: async () => {
@@ -219,6 +303,7 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
       },
       getUser: () => toUserProfile(currentUser),
       destroy: () => {
+        authGeneration += 1;
         clearSnapshot();
         if (unsubscribeAuth) {
           unsubscribeAuth();

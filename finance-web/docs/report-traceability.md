@@ -201,6 +201,9 @@ For future transaction editing:
 追溯規則：
 
 - 短期先清楚標示目前是本機模式、雲端同步或離線狀態。
+- 同一登入帳號的本機雲端寫入會序列化，快速連續修改只在目前寫入後補上最新 state。
+- 寫入期間收到的遠端快照會暫存，並與本機送出的 state 比對以辨識 server echo；這只避免同一用戶端亂序，不代表多裝置資料會自動合併。
+- 新 `uid` 的第一個遠端 snapshot 尚未解析前，不把共享本機 state 寫入該帳號；重新上線也不會無條件覆蓋雲端。
 - 不把本機 / 雲端合併做成黑盒。
 - 未來若合併資料，應讓使用者確認資料來源與衝突處理。
 
@@ -215,6 +218,9 @@ Current limitation:
 Traceability rules:
 
 - Short term: clearly label local mode, cloud sync, or offline state.
+- Cloud writes for the same signed-in user are serialized, and rapid edits append only the latest state after the active write.
+- Remote snapshots received during a write are retained and compared with submitted local states to identify server echoes. This prevents same-client reordering but does not automatically merge data from multiple devices.
+- Shared local state is not written to a new `uid` before its first remote snapshot is resolved, and reconnecting does not unconditionally overwrite cloud data.
 - Do not make local/cloud merging a black box.
 - If data merging is added later, the user should confirm data sources and conflict handling.
 

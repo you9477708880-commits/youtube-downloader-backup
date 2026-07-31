@@ -412,6 +412,10 @@ The system should warn the user and suggest:
 
 - 先用文件與 UI 說清楚限制。
 - 保持離線可用。
+- 同一登入帳號的雲端寫入採序列 queue；快速連續修改時，先完成目前寫入，再補寫最新 state，避免同一用戶端的舊寫入晚到。
+- 本機寫入進行期間收到的遠端快照會暫存；系統會先辨識本機寫入的 server echo，等 queue 與最後一筆 server confirmation 完成後，再決定是否需要套用後續遠端狀態。
+- 切換 Firebase `uid` 後，必須先解析該帳號的第一個非 pending snapshot，才開放一般雲端保存，避免把上一個帳號留在共享 localStorage 的內容先寫進新帳號。
+- 瀏覽器重新上線時不會無條件上傳整份本機 state；Firestore SDK 會自行處理已排入的 pending writes。
 - 不急著做複雜自動合併。
 
 未來方向：
@@ -432,6 +436,10 @@ Short-term direction:
 
 - Document and explain the limitation in the UI.
 - Preserve offline usability.
+- Cloud writes for the same signed-in user use a serial queue. Rapid edits finish the active write and then write only the latest state, preventing out-of-order writes from the same client.
+- Remote snapshots received during a local write are retained while local server echoes are identified. The app waits for the queue and final server confirmation before deciding whether a later remote state should be applied.
+- After the Firebase `uid` changes, normal cloud saves stay blocked until the first non-pending snapshot for that account is resolved. This prevents shared localStorage data from the previous account being written into the new account first.
+- Reconnecting the browser does not unconditionally upload the whole local state; Firestore handles writes that were already pending.
 - Do not rush complex automatic merging.
 
 Future direction:

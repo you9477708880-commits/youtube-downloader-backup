@@ -112,6 +112,13 @@ Security boundary tests:
 node .\tests\security-boundaries.test.js
 ```
 
+Cloud sync write queue tests:
+
+```powershell
+node .\tests\latest-write-queue.test.mjs
+node .\tests\storage-cloud.test.mjs
+```
+
 Project-local smoke runner:
 
 ```powershell

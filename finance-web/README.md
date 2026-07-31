@@ -34,6 +34,13 @@ node .\tests\domain.test.mjs
 node .\tests\security-boundaries.test.js
 ```
 
+雲端同步寫入 queue：
+
+```powershell
+node .\tests\latest-write-queue.test.mjs
+node .\tests\storage-cloud.test.mjs
+```
+
 Headless smoke test：
 
 ```powershell
