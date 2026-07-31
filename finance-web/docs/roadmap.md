@@ -89,6 +89,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 資料安全邊界已在本機補強：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。需在使用者確認後重新部署 Hosting，線上站才會套用此安全邊界。
 - 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。
 - 第三、四階段同步整理已在本機完成：localStorage 改為 `local` / Firebase `uid` 單一 snapshot 分區；舊 `fin_v6_*` 只搬到未綁定 local；Firestore 新增 v7 meta、record-level documents、revision rules、deletion tombstones、UID outbox、整筆衝突選擇與 v6 驗證遷移。尚未 push、部署 Hosting 或部署新版 Firestore rules。
+- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與七個 UI smoke scenarios；GitHub Actions 使用 Node 20、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
 
 ### English
 

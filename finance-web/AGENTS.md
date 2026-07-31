@@ -94,6 +94,14 @@ Sub-agent usage:
 
 ## 6. Testing Commands
 
+Complete one-command suite:
+
+```powershell
+npm test
+```
+
+This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and the seven core UI smoke scenarios. It must not use a production Firebase project ID.
+
 Syntax check:
 
 ```powershell
@@ -120,6 +128,14 @@ node .\tests\storage-cloud.test.mjs
 node .\tests\storage-local.test.mjs
 node .\tests\record-codec.test.mjs
 node .\tests\storage-cloud-records.test.mjs
+```
+
+Emulator tests:
+
+```powershell
+npm run test:rules
+npm run test:functions
+npm run test:emulators
 ```
 
 Project-local smoke runner:

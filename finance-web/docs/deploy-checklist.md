@@ -70,6 +70,25 @@ node .\tests\record-codec.test.mjs
 node .\tests\storage-cloud-records.test.mjs
 ```
 
+完整一鍵測試：
+
+```powershell
+npm ci
+npm test
+```
+
+Firestore / Functions Emulator：
+
+```powershell
+npm run test:rules
+npm run test:functions
+npm run test:emulators
+```
+
+Emulator 測試固定使用 `demo-finance-web`，不得改成正式 Firebase project ID。Firestore 規則測試需驗證未登入、錯誤 UID、legacy fence、migration ID、revision、tombstone 與實體 delete；Functions 最小測試需驗證 HTTP function 能啟動且未授權要求被拒絕。
+
+Functions Emulator 使用獨立的 `firebase.emulator.json`。正式 `firebase.json` 尚未宣告 Functions source 或 Hosting `/api/**` rewrite，因為管理 API 的 summary/delete 仍只支援 v6；完成 v7 recursive delete 與已驗證的管理員 Auth Emulator 測試前，不得部署管理 Functions。
+
 ## 資安檢查
 
 部署前請確認：

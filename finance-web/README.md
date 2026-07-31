@@ -14,6 +14,25 @@ D:\桌面\音樂下載\finance-web
 https://financial-computer.web.app
 ```
 
+## 一鍵測試
+
+完整測試會執行語法、單元、Firestore/Functions Emulator 與七個 UI smoke scenarios：
+
+```powershell
+npm ci
+npm test
+```
+
+只跑特定測試層：
+
+```powershell
+npm run test:unit
+npm run test:rules
+npm run test:functions
+npm run test:emulators
+npm run test:smoke
+```
+
 ## 常用命令
 
 語法檢查：

@@ -1,0 +1,47 @@
+name: Finance Web Test
+
+on:
+  pull_request:
+    paths:
+      - "finance-web/**"
+      - ".github/workflows/finance-web-test.yml"
+  push:
+    paths:
+      - "finance-web/**"
+      - ".github/workflows/finance-web-test.yml"
+
+jobs:
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: finance-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            finance-web/package-lock.json
+            finance-web/functions/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Install Functions dependencies
+        run: npm ci
+        working-directory: finance-web/functions
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@15.22.4
+
+      - name: Run complete test suite
+        run: npm test
