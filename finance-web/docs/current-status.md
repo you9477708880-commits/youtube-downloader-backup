@@ -1,8 +1,7 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-07-31
+- 最後更新：2026-08-01
 - 目前分支：`main`
-- 目前程式基準：`fc74576 拆分資產負債 controller`
 - 遠端 `origin/main`：`6a994bd 整理核心頁面桌機工作區`
 - 正式站已知部署點：`6a994bd`
 
@@ -12,9 +11,8 @@
 
 ## 目前結論
 
-`origin/main` 之後已有 8 個程式與功能提交，形成一個完整但尚未發布的批次，包含
-產品功能、資料安全、同步架構、測試基礎與第一個 controller 拆分。本文件更新會再
-形成獨立的文件提交。
+`origin/main` 之後已形成一個完整但尚未發布的批次，包含產品功能、資料安全、同步
+架構、測試基礎、第一個 controller 拆分與發布前穩定修正。
 
 目前程式已通過完整 `npm test`，但尚未 push，也尚未部署新版 Hosting 或 Firestore
 rules。因此「本機已完成」不等於「正式網站已生效」。
@@ -38,7 +36,7 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 
 ### 工程品質與維護性
 
-- 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 7 個 UI
+- 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 12 個 UI
   smoke scenarios。
 - GitHub Actions 已使用 Node 20、Temurin 21 與 `demo-finance-web`。
 - 資產負債 controller 第一批已完成，並有 8 項 characterization tests。
@@ -47,17 +45,18 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 
 ## 最近驗證結果
 
-在 `fc74576` 建立前執行完整 `npm test`：
+2026-08-01 發布前穩定批次執行完整 `npm test`：
 
 - 語法與單元測試：通過。
-- 資產負債 controller characterization tests：8/8 通過。
+- 資產負債 controller characterization tests：10/10 通過。
+- Controller lifecycle tests：2/2 通過。
 - Firestore／Functions Emulator：10/10 通過。
-- UI smoke scenarios：7/7 通過。
+- UI smoke scenarios：12/12 通過。
 - `git diff --check`：通過。
 
 ## 尚未完成或尚未發布
 
-- 8 個程式／功能提交與本次文件更新尚未 push 到 `origin/main`。
+- 本機發布批次尚未 push 到 `origin/main`。
 - 新版 Hosting allowlist、安全入口與產品功能尚未部署。
 - Firestore v7 rules 與同步架構尚未部署到正式環境。
 - 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
@@ -66,25 +65,27 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 
 ## 已知的小型維護缺口
 
-- 舊資料若使用數字型 account ID，balance-sheet delete 收到 DOM 字串 ID 時可能刪除失敗。
-- 刪除目前正在編輯的資產負債項目後，表單可能暫留 stale editing 狀態。
-- controller reset 已接到四條完整 state replacement 路徑，但仍可補 bootstrap 層整合測試。
+- 數字型 legacy account ID 刪除與刪除目前編輯項目的 stale state，已在發布前穩定
+  批次補測並修正。
+- 四條完整 state replacement 路徑已集中使用可測試的 controller lifecycle
+  replacer，確保先 reset controller 再替換 store。
+- Smoke runner 改用系統分配的可用埠，不再依賴固定 `4185`；一鍵測試已納入現有
+  全部 12 個 UI scenarios。
 - Node 以 ESM 重新解析部分 `.js` 時會顯示效能警告；不影響目前測試正確性。
 
 ## 建議下一步
 
-### 1. 先做發布前穩定批次
+### 1. 完成發布前穩定批次
 
-這是目前最推薦的下一步，範圍應保持小：
+自動化部分已完成：
 
-- 為數字型 account ID、刪除正在編輯項目及 state replacement reset 補
-  characterization／integration tests。
-- 修正前兩個已知 balance-sheet 邊界。
-- 再跑一次完整 `npm test`，並檢查從 `origin/main..main` 的全部差異。
-- 人工確認月度回顧與待購項目預填流程。
+- 已補數字型 account ID、刪除正在編輯項目及 state replacement reset 測試。
+- 已修正前兩個 balance-sheet 邊界。
+- 人工驗收步驟見 `docs/manual-acceptance-checklist.md`。
 
-完成後建立一個可發布安全點，再由使用者分別決定是否 push、部署 Firestore rules
-與部署 Hosting。Functions 仍保持不部署。
+完整 `npm test` 與 `origin/main..main` 差異檢查通過後，只剩使用者人工驗收。人工
+驗收通過後即可建立發布安全點，再分別決定是否 push、部署 Firestore rules 與部署
+Hosting。Functions 仍保持不部署。
 
 ### 2. 發布安全點後再拆待購清單 controller
 

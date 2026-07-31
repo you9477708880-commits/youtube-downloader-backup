@@ -10,8 +10,12 @@
 - `actions.js` 不再持有資產負債編輯狀態；bootstrap 仍透過原本的 actions facade 對接既有 delegated events 與 smoke API。
 - 帳號切換、遠端 state replacement、JSON 匯入及未綁定本機資料套回時，會先呼叫 controller `reset()`。
 - 已加入直接 characterization tests，鎖定 ID/type、歷史交易不變、category 編輯、驗證／取消無副作用、save/render 次數與 reset identity。
-- 尚未處理的已知舊邊界：account delete 仍保留原本的嚴格 ID 比較；numeric legacy account ID 與 dataset string 的不一致應另開小型 bugfix，不混入純搬移。
-- 下一批候選為待購清單 controller；開始前仍應先補 characterization tests。
+- 發布前穩定批次已修正 numeric legacy account ID 與 dataset string 的刪除不一致，
+  並在刪除目前編輯項目時清除 stale edit state。
+- 完整 state replacement 已集中經過可測試的 lifecycle replacer；未來 controller
+  加入組裝時必須提供 `reset()`。
+- 下一批候選為待購清單 controller；應等本批人工驗收及發布安全點完成後，再先補
+  characterization tests。
 
 目前 `actions.js` 同時持有多組編輯狀態、DOM 操作、驗證、跨集合帳務變更、render 與保存；`bootstrap.js` 同時負責初始化、UI adapter、事件綁定、匯入、local/cloud scope 與完整 state replacement。單純把函式剪到五個檔案、仍傳入完整 `dom/ui/context`，只會縮短檔案，不會真正降低耦合。
 

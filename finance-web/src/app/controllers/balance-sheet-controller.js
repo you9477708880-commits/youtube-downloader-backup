@@ -119,10 +119,15 @@ export function createBalanceSheetController({
 
   const delBs = (id, isAccount) => {
     if (!confirmDelete("確定要刪除這個項目嗎？")) return;
+    const deletesCurrentEdit =
+      editingBsId &&
+      editingBsIsAccount === Boolean(isAccount) &&
+      String(editingBsId) === String(id);
     store.update((draft) => {
-      if (isAccount) draft.accounts = draft.accounts.filter((account) => account.id !== id);
+      if (isAccount) draft.accounts = draft.accounts.filter((account) => String(account.id) !== String(id));
       else draft.bsI = draft.bsI.filter((item) => String(item.id) !== String(id));
     });
+    if (deletesCurrentEdit) reset();
     saveState();
     renderAll();
   };

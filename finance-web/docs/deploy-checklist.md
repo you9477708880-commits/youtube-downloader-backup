@@ -129,13 +129,13 @@ firebase deploy --only firestore:rules
 Current project-local smoke runner:
 
 ```powershell
-node .\tests\smoke-runner.js --port=4184
+npm run test:smoke
 ```
 
 Current project-local UI smoke scenarios:
 
 ```powershell
-node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness --port=4185
+npm run test:smoke
 ```
 
 2026-06-01 note: Codex Browser/IAB automation was blocked by Browser URL policy when navigating to the local URL. For this pre-release validation, use the project-local smoke runner and a controlled local HTTP 200/page-load check. Do not treat headless mobile screenshots as authoritative if they disagree with real-device checks.

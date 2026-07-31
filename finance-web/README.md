@@ -16,7 +16,7 @@ https://financial-computer.web.app
 
 ## 一鍵測試
 
-完整測試會執行語法、單元、Firestore/Functions Emulator 與七個 UI smoke scenarios：
+完整測試會執行語法、單元、Firestore/Functions Emulator 與全部 12 個 UI smoke scenarios：
 
 ```powershell
 npm ci
@@ -91,5 +91,6 @@ firebase deploy --only firestore:rules
 - `docs/report-traceability.md`：報表數字如何追到來源明細。
 - `docs/firebase-status.md`：Firebase 狀態文字規格。
 - `docs/deploy-checklist.md`：部署前檢查。
+- `docs/manual-acceptance-checklist.md`：發布前由使用者執行的 10 分鐘人工驗收。
 - `docs/roadmap.md`：後續開發藍圖。
 - `docs/archive/agent-handoff-2026-05-04.md`：歷史交接文件，僅供追溯舊脈絡。

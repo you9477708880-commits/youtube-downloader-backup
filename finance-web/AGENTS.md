@@ -100,7 +100,7 @@ Complete one-command suite:
 npm test
 ```
 
-This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and the seven core UI smoke scenarios. It must not use a production Firebase project ID.
+This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 12 UI smoke scenarios. It must not use a production Firebase project ID.
 
 Syntax check:
 
@@ -141,7 +141,7 @@ npm run test:emulators
 Project-local smoke runner:
 
 ```powershell
-node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,editing-completeness --port=4185
+npm run test:smoke
 ```
 
 Diff hygiene:

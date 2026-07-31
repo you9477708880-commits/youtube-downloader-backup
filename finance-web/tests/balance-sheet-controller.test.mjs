@@ -220,6 +220,44 @@ test("delete and emergency toggle preserve unrelated collections and save once",
   assert.equal(calls.render, 2);
 });
 
+test("deletes numeric legacy account IDs when the DOM provides a string ID", () => {
+  const { store, calls, controller } = createHarness();
+  store.update((draft) => {
+    draft.accounts.push({
+      id: 42,
+      name: "舊資料帳戶",
+      type: "asset",
+      initialBalance: 800,
+      isEm: false,
+    });
+  });
+
+  controller.delBs("42", true);
+
+  assert.equal(store.getState().accounts.some((item) => item.id === 42), false);
+  assert.equal(calls.save, 1);
+  assert.equal(calls.render, 1);
+});
+
+test("deleting the item being edited clears stale edit state before the next submit", () => {
+  const { store, calls, dom, controller } = createHarness();
+
+  controller.beginEditBs("manual-1", false);
+  controller.delBs("manual-1", false);
+  dom.balanceType.value = "item";
+  dom.balanceName.value = "刪除後的新項目";
+  dom.balanceAmount.value = "700";
+  dom.balanceCategory.value = "asset";
+  controller.addBs();
+
+  assert.equal(store.getState().bsI.length, 1);
+  assert.equal(store.getState().bsI[0].name, "刪除後的新項目");
+  assert.match(store.getState().bsI[0].id, /^bs-/);
+  assert.equal(calls.save, 2);
+  assert.equal(calls.render, 2);
+  assert.equal(calls.toasts.at(-1)[0], "已新增資產 / 負債項目");
+});
+
 test("cancel and reset clear edit state without saving", () => {
   const { calls, dom, controller } = createHarness();
 

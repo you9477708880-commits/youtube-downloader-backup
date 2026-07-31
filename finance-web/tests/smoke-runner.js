@@ -7,7 +7,11 @@ const { execFileSync, spawn } = require("child_process");
 const args = process.argv.slice(2);
 const root = path.resolve(getArg("root") || path.join(__dirname, ".."));
 const entry = getFreeArg() || (fs.existsSync(path.join(root, "index.html")) ? "index.html" : "理財計算.html");
-const port = Number(getArg("port")) || 4173;
+const portArg = getArg("port");
+const requestedPort = portArg === "" ? 4173 : Number(portArg);
+if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535) {
+  throw new Error(`Invalid port: ${portArg}`);
+}
 const reportPath = path.resolve(getArg("report") || path.join(os.tmpdir(), "finance-web-smoke-report.html"));
 const scenarioArg = getArg("scenario") || "";
 const scenarios = scenarioArg.split(",").map((item) => item.trim()).filter(Boolean);
@@ -419,7 +423,7 @@ function firstUsefulError(stderr) {
 function listen(server) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => resolve());
+    server.listen(requestedPort, "127.0.0.1", () => resolve());
   });
 }
 
@@ -431,7 +435,9 @@ async function main() {
   const server = createServer();
   await listen(server);
 
-  const baseUrl = `http://127.0.0.1:${port}`;
+  const address = server.address();
+  const activePort = address && typeof address === "object" ? address.port : requestedPort;
+  const baseUrl = `http://127.0.0.1:${activePort}`;
   console.log(`Serving ${entry} at ${baseUrl}/${encodeURI(entry)}`);
   console.log(`Root: ${root}`);
 
