@@ -66,7 +66,7 @@ node .\tests\storage-cloud-records.test.mjs
 Headless smoke test：
 
 ```powershell
-node .\tests\smoke-runner.js --scenario=fund-shortfall-choice,transaction-subcategory,andro-money-import,category-budget-cleanup --port=4184
+npm run test:smoke
 ```
 
 部署：
@@ -85,6 +85,7 @@ firebase deploy --only firestore:rules
 
 ## 維護文件
 
+- `docs/current-status.md`：目前本機、遠端、部署狀態與建議下一步；接續工作先讀這份。
 - `docs/data-model.md`：資料模型。
 - `docs/accounting-rules.md`：收入、支出、轉帳、代墊、收款的規則。
 - `docs/report-traceability.md`：報表數字如何追到來源明細。

@@ -5,9 +5,13 @@
 最新已部署安全點 / Latest deployed safety point: `6a994bd 整理核心頁面桌機工作區`
 目前部署狀態 / Current deployment status: Firestore rules and Firebase Hosting are deployed to `financial-computer`; latest deployed finance-web commit is `6a994bd`. The monthly-review prototype and wishlist-to-fund prefill are local post-deployment changes until a later GitHub push and Firebase Hosting deploy are explicitly performed.
 
-這份文件是目前後續開發的主要藍圖。中文用來方便產品討論，英文用來讓模型與程式維護時更容易快速理解規則。
+這份文件是後續開發的長期藍圖。最新本機、遠端、部署狀態與立即下一步以
+`docs/current-status.md` 為準。中文用來方便產品討論，英文用來讓模型與程式維護時
+更容易快速理解規則。
 
-This document is the main roadmap for upcoming development. Chinese is for product discussion; English is for model and code maintenance.
+This document is the long-term roadmap. Use `docs/current-status.md` for the latest
+local, remote, deployment, and immediate-next-step status. Chinese is for product
+discussion; English is for model and code maintenance.
 
 ## 1. 目前產品定位 / Current Product Direction
 
@@ -163,7 +167,8 @@ The following item is complete locally, but is not yet pushed or deployed:
 - 若未來交易金額被編輯，應先解除原本準備指定，不自動猜測要怎麼改準備金。
 - 退休頁目前定位為個人估算器，不是完整投資模擬器。
 - 4% 法則只是參考提示，不是主要退休警告邏輯。
-- 本機資料目前尚未依 Google `uid` 分流。
+- 本機資料已分成未登入 `local` 與 Firebase `uid` namespace；舊 `fin_v6_*`
+  只遷移到未綁定 local，不會自動歸入 Google 帳號。
 
 ### English
 
@@ -176,45 +181,47 @@ The following item is complete locally, but is not yet pushed or deployed:
 - If a linked transaction amount is edited in the future, the fund link should be removed first. The system should not guess how fund events should change.
 - The retirement page is currently a personal estimator, not a full investment simulation tool.
 - The 4% rule is only a reference hint, not the main retirement warning logic.
-- Local data is not yet separated by Google `uid`.
+- Local data is separated into the signed-out `local` namespace and Firebase `uid`
+  namespaces. Legacy `fin_v6_*` data migrates only to unbound local storage.
 
 ## 4. 立即下一步 / Immediate Next Steps
 
 ### 中文
 
-建議優先處理：
+立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
-1. **本機新功能人工驗收**
-   - 月度回顧原型與待購項目預填大額準備目前都已在本機完成。
-   - 下一步是人工檢查總覽頁月度回顧，以及待購清單「建立準備」是否符合使用習慣。
-   - 若人工檢查沒有問題，再決定是否 push / deploy。
-   - 後續若要擴充月度回顧，才考慮獨立分頁、月變化比較或更完整的月結流程。
+1. **先建立發布前穩定批次**
+   - 補 balance-sheet numeric legacy ID、stale edit 與 state replacement reset 測試。
+   - 修正已知的小型 controller 邊界，再執行完整 `npm test`。
+   - 人工驗收月度回顧與待購項目預填。
 
-2. **目標系統整合後續設計**
-   - 已完成第一步預填流程；下一步才討論是否需要正式 linking，例如 wish linkedFundId、完成狀態或從 fund 反查 wish。
-   - 在定義防重複計算規則前，不要讓同一個目標同時被待購清單與準備金重複扣預算。
+2. **再決定 push 與分階段部署**
+   - `main` 目前包含尚未發布的資料安全、同步、測試與產品功能。
+   - Firestore rules 與 Hosting 應分別檢查、分別部署；Functions 暫不部署。
 
-3. **例行安全與發布檢查**
-   - 每批功能完成後，維持語法檢查、domain tests、相關 smoke scenarios。
-   - GitHub push 與 Firebase Hosting deploy 仍只在使用者明確要求時執行。
+3. **發布安全點後才繼續 controller 拆分**
+   - 下一個候選是待購清單 controller，仍先補 characterization tests。
+   - 在定義防重複計算規則前，不增加 wishlist 與 fund 的正式雙向 linking。
 
 ### English
 
-Recommended immediate priorities:
+The immediate work order and current commit status are maintained in
+`docs/current-status.md`. The current recommendation is:
 
-1. **Manual acceptance for local new features**
-   - The monthly review prototype and wishlist-to-fund prefill are complete locally.
-   - The next step is manual review of the overview monthly review and wishlist "create fund" prefill behavior.
-   - If manual review is acceptable, decide separately whether to push / deploy.
-   - Future monthly-review expansion can consider a dedicated page, month-over-month comparison, or a fuller monthly close workflow.
+1. **Create a pre-release stabilization batch first**
+   - Cover numeric legacy balance-sheet IDs, stale edit state, and state replacement
+     reset with tests.
+   - Fix those small controller boundaries, rerun `npm test`, and manually review the
+     monthly-review and wishlist-prefill flows.
 
-2. **Goal-system integration follow-up design**
-   - The first prefill flow is complete. Future work should decide whether formal linking is needed, such as wish `linkedFundId`, completion state, or fund-to-wish reverse lookup.
-   - Do not let the same goal consume budget through both wishlist planning and fund planning until anti-double-counting rules are defined.
+2. **Then decide on push and staged deployment**
+   - The local mainline contains unreleased security, sync, test, and product changes.
+   - Review and deploy Firestore rules and Hosting separately. Keep Functions undeployed.
 
-3. **Routine safety and release checks**
-   - After each feature batch, continue running syntax checks, domain tests, and relevant smoke scenarios.
-   - GitHub push and Firebase Hosting deploy still require explicit user request.
+3. **Resume controller extraction after a release safety point**
+   - Wishlist is the next candidate and should receive characterization tests first.
+   - Do not add formal wishlist/fund bidirectional linking before anti-double-counting
+     rules are defined.
 
 ## 5. 中期重構 / Mid-Term Refactors
 

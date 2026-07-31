@@ -1,0 +1,103 @@
+# 目前工作狀態與下一步
+
+- 最後更新：2026-07-31
+- 目前分支：`main`
+- 目前程式基準：`fc74576 拆分資產負債 controller`
+- 遠端 `origin/main`：`6a994bd 整理核心頁面桌機工作區`
+- 正式站已知部署點：`6a994bd`
+
+這份文件是專案目前的主要交接入口。需要理解長期產品方向時讀
+`roadmap.md`；準備部署時讀 `deploy-checklist.md`；修改帳務行為前則必須讀
+`accounting-rules.md`、`data-model.md` 與 `report-traceability.md`。
+
+## 目前結論
+
+`origin/main` 之後已有 8 個程式與功能提交，形成一個完整但尚未發布的批次，包含
+產品功能、資料安全、同步架構、測試基礎與第一個 controller 拆分。本文件更新會再
+形成獨立的文件提交。
+
+目前程式已通過完整 `npm test`，但尚未 push，也尚未部署新版 Hosting 或 Firestore
+rules。因此「本機已完成」不等於「正式網站已生效」。
+
+## 已在本機完成
+
+### 產品功能
+
+- 月度回顧原型與來源明細。
+- 待購項目預填大額準備表單；目前只預填，不會自動建立 fund、交易或事件。
+
+### 資料安全與同步
+
+- 正式入口不再接受 smoke query 寫入測試資料。
+- Hosting 改用允許清單建立 `.firebase-public`，排除測試、文件、規則、Functions
+  原始碼與 EPUB。
+- 同一 UID 的雲端寫入改為序列 queue，避免快速連續修改並行覆寫整份 state。
+- localStorage 已分成未登入 `local` 與 Firebase `uid` namespace。
+- Firestore v7 已加入 record-level documents、revision、migration fence、deletion
+  tombstone、UID outbox 與同一 record 的整筆衝突選擇。
+
+### 工程品質與維護性
+
+- 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 7 個 UI
+  smoke scenarios。
+- GitHub Actions 已使用 Node 20、Temurin 21 與 `demo-finance-web`。
+- 資產負債 controller 第一批已完成，並有 8 項 characterization tests。
+- `actions.js` 不再持有資產負債編輯狀態；完整 state replacement 前會 reset
+  controller，避免 UID 或遠端資料切換後沿用舊 editing ID。
+
+## 最近驗證結果
+
+在 `fc74576` 建立前執行完整 `npm test`：
+
+- 語法與單元測試：通過。
+- 資產負債 controller characterization tests：8/8 通過。
+- Firestore／Functions Emulator：10/10 通過。
+- UI smoke scenarios：7/7 通過。
+- `git diff --check`：通過。
+
+## 尚未完成或尚未發布
+
+- 8 個程式／功能提交與本次文件更新尚未 push 到 `origin/main`。
+- 新版 Hosting allowlist、安全入口與產品功能尚未部署。
+- Firestore v7 rules 與同步架構尚未部署到正式環境。
+- 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
+  在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
+- Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
+
+## 已知的小型維護缺口
+
+- 舊資料若使用數字型 account ID，balance-sheet delete 收到 DOM 字串 ID 時可能刪除失敗。
+- 刪除目前正在編輯的資產負債項目後，表單可能暫留 stale editing 狀態。
+- controller reset 已接到四條完整 state replacement 路徑，但仍可補 bootstrap 層整合測試。
+- Node 以 ESM 重新解析部分 `.js` 時會顯示效能警告；不影響目前測試正確性。
+
+## 建議下一步
+
+### 1. 先做發布前穩定批次
+
+這是目前最推薦的下一步，範圍應保持小：
+
+- 為數字型 account ID、刪除正在編輯項目及 state replacement reset 補
+  characterization／integration tests。
+- 修正前兩個已知 balance-sheet 邊界。
+- 再跑一次完整 `npm test`，並檢查從 `origin/main..main` 的全部差異。
+- 人工確認月度回顧與待購項目預填流程。
+
+完成後建立一個可發布安全點，再由使用者分別決定是否 push、部署 Firestore rules
+與部署 Hosting。Functions 仍保持不部署。
+
+### 2. 發布安全點後再拆待購清單 controller
+
+- 先鎖定 wish CRUD、排序、刪除不存在 ID 與越界排序的既有行為。
+- `prepareFundFromWish` 暫時保留為 bootstrap／actions bridge。
+- 不讓 wishlist controller 直接操作 fund controller 或 fund DOM。
+
+### 3. 後續順序
+
+在 wishlist controller 穩定後，依序考慮：
+
+1. 準備金 controller。
+2. 交易 controller。
+3. 匯入 controller。
+
+交易與匯入風險最高，不應和部署、同步協定或帳務公式修改放在同一批。
