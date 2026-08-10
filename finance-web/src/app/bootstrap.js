@@ -32,6 +32,7 @@ import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
 import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
+import { createTransactionController } from "./controllers/transaction-controller.js";
 import { createWishlistController } from "./controllers/wishlist-controller.js";
 
 function collectDom(doc = document) {
@@ -709,9 +710,40 @@ export async function bootstrapFinanceApp(doc = document) {
     confirmAction: (message) => window.confirm(message),
     promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
   });
+  const transactionController = createTransactionController({
+    elements: {
+      root: dom.root,
+      amount: dom.inputAmount,
+      ownAmount: dom.inputOwnAmount,
+      advancePerson: dom.inputAdvancePerson,
+      fund: dom.inputFund,
+      subcategory: dom.inputSubcategory,
+      description: dom.inputDesc,
+      date: dom.inputDate,
+      category: dom.inputCategory,
+      account: dom.inputAccount,
+      fromAccount: dom.inputFromAccount,
+      toAccount: dom.inputToAccount,
+    },
+    store,
+    toast,
+    setEditMode: (value) => ui.setTransactionEditMode(value),
+    saveState,
+    renderAll,
+    navigate: (tabId) => baseActions.switchTab(tabId),
+    syncTxType: () => ui.syncTxType(),
+    renderTransactionCategorySelect: (options) => ui.renderTransactionCategorySelect(options),
+    populateTransactionSubcategoryOptions: (options) => ui.populateTransactionSubcategoryOptions(options),
+    populateFundOptions: () => ui.populateFundOptions(),
+    populateCategoryBudgetOptions: () => ui.populateCategoryBudgetOptions(),
+    askFundShortfallChoice: (details) => ui.askFundShortfallChoice(details),
+    constants: CONSTANTS,
+    confirmDelete: (message) => window.confirm(message),
+    promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
+  });
   const replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, sinkingFundController],
+    controllers: [balanceSheetController, wishlistController, sinkingFundController, transactionController],
   });
   const actions = {
     ...baseActions,
@@ -733,6 +765,14 @@ export async function bootstrapFinanceApp(doc = document) {
     topupFund: sinkingFundController.topupFund,
     openFund: sinkingFundController.openFund,
     prepareFundFromWish: sinkingFundController.prepareFundFromWish,
+    setTxType: transactionController.setTxType,
+    addCustomCat: transactionController.addCustomCat,
+    addTx: transactionController.addTx,
+    beginEditTx: transactionController.beginEditTx,
+    cancelEditTx: transactionController.cancelEditTx,
+    delTx: transactionController.delTx,
+    repayAdvance: transactionController.repayAdvance,
+    editAdvanceRepayment: transactionController.editAdvanceRepayment,
   };
 
   const exportAndroMoneyCsv = () => {
@@ -991,11 +1031,11 @@ export async function bootstrapFinanceApp(doc = document) {
   ui.populateCategoryBudgetOptions();
   ui.populateFundOptions();
   ui.syncTxType();
-  ui.setTransactionEditMode({ active: false });
   ui.setFundEditMode({ active: false });
   balanceSheetController.reset();
   wishlistController.reset();
   sinkingFundController.reset();
+  transactionController.reset();
   ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
   const now = new Date();

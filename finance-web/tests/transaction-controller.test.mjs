@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createActions } from "../src/app/actions.js";
+import { createTransactionController } from "../src/app/controllers/transaction-controller.js";
 import { createInitialState } from "../src/state/initial-state.js";
 import { createStore } from "../src/state/store.js";
 
@@ -102,19 +102,44 @@ function createHarness(t, stateOverrides = {}) {
     else globalThis.Option = previousOption;
   });
 
-  const actions = createActions({
-    dom,
+  const controller = createTransactionController({
+    elements: {
+      root: dom.root,
+      amount: dom.inputAmount,
+      ownAmount: dom.inputOwnAmount,
+      advancePerson: dom.inputAdvancePerson,
+      fund: dom.inputFund,
+      subcategory: dom.inputSubcategory,
+      description: dom.inputDesc,
+      date: dom.inputDate,
+      category: dom.inputCategory,
+      account: dom.inputAccount,
+      fromAccount: dom.inputFromAccount,
+      toAccount: dom.inputToAccount,
+    },
     store,
+    toast: ui.toast,
+    setEditMode: ui.setTransactionEditMode,
+    saveState: () => { calls.save += 1; },
     renderAll: () => { calls.renderAll += 1; },
-    renderWishlist: () => {},
-    ui,
+    navigate: (tabId) => {
+      calls.activeTabs.push(tabId);
+      calls.renderAll += 1;
+    },
+    syncTxType: ui.syncTxType,
+    renderTransactionCategorySelect: ui.renderTransactionCategorySelect,
+    populateTransactionSubcategoryOptions: ui.populateTransactionSubcategoryOptions,
+    populateFundOptions: ui.populateFundOptions,
+    populateCategoryBudgetOptions: ui.populateCategoryBudgetOptions,
+    askFundShortfallChoice: ui.askFundShortfallChoice,
     constants: {
       incomeCategories: ["薪資"],
       expenseCategories: ["餐飲", "其他"],
     },
-    saveState: () => { calls.save += 1; },
+    confirmDelete: () => calls.confirmResponses.length ? calls.confirmResponses.shift() : true,
+    promptInput: () => calls.promptResponses.length ? calls.promptResponses.shift() : null,
   });
-  return { actions, calls, dom, store };
+  return { actions: controller, calls, controller, dom, store };
 }
 
 function fillTransaction(dom, overrides = {}) {
@@ -506,4 +531,34 @@ test("editing a repayment changes only amount, date, and account while enforcing
   invalidDate.actions.editAdvanceRepayment("repay-1");
   assert.deepEqual(invalidDate.store.getState(), dateSnapshot);
   assert.equal(invalidDate.calls.save, 0);
+});
+
+test("reset clears stale transaction edit identity before a whole-state replacement", async (t) => {
+  const originalTx = {
+    id: "tx-editing",
+    type: "expense",
+    amount: 600,
+    desc: "舊資料",
+    date: "2026-08-15",
+    cat: "餐飲",
+    category: "餐飲",
+    subcategory: "便當",
+    acc: "cash",
+  };
+  const { actions, calls, controller, dom, store } = createHarness(t, { txs: [originalTx] });
+  actions.beginEditTx("tx-editing");
+
+  controller.reset();
+  store.replace(createState({ txs: [{ ...originalTx, desc: "切換後資料" }] }));
+  fillTransaction(dom, { amount: "900", desc: "切換後新增" });
+  await actions.addTx();
+
+  const txs = store.getState().txs;
+  assert.equal(txs.length, 2);
+  assert.match(txs[0].id, /^tx-/);
+  assert.notEqual(txs[0].id, "tx-editing");
+  assert.equal(txs[0].desc, "切換後新增");
+  assert.equal(txs[1].id, "tx-editing");
+  assert.equal(txs[1].desc, "切換後資料");
+  assert.equal(calls.save, 1);
 });
