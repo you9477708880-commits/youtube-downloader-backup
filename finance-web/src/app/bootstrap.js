@@ -31,6 +31,7 @@ import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
+import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
 import { createWishlistController } from "./controllers/wishlist-controller.js";
 
 function collectDom(doc = document) {
@@ -686,9 +687,31 @@ export async function bootstrapFinanceApp(doc = document) {
     constants: CONSTANTS,
     confirmCleanup: (message) => window.confirm(message),
   });
+  const sinkingFundController = createSinkingFundController({
+    elements: {
+      root: dom.root,
+      name: dom.fundName,
+      category: dom.fundCategory,
+      target: dom.fundTarget,
+      monthly: dom.fundMonthly,
+      start: dom.fundStart,
+      targetMonth: dom.fundTargetMonth,
+      note: dom.fundNote,
+      carry: dom.fundCarry,
+    },
+    store,
+    toast,
+    setEditMode: (value) => ui.setFundEditMode(value),
+    saveState,
+    renderWishlist: renderWishlistOnly,
+    navigate: (tabId) => baseActions.switchTab(tabId),
+    populateFundOptions: () => ui.populateFundOptions(),
+    confirmAction: (message) => window.confirm(message),
+    promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
+  });
   const replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController],
+    controllers: [balanceSheetController, wishlistController, sinkingFundController],
   });
   const actions = {
     ...baseActions,
@@ -703,6 +726,13 @@ export async function bootstrapFinanceApp(doc = document) {
     delWish: wishlistController.delWish,
     mvWish: wishlistController.mvWish,
     cleanupCatBudgets: wishlistController.cleanupCatBudgets,
+    addFund: sinkingFundController.addFund,
+    beginEditFund: sinkingFundController.beginEditFund,
+    cancelEditFund: sinkingFundController.cancelEditFund,
+    delFund: sinkingFundController.delFund,
+    topupFund: sinkingFundController.topupFund,
+    openFund: sinkingFundController.openFund,
+    prepareFundFromWish: sinkingFundController.prepareFundFromWish,
   };
 
   const exportAndroMoneyCsv = () => {
@@ -965,6 +995,7 @@ export async function bootstrapFinanceApp(doc = document) {
   ui.setFundEditMode({ active: false });
   balanceSheetController.reset();
   wishlistController.reset();
+  sinkingFundController.reset();
   ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
   const now = new Date();

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createActions } from "../src/app/actions.js";
+import { createSinkingFundController } from "../src/app/controllers/sinking-fund-controller.js";
 import { createInitialState } from "../src/state/initial-state.js";
 import { createStore } from "../src/state/store.js";
 
@@ -83,28 +83,33 @@ function createHarness(t) {
     populateFundOptions: () => { calls.populateFunds += 1; },
   };
 
-  const previousWindow = globalThis.window;
-  const previousAnimationFrame = globalThis.requestAnimationFrame;
-  globalThis.window = {
-    confirm: () => calls.confirmResponses.length ? calls.confirmResponses.shift() : true,
-    prompt: () => calls.promptResponses.length ? calls.promptResponses.shift() : null,
-  };
-  globalThis.requestAnimationFrame = (callback) => callback();
-  t.after(() => {
-    if (previousWindow === undefined) delete globalThis.window;
-    else globalThis.window = previousWindow;
-    if (previousAnimationFrame === undefined) delete globalThis.requestAnimationFrame;
-    else globalThis.requestAnimationFrame = previousAnimationFrame;
-  });
-
-  const actions = createActions({
-    dom,
+  const actions = createSinkingFundController({
+    elements: {
+      root: dom.root,
+      name: dom.fundName,
+      category: dom.fundCategory,
+      target: dom.fundTarget,
+      monthly: dom.fundMonthly,
+      start: dom.fundStart,
+      targetMonth: dom.fundTargetMonth,
+      note: dom.fundNote,
+      carry: dom.fundCarry,
+    },
     store,
-    renderAll: () => { calls.renderAll += 1; },
-    renderWishlist: () => { calls.renderWishlist += 1; },
-    ui,
-    constants: {},
+    toast: ui.toast,
+    setEditMode: ui.setFundEditMode,
     saveState: () => { calls.save += 1; },
+    renderWishlist: () => { calls.renderWishlist += 1; },
+    navigate: (tabId) => {
+      ui.setActiveTab(tabId);
+      if (tabId === "wl") ui.populateCategoryBudgetOptions();
+      calls.renderAll += 1;
+    },
+    populateFundOptions: ui.populateFundOptions,
+    confirmAction: () => calls.confirmResponses.length ? calls.confirmResponses.shift() : true,
+    promptInput: () => calls.promptResponses.length ? calls.promptResponses.shift() : null,
+    now: () => new Date(2026, 7, 10),
+    requestFrame: (callback) => callback(),
   });
   return { store, calls, dom, card, actions };
 }

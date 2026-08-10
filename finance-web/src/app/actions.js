@@ -7,7 +7,7 @@ import {
   getAdvanceRepaidAmount,
   getOpenAdvances,
 } from "../domain/transactions.js";
-import { getFundAvailableBeforeExpense, getFundTargetPlanStatus, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
+import { getFundAvailableBeforeExpense, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
 import { DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { localDateStr, toMoneyInt } from "../utils/format.js";
 
@@ -18,11 +18,6 @@ function createClientId(prefix) {
 
 function createFundEventId() {
   return createClientId("fe");
-}
-
-function escapeCssValue(value) {
-  if (globalThis.CSS?.escape) return globalThis.CSS.escape(String(value));
-  return String(value).replace(/["\\]/g, "\\$&");
 }
 
 function buildMonthRange(date) {
@@ -42,7 +37,6 @@ export function createActions(context) {
   const { dom, store, renderAll, renderWishlist, ui, constants } = context;
   let editingTxId = null;
   let editingOriginalLinkedFundId = "";
-  let editingFundId = "";
 
   const sameId = (left, right) => String(left) === String(right);
 
@@ -66,74 +60,6 @@ export function createActions(context) {
           sinkingFunds: withoutFundEventsLinkedToTransaction(state.sinkingFunds, editingTxId),
         }
       : state;
-
-  const resetFundForm = () => {
-    editingFundId = "";
-    dom.fundName.value = "";
-    dom.fundTarget.value = "";
-    dom.fundMonthly.value = "";
-    dom.fundTargetMonth.value = "";
-    dom.fundNote.value = "";
-    dom.fundCarry.checked = true;
-    ui.setFundEditMode({ active: false });
-  };
-
-  const setFundCategoryIfAvailable = (category) => {
-    if (!category) return false;
-    const option = [...dom.fundCategory.options].find((item) => item.value === category || item.textContent === category);
-    if (!option) return false;
-    dom.fundCategory.value = option.value;
-    return true;
-  };
-
-  const readFundFormValues = () => ({
-    name: dom.fundName.value.trim(),
-    category: dom.fundCategory.value,
-    targetAmount: toMoneyInt(dom.fundTarget.value),
-    monthlyContribution: toMoneyInt(dom.fundMonthly.value),
-    startMonth: dom.fundStart.value,
-    targetMonth: dom.fundTargetMonth.value,
-    carryoverEnabled: !!dom.fundCarry.checked,
-    note: dom.fundNote.value.trim(),
-  });
-
-  const validateFundForm = (values, submitLabel) => {
-    if (!values.name) {
-      ui.toast.show("請輸入準備項目名稱", "error");
-      return false;
-    }
-    if (values.targetAmount <= 0) {
-      ui.toast.show("目標金額必須大於 0", "error");
-      return false;
-    }
-    if (values.monthlyContribution <= 0) {
-      ui.toast.show("每月提撥必須大於 0", "error");
-      return false;
-    }
-    if (!values.startMonth) {
-      ui.toast.show("請選擇開始月份", "error");
-      return false;
-    }
-    if (values.targetMonth && values.targetMonth < values.startMonth) {
-      ui.toast.show("目標月份不能早於開始月份", "error");
-      return false;
-    }
-
-    if (values.targetMonth) {
-      const planStatus = getFundTargetPlanStatus(values);
-      if (!planStatus.isFeasible) {
-        const shouldContinue = window.confirm(
-          `照目前設定，每月提撥 ${values.monthlyContribution}，到 ${values.targetMonth} 預計只能累積 ${planStatus.plannedAmount}。\n` +
-            `距離目標 ${values.targetAmount} 還差 ${planStatus.shortfall}。\n\n` +
-            "你可以延後目標月份、提高每月提撥，或之後用手動補入補足。\n\n" +
-            `仍要${submitLabel}嗎？`,
-        );
-        if (!shouldContinue) return false;
-      }
-    }
-
-    return true;
-  };
 
   return {
     switchTab(tabId) {
@@ -538,138 +464,6 @@ export function createActions(context) {
       ui.toast.show("已更新代墊收款");
     },
 
-    addFund() {
-      const values = readFundFormValues();
-      if (!validateFundForm(values, editingFundId ? "儲存這個設定" : "先建立這個準備項目")) return;
-
-      store.update((draft) => {
-        if (editingFundId) {
-          const fund = draft.sinkingFunds.find((item) => item.id === editingFundId);
-          if (!fund) return;
-          Object.assign(fund, values);
-        } else {
-          draft.sinkingFunds.push({
-            id: createClientId("sf"),
-            ...values,
-            events: [],
-          });
-        }
-      });
-
-      const wasEditing = !!editingFundId;
-      resetFundForm();
-      context.saveState();
-      ui.populateFundOptions();
-      renderWishlist();
-      ui.toast.show(wasEditing ? "已更新大額支出準備" : "已新增大額支出準備");
-    },
-
-    beginEditFund(id) {
-      const fund = store.getState().sinkingFunds.find((item) => item.id === id);
-      if (!fund) {
-        ui.toast.show("找不到這個大額支出準備", "error");
-        return;
-      }
-
-      editingFundId = id;
-      this.switchTab("wl");
-      ui.setFundEditMode({ active: true });
-      dom.fundName.value = fund.name || "";
-      dom.fundCategory.value = fund.category || "";
-      dom.fundTarget.value = fund.targetAmount ?? "";
-      dom.fundMonthly.value = fund.monthlyContribution ?? "";
-      dom.fundStart.value = fund.startMonth || "";
-      dom.fundTargetMonth.value = fund.targetMonth || "";
-      dom.fundNote.value = fund.note || "";
-      dom.fundCarry.checked = !!fund.carryoverEnabled;
-      dom.root.getElementById("form-fund")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-
-    cancelEditFund() {
-      resetFundForm();
-      ui.toast.show("已取消編輯");
-    },
-
-    delFund(id) {
-      const fund = store.getState().sinkingFunds.find((item) => item.id === id);
-      if (!fund) return;
-      if (!window.confirm(`確定要刪除「${fund.name}」嗎？`)) return;
-
-      store.update((draft) => {
-        draft.sinkingFunds = draft.sinkingFunds.filter((item) => item.id !== id);
-        draft.txs.forEach((tx) => {
-          if (tx.linkedFundId === id) delete tx.linkedFundId;
-        });
-      });
-      context.saveState();
-      ui.populateFundOptions();
-      renderWishlist();
-      ui.toast.show("已刪除大額支出準備");
-    },
-
-    topupFund(id) {
-      const state = store.getState();
-      const fund = state.sinkingFunds.find((item) => item.id === id);
-      if (!fund) {
-        ui.toast.show("找不到這個大額支出準備", "error");
-        return;
-      }
-
-      const rawAmount = window.prompt(`這次要補入「${fund.name}」多少？`, String(fund.monthlyContribution || 0));
-      if (rawAmount === null) return;
-      const amount = toMoneyInt(rawAmount);
-      if (amount <= 0) {
-        ui.toast.show("補入金額必須大於 0", "error");
-        return;
-      }
-
-      const topupDate = localDateStr(new Date());
-      const monthRange = buildMonthRange(topupDate);
-      const budget = monthRange ? calculateBudgetData(state, monthRange) : null;
-      const availableFreedom = budget?.freeToUse || 0;
-      if (amount > availableFreedom) {
-        ui.toast.show(`本月可自由運用只有 ${availableFreedom}，這次最多只能補入 ${availableFreedom}。`, "error");
-        return;
-      }
-
-      const note = window.prompt("這次補入要加備註嗎？可留空", "手動補入") ?? "";
-
-      store.update((draft) => {
-        const target = draft.sinkingFunds.find((item) => item.id === id);
-        if (!target) return;
-        if (!Array.isArray(target.events)) target.events = [];
-        target.events.push({
-          id: createFundEventId(),
-          type: "topup",
-          amount,
-          date: topupDate,
-          note: note.trim(),
-        });
-      });
-
-      context.saveState();
-      renderWishlist();
-      ui.toast.show("已補入準備項目");
-    },
-
-    openFund(id) {
-      const fund = store.getState().sinkingFunds.find((item) => item.id === id);
-      if (!fund) {
-        ui.toast.show("找不到對應的大額支出準備", "error");
-        return;
-      }
-
-      this.switchTab("wl");
-      renderWishlist();
-
-      requestAnimationFrame(() => {
-        const card = dom.root.querySelector(`[data-fund-card="${escapeCssValue(id)}"]`);
-        if (!card) return;
-        card.open = true;
-        card.scrollIntoView({ behavior: "smooth", block: "center" });
-      });
-    },
-
     setCatBudget() {
       const amount = toMoneyInt(dom.catBudgetAmount.value);
       if (amount <= 0) {
@@ -691,28 +485,6 @@ export function createActions(context) {
       });
       context.saveState();
       renderWishlist();
-    },
-
-    prepareFundFromWish(id) {
-      const wish = store.getState().wishes.find((item) => String(item.id) === String(id));
-      if (!wish) {
-        ui.toast.show("找不到這個待購項目。", "error");
-        return;
-      }
-
-      editingFundId = "";
-      this.switchTab("wl");
-      ui.setFundEditMode({ active: false });
-      dom.fundName.value = wish.name || "";
-      dom.fundTarget.value = wish.price ?? "";
-      dom.fundMonthly.value = wish.price ?? "";
-      dom.fundStart.value = dom.fundStart.value || localDateStr(new Date()).slice(0, 7);
-      dom.fundTargetMonth.value = "";
-      dom.fundNote.value = `由待購清單「${wish.name || "未命名項目"}」預填${wish.cat ? `，原分類：${wish.cat}` : ""}`;
-      dom.fundCarry.checked = true;
-      setFundCategoryIfAvailable(wish.cat);
-      dom.root.getElementById("form-fund")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      ui.toast.show("已把待購項目帶入大額準備表單，請確認後再新增。");
     },
 
     presetRet(returnRate, inflationRate) {

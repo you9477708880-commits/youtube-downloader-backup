@@ -5,7 +5,7 @@ import { calculateBudgetData } from "../src/domain/budget.js";
 import { getUnusedCategoryBudgetNames } from "../src/domain/category-budgets.js";
 import { calculateMonthlyReviewData } from "../src/domain/monthly-review.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
-import { createActions } from "../src/app/actions.js";
+import { createSinkingFundController } from "../src/app/controllers/sinking-fund-controller.js";
 import { createWishlistController } from "../src/app/controllers/wishlist-controller.js";
 import {
   getFundSavedAmountAsOf,
@@ -899,21 +899,30 @@ function testWishCanPrefillFundFormWithoutMutatingState() {
     getState: () => actionState,
     update: (updater) => updater(actionState),
   };
-  const actions = createActions({
-    dom,
-    store,
-    renderAll: () => {
-      renderAllCount += 1;
+  const controller = createSinkingFundController({
+    elements: {
+      root: dom.root,
+      name: dom.fundName,
+      category: dom.fundCategory,
+      target: dom.fundTarget,
+      monthly: dom.fundMonthly,
+      start: dom.fundStart,
+      targetMonth: dom.fundTargetMonth,
+      note: dom.fundNote,
+      carry: dom.fundCarry,
     },
+    store,
+    toast: ui.toast,
+    setEditMode: ui.setFundEditMode,
+    navigate: () => { renderAllCount += 1; },
+    populateFundOptions: ui.populateFundOptions,
     renderWishlist: () => {},
-    ui,
-    constants: {},
     saveState: () => {
       saved = true;
     },
   });
 
-  actions.prepareFundFromWish("wish-camera");
+  controller.prepareFundFromWish("wish-camera");
 
   assert.equal(dom.fundName.value, "Camera");
   assert.equal(dom.fundTarget.value, 18000);
