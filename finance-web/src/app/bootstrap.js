@@ -30,6 +30,7 @@ import { renderWishlist } from "../views/wishlist-view.js";
 import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
+import { createCommitState, createScopedLocalPersist } from "./state-commit.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
 import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
 import { createTransactionController } from "./controllers/transaction-controller.js";
@@ -582,13 +583,24 @@ export async function bootstrapFinanceApp(doc = document) {
     },
   };
 
-  const saveState = () => {
-    if (localScope) saveLocalState(store.getState(), localScope);
+  const persistCommittedLocalState = createScopedLocalPersist({
+    getScope: () => localScope,
+    setScope: (scope) => { localScope = scope; },
+    defaultScope: LOCAL_STORAGE_SCOPE,
+    persist: saveLocalState,
+  });
+
+  const enqueueCloudState = () => {
     if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous || cloudConflictDecision === "cancel") return;
 
     cloudSync.save().catch(() => {
       ui.updateCloudStatus("error");
     });
+  };
+
+  const saveState = () => {
+    persistCommittedLocalState(store.getState());
+    enqueueCloudState();
   };
 
   const renderWishlistOnly = () =>
@@ -607,12 +619,19 @@ export async function bootstrapFinanceApp(doc = document) {
     renderRetirement({ state, utils, dom });
   };
 
+  const commitState = createCommitState({
+    store,
+    normalizeState: normalizeFinanceStateMoney,
+    persistLocal: persistCommittedLocalState,
+    enqueueCloud: enqueueCloudState,
+  });
+
   const context = {
     dom,
     store,
     ui,
     constants: CONSTANTS,
-    saveState,
+    commitState,
     renderAll,
     renderWishlist: renderWishlistOnly,
   };
@@ -667,7 +686,7 @@ export async function bootstrapFinanceApp(doc = document) {
     store,
     toast,
     setEditMode: (value) => ui.setBalanceSheetEditMode(value),
-    saveState,
+    commitState,
     renderAll,
     navigate: (tabId) => baseActions.switchTab(tabId),
     confirmDelete: (message) => window.confirm(message),
@@ -682,7 +701,7 @@ export async function bootstrapFinanceApp(doc = document) {
     store,
     toast,
     setEditMode: (value) => ui.setWishEditMode(value),
-    saveState,
+    commitState,
     renderWishlist: renderWishlistOnly,
     navigate: (tabId) => baseActions.switchTab(tabId),
     constants: CONSTANTS,
@@ -703,7 +722,7 @@ export async function bootstrapFinanceApp(doc = document) {
     store,
     toast,
     setEditMode: (value) => ui.setFundEditMode(value),
-    saveState,
+    commitState,
     renderWishlist: renderWishlistOnly,
     navigate: (tabId) => baseActions.switchTab(tabId),
     populateFundOptions: () => ui.populateFundOptions(),
@@ -728,7 +747,7 @@ export async function bootstrapFinanceApp(doc = document) {
     store,
     toast,
     setEditMode: (value) => ui.setTransactionEditMode(value),
-    saveState,
+    commitState,
     renderAll,
     navigate: (tabId) => baseActions.switchTab(tabId),
     syncTxType: () => ui.syncTxType(),
@@ -926,19 +945,19 @@ export async function bootstrapFinanceApp(doc = document) {
     });
 
   dom.budgetCapInput.addEventListener("change", () => {
-    store.update((state) => {
+    commitState((state) => {
       state.settings.budgetCap = toMoneyInt(dom.budgetCapInput.value);
-    });
-    saveState();
-    renderWishlistOnly();
+    }, { updateUi: renderWishlistOnly });
   });
   dom.retireLinked.addEventListener("change", () => {
-    store.update((state) => {
+    commitState((state) => {
       state.settings.retLinked = dom.retireLinked.checked;
+    }, {
+      updateUi: () => {
+        ui.toggleRetLinkUI();
+        renderAll();
+      },
     });
-    saveState();
-    ui.toggleRetLinkUI();
-    renderAll();
   });
 
   dom.authButton.addEventListener("click", async () => {

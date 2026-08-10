@@ -32,6 +32,7 @@ function createHarness() {
     txs: [{ id: "tx-1", type: "expense", amount: 100, acc: "cash" }],
   });
   const calls = {
+    commit: 0,
     save: 0,
     render: 0,
     navigate: [],
@@ -73,7 +74,12 @@ function createHarness() {
     store,
     toast: ui.toast,
     setEditMode: ui.setBalanceSheetEditMode,
-    saveState: () => { calls.save += 1; },
+    commitState: (mutator, { updateUi }) => {
+      calls.commit += 1;
+      calls.save += 1;
+      store.update(mutator);
+      updateUi(store.getState());
+    },
     renderAll: () => { calls.render += 1; },
     navigate: (tabId) => calls.navigate.push(tabId),
     confirmDelete: () => calls.confirm,
@@ -110,6 +116,7 @@ test("adds accounts and manual balance-sheet items with one save and render each
     { name: "車貸", amount: 9000, cat: "liability", isEm: false },
   );
   assert.equal(calls.save, 2);
+  assert.equal(calls.commit, 2);
   assert.equal(calls.render, 2);
 });
 
@@ -176,6 +183,7 @@ test("validation failure and cancelled deletion leave state unchanged", () => {
   controller.addBs();
   assert.deepEqual(store.getState(), original);
   assert.equal(calls.save, 0);
+  assert.equal(calls.commit, 0);
   assert.equal(calls.render, 0);
   assert.equal(calls.toasts.at(-1)[1], "error");
 

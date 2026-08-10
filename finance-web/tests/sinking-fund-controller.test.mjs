@@ -34,6 +34,7 @@ function createHarness(t) {
     accounts: [{ id: "cash", name: "現金", type: "asset", initialBalance: 0 }],
   });
   const calls = {
+    commit: 0,
     save: 0,
     renderWishlist: 0,
     renderAll: 0,
@@ -98,7 +99,12 @@ function createHarness(t) {
     store,
     toast: ui.toast,
     setEditMode: ui.setFundEditMode,
-    saveState: () => { calls.save += 1; },
+    commitState: (mutator, { updateUi }) => {
+      calls.commit += 1;
+      calls.save += 1;
+      store.update(mutator);
+      updateUi(store.getState());
+    },
     renderWishlist: () => { calls.renderWishlist += 1; },
     navigate: (tabId) => {
       ui.setActiveTab(tabId);
@@ -158,6 +164,7 @@ test("adds a fund with empty events and saves and renders once", (t) => {
     },
   );
   assert.equal(calls.save, 1);
+  assert.equal(calls.commit, 1);
   assert.equal(calls.populateFunds, 1);
   assert.equal(calls.renderWishlist, 1);
 });
@@ -195,6 +202,7 @@ test("invalid form values and a missing edit target leave state unchanged", (t) 
 
   assert.deepEqual(store.getState(), original);
   assert.equal(calls.save, 0);
+  assert.equal(calls.commit, 0);
   assert.equal(calls.populateFunds, 0);
   assert.equal(calls.renderWishlist, 0);
   assert.equal(calls.toasts[0][1], "error");

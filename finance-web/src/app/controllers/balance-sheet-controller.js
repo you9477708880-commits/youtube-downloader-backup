@@ -10,7 +10,7 @@ export function createBalanceSheetController({
   store,
   toast,
   setEditMode,
-  saveState,
+  commitState,
   renderAll,
   navigate,
   confirmDelete = (message) => globalThis.window.confirm(message),
@@ -47,7 +47,8 @@ export function createBalanceSheetController({
       return;
     }
 
-    store.update((draft) => {
+    const wasEditing = !!editingBsId;
+    commitState((draft) => {
       if (editingBsId) {
         if (editingBsIsAccount) {
           const account = draft.accounts.find((item) => String(item.id) === String(editingBsId));
@@ -80,12 +81,12 @@ export function createBalanceSheetController({
           isEm: emergency.checked,
         });
       }
+    }, {
+      updateUi: () => {
+        reset();
+        renderAll();
+      },
     });
-
-    const wasEditing = !!editingBsId;
-    reset();
-    saveState();
-    renderAll();
     toast.show(wasEditing ? "已儲存資產負債修改" : "已新增資產 / 負債項目");
   };
 
@@ -123,23 +124,23 @@ export function createBalanceSheetController({
       editingBsId &&
       editingBsIsAccount === Boolean(isAccount) &&
       String(editingBsId) === String(id);
-    store.update((draft) => {
+    commitState((draft) => {
       if (isAccount) draft.accounts = draft.accounts.filter((account) => String(account.id) !== String(id));
       else draft.bsI = draft.bsI.filter((item) => String(item.id) !== String(id));
+    }, {
+      updateUi: () => {
+        if (deletesCurrentEdit) reset();
+        renderAll();
+      },
     });
-    if (deletesCurrentEdit) reset();
-    saveState();
-    renderAll();
   };
 
   const toggleEm = (id, isAccount) => {
-    store.update((draft) => {
+    commitState((draft) => {
       const list = isAccount ? draft.accounts : draft.bsI;
       const item = list.find((entry) => String(entry.id) === String(id));
       if (item) item.isEm = !item.isEm;
-    });
-    saveState();
-    renderAll();
+    }, { updateUi: renderAll });
   };
 
   return {

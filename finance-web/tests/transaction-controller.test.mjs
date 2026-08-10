@@ -24,6 +24,7 @@ function createState(overrides = {}) {
 function createHarness(t, stateOverrides = {}) {
   const store = createStore(createState(stateOverrides));
   const calls = {
+    commit: 0,
     save: 0,
     renderAll: 0,
     activeTabs: [],
@@ -120,7 +121,12 @@ function createHarness(t, stateOverrides = {}) {
     store,
     toast: ui.toast,
     setEditMode: ui.setTransactionEditMode,
-    saveState: () => { calls.save += 1; },
+    commitState: (mutator, { updateUi }) => {
+      calls.commit += 1;
+      calls.save += 1;
+      store.update(mutator);
+      updateUi(store.getState());
+    },
     renderAll: () => { calls.renderAll += 1; },
     navigate: (tabId) => {
       calls.activeTabs.push(tabId);
@@ -260,6 +266,7 @@ test("invalid amounts and same-account transfers leave state unchanged", async (
 
   assert.deepEqual(store.getState().txs, original.txs);
   assert.equal(calls.save, 0);
+  assert.equal(calls.commit, 0);
   assert.equal(calls.renderAll, 0);
   assert.deepEqual(calls.toasts.map((entry) => entry[1]), ["error", "error"]);
 });
@@ -472,6 +479,7 @@ test("deleting linked transactions removes fund events and deleting an advance c
   assert.deepEqual(store.getState().txs.map((tx) => tx.id), ["unrelated"]);
   assert.deepEqual(store.getState().sinkingFunds[0].events.map((event) => event.id), ["kept"]);
   assert.equal(calls.save, 1);
+  assert.equal(calls.commit, 1);
   assert.equal(calls.renderAll, 1);
 });
 

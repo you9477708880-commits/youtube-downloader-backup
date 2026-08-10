@@ -37,7 +37,7 @@ export function createTransactionController({
   store,
   toast,
   setEditMode,
-  saveState,
+  commitState,
   renderAll,
   navigate,
   syncTxType,
@@ -114,14 +114,16 @@ export function createTransactionController({
       return;
     }
 
-    store.update((draft) => {
+    commitState((draft) => {
       draft.userCats[draft.txType].push(cleanName);
+    }, {
+      updateUi: () => {
+        renderTransactionCategorySelect({ resetSubcategory: true });
+        populateCategoryBudgetOptions();
+        category.value = cleanName;
+        populateTransactionSubcategoryOptions({ reset: true });
+      },
     });
-    saveState();
-    renderTransactionCategorySelect({ resetSubcategory: true });
-    populateCategoryBudgetOptions();
-    category.value = cleanName;
-    populateTransactionSubcategoryOptions({ reset: true });
     toast.show(`已新增分類：${cleanName}`);
   };
 
@@ -221,7 +223,7 @@ export function createTransactionController({
       }
     }
 
-    store.update((draft) => {
+    commitState((draft) => {
       if (editingTx) {
         draft.txs = draft.txs.map((item) => (sameId(item.id, editingTx.id) ? tx : item));
         draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, editingTx.id);
@@ -253,12 +255,12 @@ export function createTransactionController({
           });
         }
       }
+    }, {
+      updateUi: () => {
+        reset();
+        renderAll();
+      },
     });
-
-    reset();
-
-    saveState();
-    renderAll();
     if (editingTx && !effectiveLinkedFundId && editingOriginalLinkedFundId) {
       toast.show("已更新交易，原本的大額準備指定已移除");
     } else if (editingTx && effectiveLinkedFundId && topupAmount > 0) {
@@ -346,13 +348,11 @@ export function createTransactionController({
 
   const delTx = (id) => {
     if (!confirmDelete("確定要刪除這筆交易嗎？")) return;
-    store.update((draft) => {
+    commitState((draft) => {
       const target = draft.txs.find((tx) => sameId(tx.id, id));
       draft.txs = draft.txs.filter((tx) => !sameId(tx.id, id) && !(target?.type === "advance" && tx.type === "advance_repayment" && sameId(tx.advanceId, id)));
       draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, id);
-    });
-    saveState();
-    renderAll();
+    }, { updateUi: renderAll });
     toast.show("已刪除交易");
   };
 
@@ -389,11 +389,9 @@ export function createTransactionController({
       person: advance.person,
     });
 
-    store.update((draft) => {
+    commitState((draft) => {
       draft.txs.unshift(repayment);
-    });
-    saveState();
-    renderAll();
+    }, { updateUi: renderAll });
     toast.show("已登記收款");
   };
 
@@ -437,15 +435,13 @@ export function createTransactionController({
       return;
     }
 
-    store.update((draft) => {
+    commitState((draft) => {
       const target = draft.txs.find((tx) => sameId(tx.id, id));
       if (!target) return;
       target.amount = repaymentAmount;
       target.date = rawDate;
       target.acc = repaymentAccount.id;
-    });
-    saveState();
-    renderAll();
+    }, { updateUi: renderAll });
     toast.show("已更新代墊收款");
   };
 

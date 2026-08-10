@@ -38,12 +38,14 @@ export function createActions(context) {
         return;
       }
 
-      store.update((draft) => {
+      context.commitState((draft) => {
         draft.userCats.expense.push(cleanName);
+      }, {
+        updateUi: () => {
+          ui.populateCategoryBudgetOptions();
+          dom.fundCategory.value = cleanName;
+        },
       });
-      context.saveState();
-      ui.populateCategoryBudgetOptions();
-      dom.fundCategory.value = cleanName;
       ui.toast.show(`已新增分類：${cleanName}`);
     },
 
@@ -54,20 +56,16 @@ export function createActions(context) {
         return;
       }
 
-      store.update((draft) => {
+      context.commitState((draft) => {
         draft.settings.catBudgets[dom.catBudgetCategory.value] = amount;
-      });
-      context.saveState();
-      renderWishlist();
+      }, { updateUi: renderWishlist });
       ui.toast.show("已設定分類預算");
     },
 
     delCatBudget(category) {
-      store.update((draft) => {
+      context.commitState((draft) => {
         delete draft.settings.catBudgets[category];
-      });
-      context.saveState();
-      renderWishlist();
+      }, { updateUi: renderWishlist });
     },
 
     presetRet(returnRate, inflationRate) {

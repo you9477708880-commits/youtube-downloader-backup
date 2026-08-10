@@ -23,6 +23,7 @@ function createHarness() {
     },
   });
   const calls = {
+    commit: 0,
     save: 0,
     render: 0,
     navigate: [],
@@ -52,7 +53,12 @@ function createHarness() {
     toast: { show: (...args) => calls.toasts.push(args) },
     setEditMode: (value) => calls.editModes.push(value),
     renderWishlist: () => { calls.render += 1; },
-    saveState: () => { calls.save += 1; },
+    commitState: (mutator, { updateUi }) => {
+      calls.commit += 1;
+      calls.save += 1;
+      store.update(mutator);
+      updateUi(store.getState());
+    },
     navigate: (tabId) => calls.navigate.push(tabId),
     constants: { expenseCategories: ["固定分類"] },
     confirmCleanup: () => calls.confirm,
@@ -75,6 +81,7 @@ test("adds and edits wishes while saving and rendering once", () => {
     { name: "新手機", price: 12000, cat: "3C / 家電" },
   );
   assert.equal(calls.save, 1);
+  assert.equal(calls.commit, 1);
   assert.equal(calls.render, 1);
 
   controller.beginEditWish("901");
@@ -99,6 +106,7 @@ test("validation failure and missing edit target leave state unchanged", () => {
 
   assert.deepEqual(store.getState(), original);
   assert.equal(calls.save, 0);
+  assert.equal(calls.commit, 0);
   assert.equal(calls.render, 0);
   assert.equal(calls.toasts[0][1], "error");
   assert.equal(calls.toasts[1][1], "error");

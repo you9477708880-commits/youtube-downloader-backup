@@ -11,7 +11,7 @@ export function createWishlistController({
   store,
   toast,
   setEditMode,
-  saveState,
+  commitState,
   renderWishlist,
   navigate,
   constants = {},
@@ -35,7 +35,8 @@ export function createWishlistController({
       return;
     }
 
-    store.update((draft) => {
+    const wasEditing = editingWishId !== null;
+    commitState((draft) => {
       if (editingWishId !== null) {
         const wish = draft.wishes.find((item) => String(item.id) === String(editingWishId));
         if (!wish) return;
@@ -50,12 +51,12 @@ export function createWishlistController({
           cat: category.value,
         });
       }
+    }, {
+      updateUi: () => {
+        reset();
+        renderWishlist();
+      },
     });
-
-    const wasEditing = editingWishId !== null;
-    reset();
-    saveState();
-    renderWishlist();
     toast.show(wasEditing ? "已儲存待購項目修改" : "已加入待購清單");
   };
 
@@ -83,12 +84,14 @@ export function createWishlistController({
   const delWish = (id) => {
     if (!store.getState().wishes.some((wish) => String(wish.id) === String(id))) return;
     const deletesCurrentEdit = editingWishId !== null && String(editingWishId) === String(id);
-    store.update((draft) => {
+    commitState((draft) => {
       draft.wishes = draft.wishes.filter((wish) => String(wish.id) !== String(id));
+    }, {
+      updateUi: () => {
+        if (deletesCurrentEdit) reset();
+        renderWishlist();
+      },
     });
-    if (deletesCurrentEdit) reset();
-    saveState();
-    renderWishlist();
   };
 
   const mvWish = (id, direction) => {
@@ -97,16 +100,14 @@ export function createWishlistController({
     const currentIndex = currentWishes.findIndex((wish) => String(wish.id) === String(id));
     const requestedIndex = currentIndex + direction;
     if (currentIndex < 0 || requestedIndex < 0 || requestedIndex >= currentWishes.length) return;
-    store.update((draft) => {
+    commitState((draft) => {
       const index = draft.wishes.findIndex((wish) => String(wish.id) === String(id));
       if (index < 0) return;
       const nextIndex = index + direction;
       if (nextIndex < 0 || nextIndex >= draft.wishes.length) return;
       const [wish] = draft.wishes.splice(index, 1);
       draft.wishes.splice(nextIndex, 0, wish);
-    });
-    saveState();
-    renderWishlist();
+    }, { updateUi: renderWishlist });
   };
 
   const cleanupCatBudgets = () => {
@@ -119,13 +120,11 @@ export function createWishlistController({
     const message = `將移除 ${unusedCategories.length} 個未使用分類預算：\n${unusedCategories.join("、")}\n\n確定要清理嗎？`;
     if (!confirmCleanup(message)) return;
 
-    store.update((draft) => {
+    commitState((draft) => {
       unusedCategories.forEach((categoryName) => {
         delete draft.settings.catBudgets[categoryName];
       });
-    });
-    saveState();
-    renderWishlist();
+    }, { updateUi: renderWishlist });
     toast.show(`已清理 ${unusedCategories.length} 個未使用分類預算`);
   };
 

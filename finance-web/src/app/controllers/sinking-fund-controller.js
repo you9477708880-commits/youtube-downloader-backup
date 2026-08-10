@@ -30,7 +30,7 @@ export function createSinkingFundController({
   store,
   toast,
   setEditMode,
-  saveState,
+  commitState,
   renderWishlist,
   navigate,
   populateFundOptions,
@@ -127,7 +127,8 @@ export function createSinkingFundController({
     const values = readFormValues();
     if (!validateForm(values, editingFundId ? "儲存這個設定" : "先建立這個準備項目")) return;
 
-    store.update((draft) => {
+    const wasEditing = !!editingFundId;
+    commitState((draft) => {
       if (editingFundId) {
         const fund = draft.sinkingFunds.find((item) => item.id === editingFundId);
         if (!fund) return;
@@ -139,13 +140,13 @@ export function createSinkingFundController({
           events: [],
         });
       }
+    }, {
+      updateUi: () => {
+        reset();
+        populateFundOptions();
+        renderWishlist();
+      },
     });
-
-    const wasEditing = !!editingFundId;
-    reset();
-    saveState();
-    populateFundOptions();
-    renderWishlist();
     toast.show(wasEditing ? "已更新大額支出準備" : "已新增大額支出準備");
   };
 
@@ -180,15 +181,17 @@ export function createSinkingFundController({
     if (!fund) return;
     if (!confirmAction(`確定要刪除「${fund.name}」嗎？`)) return;
 
-    store.update((draft) => {
+    commitState((draft) => {
       draft.sinkingFunds = draft.sinkingFunds.filter((item) => item.id !== id);
       draft.txs.forEach((tx) => {
         if (tx.linkedFundId === id) delete tx.linkedFundId;
       });
+    }, {
+      updateUi: () => {
+        populateFundOptions();
+        renderWishlist();
+      },
     });
-    saveState();
-    populateFundOptions();
-    renderWishlist();
     toast.show("已刪除大額支出準備");
   };
 
@@ -219,7 +222,7 @@ export function createSinkingFundController({
 
     const topupNote = promptInput("這次補入要加備註嗎？可留空", "手動補入") ?? "";
 
-    store.update((draft) => {
+    commitState((draft) => {
       const targetFund = draft.sinkingFunds.find((item) => item.id === id);
       if (!targetFund) return;
       if (!Array.isArray(targetFund.events)) targetFund.events = [];
@@ -230,10 +233,7 @@ export function createSinkingFundController({
         date: topupDate,
         note: topupNote.trim(),
       });
-    });
-
-    saveState();
-    renderWishlist();
+    }, { updateUi: renderWishlist });
     toast.show("已補入準備項目");
   };
 

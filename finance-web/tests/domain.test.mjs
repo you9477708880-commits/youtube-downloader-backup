@@ -844,8 +844,10 @@ function testWishActionsAcceptRenderedStringIds() {
     renderWishlist: () => {
       renderCount += 1;
     },
-    saveState: () => {
+    commitState: (mutator, { updateUi }) => {
+      store.update(mutator);
       saved = true;
+      updateUi(actionState);
     },
     navigate: ui.setActiveTab,
   });
@@ -917,7 +919,7 @@ function testWishCanPrefillFundFormWithoutMutatingState() {
     navigate: () => { renderAllCount += 1; },
     populateFundOptions: ui.populateFundOptions,
     renderWishlist: () => {},
-    saveState: () => {
+    commitState: () => {
       saved = true;
     },
   });
