@@ -32,6 +32,16 @@ function copyRequired(sourceRelativePath) {
   fs.cpSync(source, destination, { recursive: true, filter: shouldCopy });
 }
 
+function enforceExcludedOutputs() {
+  excludedRelativePaths.forEach((relativePath) => {
+    const destination = path.join(outputRoot, ...relativePath.split("/"));
+    fs.rmSync(destination, { recursive: true, force: true });
+    if (fs.existsSync(destination)) {
+      throw new Error(`Forbidden Hosting output remains: ${relativePath}`);
+    }
+  });
+}
+
 function prepareHostingDirectory() {
   assertSafeOutputPath();
   fs.rmSync(outputRoot, { recursive: true, force: true });
@@ -39,6 +49,7 @@ function prepareHostingDirectory() {
 
   rootFiles.forEach(copyRequired);
   publicDirectories.forEach(copyRequired);
+  enforceExcludedOutputs();
 
   console.log(`Prepared Firebase Hosting files in ${outputRoot}`);
 }
