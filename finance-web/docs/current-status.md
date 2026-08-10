@@ -1,6 +1,6 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-08-01
+- 最後更新：2026-08-10
 - 目前分支：`main`
 - 遠端 `origin/main`：`6a994bd 整理核心頁面桌機工作區`
 - 正式站已知部署點：`6a994bd`
@@ -14,8 +14,9 @@
 `origin/main` 之後已形成一個完整但尚未發布的批次，包含產品功能、資料安全、同步
 架構、測試基礎、第一個 controller 拆分與發布前穩定修正。
 
-目前程式已通過完整 `npm test`，但尚未 push，也尚未部署新版 Hosting 或 Firestore
-rules。因此「本機已完成」不等於「正式網站已生效」。
+目前程式已通過完整 `npm test`，並於 2026-08-10 完成四項人工驗收。發布前穩定
+批次已完成，但尚未 push，也尚未部署新版 Hosting 或 Firestore rules。因此「本機
+驗收通過」仍不等於「正式網站已生效」。
 
 ## 已在本機完成
 
@@ -39,7 +40,7 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 - 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 12 個 UI
   smoke scenarios。
 - GitHub Actions 已使用 Node 20、Temurin 21 與 `demo-finance-web`。
-- 資產負債 controller 第一批已完成，並有 8 項 characterization tests。
+- 資產負債 controller 第一批已完成，並有 10 項 characterization tests。
 - `actions.js` 不再持有資產負債編輯狀態；完整 state replacement 前會 reset
   controller，避免 UID 或遠端資料切換後沿用舊 editing ID。
 
@@ -53,6 +54,13 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 - Firestore／Functions Emulator：10/10 通過。
 - UI smoke scenarios：12/12 通過。
 - `git diff --check`：通過。
+
+2026-08-10 使用者人工驗收：
+
+- 月度回顧：通過。
+- 待購預填：通過。
+- 資產負債：通過。
+- 手機與電腦畫面：通過。
 
 ## 尚未完成或尚未發布
 
@@ -75,17 +83,13 @@ rules。因此「本機已完成」不等於「正式網站已生效」。
 
 ## 建議下一步
 
-### 1. 完成發布前穩定批次
+### 1. 決定是否發布目前安全點
 
-自動化部分已完成：
+發布前穩定安全點為 `c7b615a 完成發布前穩定檢查`。自動測試、累積差異檢查與
+人工驗收都已通過。
 
-- 已補數字型 account ID、刪除正在編輯項目及 state replacement reset 測試。
-- 已修正前兩個 balance-sheet 邊界。
-- 人工驗收步驟見 `docs/manual-acceptance-checklist.md`。
-
-完整 `npm test` 與 `origin/main..main` 差異檢查通過後，只剩使用者人工驗收。人工
-驗收通過後即可建立發布安全點，再分別決定是否 push、部署 Firestore rules 與部署
-Hosting。Functions 仍保持不部署。
+下一步由使用者分別授權是否 push、部署 Firestore rules 與部署 Hosting；執行時依
+`docs/deploy-checklist.md` 再做一次發布當下檢查。Functions 仍保持不部署。
 
 ### 2. 發布安全點後再拆待購清單 controller
 

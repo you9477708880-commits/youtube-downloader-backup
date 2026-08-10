@@ -192,7 +192,7 @@ The following item is complete locally, but is not yet pushed or deployed:
 
 1. **完成發布前穩定批次**
    - numeric legacy ID、stale edit 與 state replacement reset 的自動測試與修正已完成。
-   - 剩餘人工驗收依 `docs/manual-acceptance-checklist.md` 執行。
+   - 2026-08-10 已依 `docs/manual-acceptance-checklist.md` 完成四項人工驗收並全數通過。
 
 2. **再決定 push 與分階段部署**
    - `main` 目前包含尚未發布的資料安全、同步、測試與產品功能。
@@ -210,7 +210,8 @@ The immediate work order and current commit status are maintained in
 1. **Complete the pre-release stabilization batch**
    - Automated coverage and fixes for numeric legacy IDs, stale edit state, and state
      replacement reset are complete.
-   - The remaining manual review follows `docs/manual-acceptance-checklist.md`.
+   - All four manual acceptance checks in `docs/manual-acceptance-checklist.md` passed
+     on 2026-08-10.
 
 2. **Then decide on push and staged deployment**
    - The local mainline contains unreleased security, sync, test, and product changes.
