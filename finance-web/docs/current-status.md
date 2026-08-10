@@ -40,6 +40,10 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 資產負債 controller 第一批已完成，並有 10 項 characterization tests。
 - `actions.js` 不再持有資產負債編輯狀態；完整 state replacement 前會 reset
   controller，避免 UID 或遠端資料切換後沿用舊 editing ID。
+- 待購清單 controller 已完成 wish CRUD、排序、分類預算清理與編輯狀態抽取，並有
+  10 項 characterization tests；`prepareFundFromWish` 仍留在 actions bridge。
+- GitHub Actions workflow 已將 `actions/setup-java` 從 v4 升級到 v5；需等下次 push
+  後由 GitHub runner 確認棄用警告消失。
 
 ## 最近驗證結果
 
@@ -67,8 +71,6 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
   在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
 - Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
-- GitHub Actions 已提示 `actions/setup-java@v4` 應升級到 v5；這是後續 CI 維護項目，
-  不影響本次發布結果。
 
 ## 已知的小型維護缺口
 
@@ -82,18 +84,17 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ## 建議下一步
 
-### 1. 拆分待購清單 controller
+### 1. 準備金 controller
 
-- 先鎖定 wish CRUD、排序、刪除不存在 ID 與越界排序的既有行為。
-- `prepareFundFromWish` 暫時保留為 bootstrap／actions bridge。
-- 不讓 wishlist controller 直接操作 fund controller 或 fund DOM。
+- 先鎖定 fund CRUD、topup、表單狀態與 wishlist prefill 的既有行為。
+- 編輯必須保留既有 events；刪除 fund 與解除交易 link 必須維持同一次 state update。
+- monthly contribution 仍是預算規劃，不得改成帳戶轉帳。
 
 ### 2. 後續順序
 
-在 wishlist controller 穩定後，依序考慮：
+在 sinking-fund controller 穩定後，依序考慮：
 
-1. 準備金 controller。
-2. 交易 controller。
-3. 匯入 controller。
+1. 交易 controller。
+2. 匯入 controller。
 
 交易與匯入風險最高，不應和部署、同步協定或帳務公式修改放在同一批。

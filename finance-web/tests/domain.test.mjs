@@ -6,6 +6,7 @@ import { getUnusedCategoryBudgetNames } from "../src/domain/category-budgets.js"
 import { calculateMonthlyReviewData } from "../src/domain/monthly-review.js";
 import { calculateRetirementProjection } from "../src/domain/retirement.js";
 import { createActions } from "../src/app/actions.js";
+import { createWishlistController } from "../src/app/controllers/wishlist-controller.js";
 import {
   getFundSavedAmountAsOf,
   getFundTargetPlanStatus,
@@ -830,30 +831,35 @@ function testWishActionsAcceptRenderedStringIds() {
     getState: () => actionState,
     update: (updater) => updater(actionState),
   };
-  const actions = createActions({
-    dom,
+  const controller = createWishlistController({
+    elements: {
+      root: dom.root,
+      name: dom.wishName,
+      price: dom.wishPrice,
+      category: dom.wishCategory,
+    },
     store,
-    renderAll: () => {},
+    toast: ui.toast,
+    setEditMode: ui.setWishEditMode,
     renderWishlist: () => {
       renderCount += 1;
     },
-    ui,
-    constants: {},
     saveState: () => {
       saved = true;
     },
+    navigate: ui.setActiveTab,
   });
 
-  actions.mvWish("wish-omega", -1);
+  controller.mvWish("wish-omega", -1);
   assert.deepEqual(actionState.wishes.map((wish) => wish.id), ["wish-alpha", "wish-omega", 901]);
 
-  actions.mvWish("901", -1);
+  controller.mvWish("901", -1);
   assert.deepEqual(actionState.wishes.map((wish) => wish.id), ["wish-alpha", 901, "wish-omega"]);
 
-  actions.beginEditWish("wish-alpha");
+  controller.beginEditWish("wish-alpha");
   assert.equal(dom.wishName.value, "A");
 
-  actions.delWish("wish-alpha");
+  controller.delWish("wish-alpha");
   assert.deepEqual(actionState.wishes.map((wish) => wish.id), [901, "wish-omega"]);
   assert.equal(saved, true);
   assert.equal(renderCount, 3);

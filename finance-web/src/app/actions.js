@@ -8,7 +8,6 @@ import {
   getOpenAdvances,
 } from "../domain/transactions.js";
 import { getFundAvailableBeforeExpense, getFundTargetPlanStatus, withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
-import { getUnusedCategoryBudgetNames } from "../domain/category-budgets.js";
 import { DEFAULT_SUBCATEGORY } from "../config/constants.js";
 import { localDateStr, toMoneyInt } from "../utils/format.js";
 
@@ -44,7 +43,6 @@ export function createActions(context) {
   let editingTxId = null;
   let editingOriginalLinkedFundId = "";
   let editingFundId = "";
-  let editingWishId = null;
 
   const sameId = (left, right) => String(left) === String(right);
 
@@ -98,13 +96,6 @@ export function createActions(context) {
     carryoverEnabled: !!dom.fundCarry.checked,
     note: dom.fundNote.value.trim(),
   });
-
-  const resetWishForm = () => {
-    editingWishId = null;
-    dom.wishName.value = "";
-    dom.wishPrice.value = "";
-    ui.setWishEditMode({ active: false });
-  };
 
   const validateFundForm = (values, submitLabel) => {
     if (!values.name) {
@@ -702,71 +693,6 @@ export function createActions(context) {
       renderWishlist();
     },
 
-    cleanupCatBudgets() {
-      const unusedCategories = getUnusedCategoryBudgetNames(store.getState(), constants);
-      if (!unusedCategories.length) {
-        ui.toast.show("目前沒有需要清理的分類預算");
-        return;
-      }
-
-      const shouldDelete = window.confirm(`將移除 ${unusedCategories.length} 個未使用分類預算：\n${unusedCategories.join("、")}\n\n確定要清理嗎？`);
-      if (!shouldDelete) return;
-
-      store.update((draft) => {
-        unusedCategories.forEach((category) => {
-          delete draft.settings.catBudgets[category];
-        });
-      });
-      context.saveState();
-      renderWishlist();
-      ui.toast.show(`已清理 ${unusedCategories.length} 個未使用分類預算`);
-    },
-
-    addWish() {
-      const price = toMoneyInt(dom.wishPrice.value);
-      if (price <= 0) {
-        ui.toast.show("金額必須大於 0", "error");
-        return;
-      }
-
-      store.update((draft) => {
-        if (editingWishId !== null) {
-          const wish = draft.wishes.find((item) => String(item.id) === String(editingWishId));
-          if (!wish) return;
-          wish.name = dom.wishName.value.trim();
-          wish.price = price;
-          wish.cat = dom.wishCategory.value;
-        } else {
-          draft.wishes.push({
-            id: createClientId("wish"),
-            name: dom.wishName.value.trim(),
-            price,
-            cat: dom.wishCategory.value,
-          });
-        }
-      });
-      const wasEditing = editingWishId !== null;
-      resetWishForm();
-      context.saveState();
-      renderWishlist();
-      ui.toast.show(wasEditing ? "已儲存待購項目修改" : "已加入待購清單");
-    },
-
-    beginEditWish(id) {
-      const wish = store.getState().wishes.find((item) => String(item.id) === String(id));
-      if (!wish) {
-        ui.toast.show("找不到要編輯的待購項目", "error");
-        return;
-      }
-      editingWishId = id;
-      this.switchTab("wl");
-      ui.setWishEditMode({ active: true });
-      dom.wishName.value = wish.name || "";
-      dom.wishPrice.value = wish.price ?? "";
-      dom.wishCategory.value = wish.cat || "";
-      dom.root.getElementById("form-wish")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-
     prepareFundFromWish(id) {
       const wish = store.getState().wishes.find((item) => String(item.id) === String(id));
       if (!wish) {
@@ -787,32 +713,6 @@ export function createActions(context) {
       setFundCategoryIfAvailable(wish.cat);
       dom.root.getElementById("form-fund")?.scrollIntoView({ behavior: "smooth", block: "start" });
       ui.toast.show("已把待購項目帶入大額準備表單，請確認後再新增。");
-    },
-
-    cancelEditWish() {
-      resetWishForm();
-      ui.toast.show("已取消編輯");
-    },
-
-    delWish(id) {
-      store.update((draft) => {
-        draft.wishes = draft.wishes.filter((wish) => String(wish.id) !== String(id));
-      });
-      context.saveState();
-      renderWishlist();
-    },
-
-    mvWish(id, dir) {
-      store.update((draft) => {
-        const index = draft.wishes.findIndex((wish) => String(wish.id) === String(id));
-        if (index < 0) return;
-        const nextIndex = index + dir;
-        if (nextIndex < 0 || nextIndex >= draft.wishes.length) return;
-        const [wish] = draft.wishes.splice(index, 1);
-        draft.wishes.splice(nextIndex, 0, wish);
-      });
-      context.saveState();
-      renderWishlist();
     },
 
     presetRet(returnRate, inflationRate) {

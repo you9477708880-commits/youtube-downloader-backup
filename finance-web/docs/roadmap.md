@@ -191,7 +191,8 @@ The following batch was completed, pushed, and deployed on 2026-08-10:
 立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
 1. **在已發布安全點後繼續 controller 拆分**
-   - 下一個候選是待購清單 controller，仍先補 characterization tests。
+   - 待購清單 controller 與 characterization tests 已完成。
+   - 下一個候選是準備金 controller，仍先補 characterization tests。
    - 在定義防重複計算規則前，不增加 wishlist 與 fund 的正式雙向 linking。
 
 ### English
@@ -200,7 +201,8 @@ The immediate work order and current commit status are maintained in
 `docs/current-status.md`. The current recommendation is:
 
 1. **Resume controller extraction after the deployed release safety point**
-   - Wishlist is the next candidate and should receive characterization tests first.
+   - The wishlist controller and its characterization tests are complete.
+   - The sinking-fund controller is the next candidate and should receive characterization tests first.
    - Do not add formal wishlist/fund bidirectional linking before anti-double-counting
      rules are defined.
 

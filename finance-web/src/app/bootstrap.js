@@ -31,6 +31,7 @@ import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
+import { createWishlistController } from "./controllers/wishlist-controller.js";
 
 function collectDom(doc = document) {
   return {
@@ -669,9 +670,25 @@ export async function bootstrapFinanceApp(doc = document) {
     navigate: (tabId) => baseActions.switchTab(tabId),
     confirmDelete: (message) => window.confirm(message),
   });
+  const wishlistController = createWishlistController({
+    elements: {
+      root: dom.root,
+      name: dom.wishName,
+      price: dom.wishPrice,
+      category: dom.wishCategory,
+    },
+    store,
+    toast,
+    setEditMode: (value) => ui.setWishEditMode(value),
+    saveState,
+    renderWishlist: renderWishlistOnly,
+    navigate: (tabId) => baseActions.switchTab(tabId),
+    constants: CONSTANTS,
+    confirmCleanup: (message) => window.confirm(message),
+  });
   const replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController],
+    controllers: [balanceSheetController, wishlistController],
   });
   const actions = {
     ...baseActions,
@@ -680,6 +697,12 @@ export async function bootstrapFinanceApp(doc = document) {
     cancelEditBs: balanceSheetController.cancelEditBs,
     delBs: balanceSheetController.delBs,
     toggleEm: balanceSheetController.toggleEm,
+    addWish: wishlistController.addWish,
+    beginEditWish: wishlistController.beginEditWish,
+    cancelEditWish: wishlistController.cancelEditWish,
+    delWish: wishlistController.delWish,
+    mvWish: wishlistController.mvWish,
+    cleanupCatBudgets: wishlistController.cleanupCatBudgets,
   };
 
   const exportAndroMoneyCsv = () => {
@@ -941,7 +964,7 @@ export async function bootstrapFinanceApp(doc = document) {
   ui.setTransactionEditMode({ active: false });
   ui.setFundEditMode({ active: false });
   balanceSheetController.reset();
-  ui.setWishEditMode({ active: false });
+  wishlistController.reset();
   ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
   const now = new Date();

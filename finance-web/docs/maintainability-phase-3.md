@@ -14,8 +14,13 @@
   並在刪除目前編輯項目時清除 stale edit state。
 - 完整 state replacement 已集中經過可測試的 lifecycle replacer；未來 controller
   加入組裝時必須提供 `reset()`。
-- 下一批候選為待購清單 controller；應等本批人工驗收及發布安全點完成後，再先補
-  characterization tests。
+- 第二批待購清單 controller 已完成：wish CRUD、排序、分類預算清理與 editing state
+  已移到 `src/app/controllers/wishlist-controller.js`，並有 10 項 characterization tests。
+- 刪除不存在 ID 與越界排序現在是完整 no-op；刪除正在編輯的 wish 會清除 stale edit
+  identity；完整 state replacement 也會 reset wishlist controller。
+- `prepareFundFromWish` 依原規格保留在 `actions.js` bridge，等待 sinking-fund controller
+  批次再透過明確 callback 收進去。
+- 下一批候選為準備金 controller，仍應先補 characterization tests。
 
 目前 `actions.js` 同時持有多組編輯狀態、DOM 操作、驗證、跨集合帳務變更、render 與保存；`bootstrap.js` 同時負責初始化、UI adapter、事件綁定、匯入、local/cloud scope 與完整 state replacement。單純把函式剪到五個檔案、仍傳入完整 `dom/ui/context`，只會縮短檔案，不會真正降低耦合。
 
