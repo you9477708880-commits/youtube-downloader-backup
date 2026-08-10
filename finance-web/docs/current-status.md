@@ -44,6 +44,8 @@ Hosting 均已發布到 `financial-computer`，正式網址為
   10 項 characterization tests；`prepareFundFromWish` 仍留在 actions bridge。
 - GitHub Actions workflow 已將 `actions/setup-java` 從 v4 升級到 v5；需等下次 push
   後由 GitHub runner 確認棄用警告消失。
+- 準備金 controller 抽取前的 characterization tests 已加入，先鎖定 fund CRUD、
+  events 保留、刪除解除交易連結、topup、wishlist prefill 與 open behavior。
 
 ## 最近驗證結果
 
@@ -86,7 +88,8 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 1. 準備金 controller
 
-- 先鎖定 fund CRUD、topup、表單狀態與 wishlist prefill 的既有行為。
+- Characterization tests 已完成；下一步才抽出 fund CRUD、topup、表單狀態與
+  wishlist prefill。
 - 編輯必須保留既有 events；刪除 fund 與解除交易 link 必須維持同一次 state update。
 - monthly contribution 仍是預算規劃，不得改成帳戶轉帳。
 

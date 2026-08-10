@@ -20,7 +20,9 @@
   identity；完整 state replacement 也會 reset wishlist controller。
 - `prepareFundFromWish` 依原規格保留在 `actions.js` bridge，等待 sinking-fund controller
   批次再透過明確 callback 收進去。
-- 下一批候選為準備金 controller，仍應先補 characterization tests。
+- 準備金 controller 抽取前的 characterization tests 已完成，鎖定新增／編輯、events
+  保留、驗證與取消、刪除解除交易 link、topup、wishlist prefill 與 open behavior。
+- 下一步才開始抽出 sinking-fund controller；本批尚未搬動正式行為。
 
 目前 `actions.js` 同時持有多組編輯狀態、DOM 操作、驗證、跨集合帳務變更、render 與保存；`bootstrap.js` 同時負責初始化、UI adapter、事件綁定、匯入、local/cloud scope 與完整 state replacement。單純把函式剪到五個檔案、仍傳入完整 `dom/ui/context`，只會縮短檔案，不會真正降低耦合。
 
