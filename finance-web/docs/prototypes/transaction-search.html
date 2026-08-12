@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>交易搜尋 Prototype</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f4f4f4;color:#222;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}.top{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;background:#fff;border-bottom:1px solid #e6e6e6}.brand{font-weight:700}.tab{color:#00796b;font-weight:700}.wrap{max-width:900px;margin:0 auto;padding:20px}.panel{background:#fff;border:1px solid #e6e6e6;border-radius:14px;padding:18px}.head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}h1{font-size:20px;margin:0}.muted,.count{color:#666;font-size:13px}.controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}input,select,button{min-height:42px;padding:9px 12px;border:1px solid #c8c0b4;border-radius:9px;background:#fff;color:inherit;font:inherit}button{cursor:pointer}.summary{margin-top:14px;padding:12px;border-radius:10px;background:#e8f5ee}.summary strong{color:#1a8b50}.date{margin-top:16px;color:#666;font-size:13px}.row{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px 0;border-top:1px solid #ededed}.icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#fdeaea}.title{font-weight:700}.amount{color:#d32f2f;font-family:ui-monospace,monospace}.hint{margin-top:12px}.empty{padding:30px 0;text-align:center;color:#888}@media(max-width:560px){.wrap{padding:12px}.controls{grid-template-columns:1fr 1fr}.controls input{grid-column:1/-1}.row{grid-template-columns:34px minmax(0,1fr)}.amount{grid-column:2}.top{padding:14px 16px}}
+  </style>
+</head>
+<body>
+  <header class="top"><span class="brand">財務管理 Pro</span><span class="tab">記帳｜搜尋示意</span></header>
+  <main class="wrap">
+    <section class="panel">
+      <div class="head"><h1>搜尋紀錄</h1><span class="count" id="count">2 筆</span></div>
+      <div class="controls">
+        <input id="query" type="search" value="洗牙" aria-label="搜尋備註、分類或帳戶" placeholder="例如：洗牙、汽車 保養">
+        <select id="range" aria-label="搜尋期間">
+          <option value="6m">近 6 個月</option>
+          <option value="1y">近 1 年</option>
+          <option value="all">全部時間</option>
+        </select>
+        <button id="clear" type="button">清除</button>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div id="results"></div>
+      <div class="muted hint">這是記帳紀錄的間隔，不代表醫療或保養建議。</div>
+    </section>
+  </main>
+  <script>
+    const records={
+      dental:[
+        {date:"2026-05-18",category:"醫療 / 牙科",desc:"例行洗牙",account:"信用卡",amount:200,icon:"🦷"},
+        {date:"2025-11-23",category:"醫療 / 牙科",desc:"洗牙與檢查",account:"現金",amount:150,icon:"🦷"}
+      ],
+      car:[
+        {date:"2026-07-02",category:"交通 / 汽車",desc:"定期保養與換機油",account:"信用卡",amount:3200,icon:"🚗"},
+        {date:"2025-12-30",category:"交通 / 汽車",desc:"五千公里保養",account:"信用卡",amount:2800,icon:"🚗"}
+      ]
+    };
+    const query=document.getElementById("query"),range=document.getElementById("range"),count=document.getElementById("count"),summary=document.getElementById("summary"),results=document.getElementById("results");
+    function render(){
+      const text=query.value.trim();
+      if(!text){count.textContent="0 筆";summary.hidden=true;results.innerHTML='<div class="empty">輸入關鍵字後顯示搜尋結果。</div>';return}
+      const source=text.includes("汽車")||text.includes("保養")?records.car:records.dental;
+      const shown=range.value==="6m"&&source===records.car?source.slice(0,1):source;
+      count.textContent=`${shown.length} 筆`;summary.hidden=false;
+      summary.innerHTML=`<strong>最近一次：${shown[0].date}</strong>　${source===records.car?"距今 42 天":"距今 87 天"}${shown.length>1?`<br><span class="muted">最近兩次相隔 ${source===records.car?184:176} 天</span>`:""}`;
+      results.innerHTML=shown.map(item=>`<div class="date">${item.date}</div><div class="row"><div class="icon">${item.icon}</div><div><div class="title">${item.category}</div><div class="muted">${item.desc}・${item.account}</div></div><div class="amount">−NT$ ${item.amount.toLocaleString()}</div></div>`).join("");
+    }
+    query.addEventListener("input",render);range.addEventListener("change",render);document.getElementById("clear").addEventListener("click",()=>{query.value="";render();query.focus()});render();
+  </script>
+</body>
+</html>
