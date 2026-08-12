@@ -387,6 +387,10 @@ async function testScenario(baseUrl, scenario) {
 
         const summary = summarize(result.stdout, url, scenario, browserPath, plan.label);
         const passed = scenario ? summary.smokeStatus === "pass" : Boolean(summary.title);
+        if (scenario && !summary.smokeStatus) {
+          errors.push(`${path.basename(browserPath)} / ${plan.label}: scenario produced DOM before reporting a result`);
+          continue;
+        }
         return {
           ok: passed,
           scenario,

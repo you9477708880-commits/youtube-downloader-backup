@@ -23,7 +23,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     throw new Error(`Unknown smoke scenario: ${smokeScenario}`);
   }
 
-  scenarios[prepareName]();
-  const app = await bootstrapFinanceApp();
-  await scenarios[runName](app);
+  try {
+    scenarios[prepareName]();
+    const app = await bootstrapFinanceApp();
+    await scenarios[runName](app);
+  } catch (error) {
+    const result = document.createElement("div");
+    result.id = "smoke-result";
+    result.dataset.status = "fail";
+    result.dataset.detail = error?.message || "smoke-bootstrap-failed";
+    result.textContent = `FAIL ${smokeScenario}`;
+    document.body.appendChild(result);
+  }
 });

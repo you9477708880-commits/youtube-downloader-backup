@@ -15,7 +15,6 @@ import { createRecordCloudSync } from "../services/storage-cloud-records.js";
 import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
-import { withoutFundEventsLinkedToTransaction } from "../domain/sinking-funds.js";
 import { createToastManager } from "../ui/toast.js";
 import { $ } from "../ui/dom.js";
 import { setActiveTab } from "../ui/tabs.js";
@@ -30,11 +29,14 @@ import { renderWishlist } from "../views/wishlist-view.js";
 import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
-import { createCommitState, createScopedLocalPersist } from "./state-commit.js";
+import { createCommitState } from "./state-commit.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
 import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
 import { createTransactionController } from "./controllers/transaction-controller.js";
 import { createWishlistController } from "./controllers/wishlist-controller.js";
+import { createImportController } from "./controllers/import-controller.js";
+import { bindAppEvents } from "./event-bindings.js";
+import { createSyncCoordinator } from "./sync-coordinator.js";
 
 function collectDom(doc = document) {
   return {
@@ -196,6 +198,9 @@ function promptSyncChoice(message) {
 }
 
 function readFileAsText(file) {
+  if (typeof file?.text === "function") {
+    return file.text().then((value) => String(value || ""));
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => resolve(String(event.target?.result || ""));
@@ -214,34 +219,6 @@ function downloadTextFile({ content, filename, type }) {
   URL.revokeObjectURL(url);
 }
 
-function sameExternalTransaction(left, right) {
-  return (
-    left?.externalSource &&
-    right?.externalSource &&
-    left.externalSource === right.externalSource &&
-    String(left.externalId || "") !== "" &&
-    String(left.externalId || "") === String(right.externalId || "")
-  );
-}
-
-function externalTransactionKey(tx) {
-  if (!tx?.externalSource || !tx?.externalId) return "";
-  return `${tx.externalSource}:${tx.externalId}`;
-}
-
-function findExternalTransaction(existingTxs, importedTx) {
-  return existingTxs.find((tx) => sameExternalTransaction(tx, importedTx)) || null;
-}
-
-function findDuplicateExternalTransactions(existingTxs, importedTxs) {
-  const existingKeys = new Set(
-    existingTxs
-      .filter((tx) => tx.externalSource && tx.externalId)
-      .map(externalTransactionKey),
-  );
-  return importedTxs.filter((tx) => existingKeys.has(externalTransactionKey(tx)));
-}
-
 export async function bootstrapFinanceApp(doc = document) {
   setupPWA();
 
@@ -254,18 +231,13 @@ export async function bootstrapFinanceApp(doc = document) {
   const utils = { formatMoney, escapeHTML, localDateStr };
 
   let cloudSync = createFallbackCloudSync();
-  let currentUser = null;
-  let authAction = null;
-  let pendingAndroMoneyText = "";
-  let cloudConflictDecision = "";
-  let cloudConflictUserId = "";
-  let localScope = null;
-  let pendingUnboundLocalState = null;
+  let syncCoordinator = null;
 
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
 
   const preserveRollback = (state, label) => {
+    const localScope = syncCoordinator?.getLocalScope();
     if (!localScope) return false;
     try {
       saveRollbackSnapshot(state, localScope, label);
@@ -292,6 +264,7 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     setActiveTab: (tabId) => setActiveTab(tabId, doc),
     updateCloudStatus(status, meta) {
+      const currentUser = syncCoordinator?.getCurrentUser();
       const hasCloudUser = currentUser && !currentUser.isAnonymous;
       if (status === "syncing") {
         dom.cloudStatus.textContent = hasCloudUser ? "☁️ 同步中" : "💾 僅本機";
@@ -332,7 +305,7 @@ export async function bootstrapFinanceApp(doc = document) {
       dom.cloudStatus.className = "cloud-st off";
       dom.cloudStatus.dataset.state = "local";
     },
-    renderAuthState(user, cloudEnabled, errorMessage = "") {
+    renderAuthState(user, cloudEnabled, errorMessage = "", action = null) {
       if (!cloudEnabled) {
         dom.authButton.disabled = true;
         dom.authButton.className = "auth-btn";
@@ -343,9 +316,9 @@ export async function bootstrapFinanceApp(doc = document) {
         return;
       }
 
-      dom.authButton.disabled = authAction !== null;
+      dom.authButton.disabled = action !== null;
 
-      if (authAction === "signing-in") {
+      if (action === "signing-in") {
         dom.authButton.className = "auth-btn google";
         dom.authButton.textContent = "登入中...";
         dom.headerTag.textContent = "正在連接雲端";
@@ -353,7 +326,7 @@ export async function bootstrapFinanceApp(doc = document) {
         return;
       }
 
-      if (authAction === "signing-out") {
+      if (action === "signing-out") {
         dom.authButton.className = "auth-btn logout";
         dom.authButton.textContent = "登出中...";
         dom.headerTag.textContent = "切回本機模式";
@@ -419,70 +392,6 @@ export async function bootstrapFinanceApp(doc = document) {
         const defaultChoice = availableFreedom >= shortfall ? "topup" : "partial";
         dom.choiceModal.querySelector(`[data-choice="${defaultChoice}"]`)?.focus();
       });
-    },
-    showAndroMoneyImportDialog(parsed) {
-      const state = store.getState();
-      const duplicates = findDuplicateExternalTransactions(state.txs, parsed.transactions);
-      const duplicateKeys = new Set(duplicates.map(externalTransactionKey));
-      const accountOptions = state.accounts
-        .map((account) => `<option value="${escapeHTML(account.id)}">${escapeHTML(account.name)}</option>`)
-        .join("");
-      dom.androMoneySummary.textContent =
-        `讀到 ${parsed.transactions.length} 筆交易、${parsed.accountNames.length} 個帳戶名稱。` +
-        (duplicates.length ? ` 其中 ${duplicates.length} 筆看起來已匯入過。` : "");
-      dom.androMoneyDuplicates.classList.toggle("d-none", duplicates.length === 0);
-      dom.androMoneyDuplicateMode.value = "skip";
-      dom.androMoneyAccounts.innerHTML = parsed.accountNames.length
-        ? parsed.accountNames
-            .map(
-              (name) => `
-                <label class="flex-col gap-1">
-                  <span class="flb">${escapeHTML(name)}</span>
-                  <select data-andromoney-account="${escapeHTML(name)}">${accountOptions}</select>
-                </label>
-              `,
-            )
-            .join("")
-        : '<div class="empty">CSV 裡沒有可對應的帳戶名稱。</div>';
-      dom.androMoneyPreview.innerHTML = parsed.transactions.length
-        ? parsed.transactions
-            .slice(0, 6)
-            .map(
-              (tx) => {
-                const duplicate = duplicateKeys.has(externalTransactionKey(tx));
-                return `
-                <div class="detail-row">
-                  <div class="detail-main">
-                    <div class="detail-title">${escapeHTML(tx.category)} / ${escapeHTML(tx.subcategory)}${duplicate ? "｜已存在" : "｜新增"}</div>
-                    <div class="detail-sub">${escapeHTML(tx.date)}｜${escapeHTML(tx.desc || "無備註")}｜${tx.type}</div>
-                  </div>
-                  <div class="detail-amt">${formatMoney(tx.amount)}</div>
-                </div>
-              `;
-              },
-            )
-            .join("")
-        : '<div class="empty detail-empty">沒有可匯入的交易。</div>';
-      dom.androMoneyConfirm.disabled = parsed.transactions.length === 0 || parsed.accountNames.length === 0;
-      dom.androMoneyModal.classList.remove("d-none");
-      dom.androMoneyConfirm.focus();
-    },
-    closeAndroMoneyImportDialog() {
-      pendingAndroMoneyText = "";
-      dom.androMoneyModal.classList.add("d-none");
-      dom.androMoneyAccounts.innerHTML = "";
-      dom.androMoneyPreview.innerHTML = "";
-      dom.androMoneySummary.textContent = "";
-      dom.androMoneyDuplicates.classList.add("d-none");
-      dom.androMoneyDuplicateMode.value = "skip";
-    },
-    readAndroMoneyAccountMap() {
-      return Object.fromEntries(
-        [...dom.androMoneyAccounts.querySelectorAll("[data-andromoney-account]")].map((select) => [
-          select.dataset.andromoneyAccount,
-          select.value,
-        ]),
-      );
     },
     populateCategoryBudgetOptions() {
       const state = store.getState();
@@ -583,26 +492,6 @@ export async function bootstrapFinanceApp(doc = document) {
     },
   };
 
-  const persistCommittedLocalState = createScopedLocalPersist({
-    getScope: () => localScope,
-    setScope: (scope) => { localScope = scope; },
-    defaultScope: LOCAL_STORAGE_SCOPE,
-    persist: saveLocalState,
-  });
-
-  const enqueueCloudState = () => {
-    if (!cloudSync.enabled || !currentUser || currentUser.isAnonymous || cloudConflictDecision === "cancel") return;
-
-    cloudSync.save().catch(() => {
-      ui.updateCloudStatus("error");
-    });
-  };
-
-  const saveState = () => {
-    persistCommittedLocalState(store.getState());
-    enqueueCloudState();
-  };
-
   const renderWishlistOnly = () =>
     renderWishlist({ state: store.getState(), filterRange: getFilterRangeValue(), constants: CONSTANTS, utils, dom });
 
@@ -617,6 +506,62 @@ export async function bootstrapFinanceApp(doc = document) {
     renderBalanceSheet({ state, utils, dom });
     renderWishlist({ state, filterRange, constants: CONSTANTS, utils, dom });
     renderRetirement({ state, utils, dom });
+  };
+
+  const refreshWholeStateUi = () => {
+    ui.syncFromSettings();
+    syncRetirementInputs();
+    ui.renderTransactionCategorySelect();
+    ui.populateCategoryBudgetOptions();
+    ui.populateFundOptions();
+    ui.syncTxType();
+    renderAll();
+  };
+
+  const syncNotificationMessages = {
+    "unbound-local-state-imported": "已將登入前的本機資料匯入目前帳號。",
+    "cloud-sync-paused-by-user": "已取消覆蓋；本次登入的雲端同步已暫停，資料仍保留在此裝置。",
+    "cloud-state-applied": "已套用雲端資料。",
+    "cloud-conflict-resolution-failed": "雲端衝突處理失敗，資料仍保留在此裝置。",
+    "google-sign-in-complete": "Google 登入完成。",
+    "signed-out-to-anonymous": "已登出並切回本機模式。",
+    "signed-out-to-local": "已登出；目前使用本機模式。",
+    "google-sign-in-failed": "登入失敗，請稍後再試。",
+    "sign-out-failed": "登出失敗，請稍後再試。",
+  };
+
+  syncCoordinator = createSyncCoordinator({
+    store,
+    createBaseState: createInitialState,
+    cloneState,
+    localScopeDefault: LOCAL_STORAGE_SCOPE,
+    userStorageScope,
+    loadLocalState,
+    saveLocalState,
+    normalizeState: normalizeFinanceStateMoney,
+    hasMeaningfulData: hasMeaningfulFinanceData,
+    areStatesEquivalent: areFinanceStatesEquivalent,
+    buildConflictMessage: buildCloudConflictMessage,
+    promptSyncChoice: (request) => promptSyncChoice(
+      request.type === "record-conflict"
+        ? `偵測到 ${request.keys.length} 筆同一紀錄在本機與雲端同時修改。\ncloud：採用雲端版本\nlocal：採用本機版本\ncancel：暫停同步`
+        : request.message,
+    ),
+    confirmUnboundImport: () => window.confirm("登入帳號目前沒有資料。是否把登入前儲存在這台裝置的資料複製到此帳號？"),
+    preserveRollback,
+    refreshStateUi: refreshWholeStateUi,
+    onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
+    onNotify: (message, type) => toast.show(syncNotificationMessages[message] || message, type),
+    onWarn: (message, error) => console.warn(message, error),
+    onAuthViewChange: ({ user, action, cloudEnabled, error }) => ui.renderAuthState(user, cloudEnabled, error, action),
+  });
+  syncCoordinator.attachCloudSync(cloudSync);
+
+  const persistCommittedLocalState = (state) => syncCoordinator.persistCommittedLocalState(state);
+  const enqueueCloudState = () => syncCoordinator.enqueueCloudState();
+  const saveState = () => {
+    persistCommittedLocalState(store.getState());
+    enqueueCloudState();
   };
 
   const commitState = createCommitState({
@@ -636,42 +581,7 @@ export async function bootstrapFinanceApp(doc = document) {
     renderWishlist: renderWishlistOnly,
   };
 
-  const applyRemoteState = (remoteState) => {
-    const currentState = createInitialState();
-    replaceWholeState(normalizeFinanceStateMoney({
-      ...currentState,
-      ...remoteState,
-      settings: { ...currentState.settings, ...(remoteState.settings || {}) },
-    }));
-    if (localScope) saveLocalState(store.getState(), localScope);
-    ui.syncFromSettings();
-    syncRetirementInputs();
-    ui.renderTransactionCategorySelect();
-    ui.populateCategoryBudgetOptions();
-    ui.populateFundOptions();
-    ui.syncTxType();
-    renderAll();
-  };
-
-  const switchLocalScope = (user) => {
-    const previousScope = localScope;
-    if (previousScope) saveLocalState(store.getState(), previousScope);
-    const nextScope = user && !user.isAnonymous ? userStorageScope(user.uid) : LOCAL_STORAGE_SCOPE;
-    if (previousScope === LOCAL_STORAGE_SCOPE && nextScope !== LOCAL_STORAGE_SCOPE && hasMeaningfulFinanceData(store.getState())) {
-      pendingUnboundLocalState = cloneState(store.getState());
-    } else if (nextScope === LOCAL_STORAGE_SCOPE) {
-      pendingUnboundLocalState = null;
-    }
-    localScope = nextScope;
-    replaceWholeState(loadLocalState(baseState, localScope));
-    ui.syncFromSettings();
-    syncRetirementInputs();
-    ui.renderTransactionCategorySelect();
-    ui.populateCategoryBudgetOptions();
-    ui.populateFundOptions();
-    ui.syncTxType();
-    renderAll();
-  };
+  let replaceWholeState = null;
   const baseActions = createActions(context);
   const balanceSheetController = createBalanceSheetController({
     elements: {
@@ -760,10 +670,37 @@ export async function bootstrapFinanceApp(doc = document) {
     confirmDelete: (message) => window.confirm(message),
     promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
   });
-  const replaceWholeState = createWholeStateReplacer({
+  const importController = createImportController({
+    elements: {
+      androMoneyModal: dom.androMoneyModal,
+      androMoneySummary: dom.androMoneySummary,
+      androMoneyAccounts: dom.androMoneyAccounts,
+      androMoneyDuplicates: dom.androMoneyDuplicates,
+      androMoneyDuplicateMode: dom.androMoneyDuplicateMode,
+      androMoneyPreview: dom.androMoneyPreview,
+      androMoneyConfirm: dom.androMoneyConfirm,
+    },
     store,
-    controllers: [balanceSheetController, wishlistController, sinkingFundController, transactionController],
+    toast,
+    replaceWholeState: (state) => replaceWholeState(state),
+    persistWholeState: saveState,
+    refreshWholeStateUi,
+    commitState,
+    refreshTransactionUi: renderAll,
+    readBackupFile: importData,
+    exportBackupFile: exportData,
+    readTextFile: readFileAsText,
+    parseAndroMoneyCsv,
+    buildAndroMoneyCsv,
+    downloadTextFile,
+    formatMoney,
+    escapeHTML,
   });
+  replaceWholeState = createWholeStateReplacer({
+    store,
+    controllers: [balanceSheetController, wishlistController, sinkingFundController, transactionController, importController],
+  });
+  syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
     ...baseActions,
     addBs: balanceSheetController.addBs,
@@ -794,253 +731,89 @@ export async function bootstrapFinanceApp(doc = document) {
     editAdvanceRepayment: transactionController.editAdvanceRepayment,
   };
 
-  const exportAndroMoneyCsv = () => {
-    const csv = buildAndroMoneyCsv(store.getState().txs, store.getState().accounts);
-    downloadTextFile({
-      content: csv,
-      filename: "AndroMoney.csv",
-      type: "text/csv;charset=utf-8",
-    });
-    toast.show("已匯出 AndroMoney CSV");
+  const retirementInputs = {
+    retireAsset: ["retireAssetValue", (value) => formatMoney(toMoneyInt(value))],
+    retireMonthly: ["retireMonthlyValue", (value) => formatMoney(toMoneyInt(value))],
+    retirePrincipalReturn: ["retirePrincipalReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
+    retireContributionReturn: ["retireContributionReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
+    retireInflation: ["retireInflationValue", (value) => `${parseFloat(value).toFixed(1)}%`],
+    retireWithdraw: ["retireWithdrawValue", (value) => formatMoney(toMoneyInt(value))],
+    retireTarget: ["retireTargetValue", (value) => formatMoney(toMoneyInt(value))],
   };
 
-  const openAndroMoneyImport = async (file) => {
-    pendingAndroMoneyText = await readFileAsText(file);
-    const parsed = parseAndroMoneyCsv(pendingAndroMoneyText);
-    ui.showAndroMoneyImportDialog(parsed);
-  };
-
-  const confirmAndroMoneyImport = async () => {
-    if (!pendingAndroMoneyText) return;
-    const accountMap = ui.readAndroMoneyAccountMap();
-    const parsed = parseAndroMoneyCsv(pendingAndroMoneyText, { accountMap });
-    const existing = store.getState().txs;
-    const duplicateMode = dom.androMoneyDuplicateMode.value || "skip";
-    const duplicateCount = findDuplicateExternalTransactions(existing, parsed.transactions).length;
-    const newTransactions = parsed.transactions.filter(
-      (tx) => !existing.some((item) => sameExternalTransaction(item, tx)),
-    );
-    const updateTransactions = duplicateMode === "update"
-      ? parsed.transactions
-          .map((tx) => {
-            const existingTx = findExternalTransaction(existing, tx);
-            return existingTx ? { ...tx, id: existingTx.id } : null;
-          })
-          .filter(Boolean)
-      : [];
-
-    if (!newTransactions.length && !updateTransactions.length) {
-      toast.show("沒有新的 AndroMoney 交易可匯入");
-      ui.closeAndroMoneyImportDialog();
-      return;
-    }
-
-    store.update((state) => {
-      const updateIds = new Set(updateTransactions.map((tx) => String(tx.id)));
-      let nextFunds = state.sinkingFunds;
-      updateIds.forEach((id) => {
-        nextFunds = withoutFundEventsLinkedToTransaction(nextFunds, id);
-      });
-      state.sinkingFunds = nextFunds;
-      state.txs = [
-        ...newTransactions,
-        ...state.txs.map((tx) => updateTransactions.find((item) => String(item.id) === String(tx.id)) || tx),
-      ];
-    });
-    saveState();
-    ui.closeAndroMoneyImportDialog();
-    renderAll();
-    const skipped = duplicateMode === "skip" ? duplicateCount : 0;
-    toast.show(`已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${skipped ? `，略過 ${skipped} 筆重複` : ""}`);
-  };
-
-  doc.body.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-action]");
-    if (!button) return;
-
-    const { action } = button.dataset;
-    if (action === "tab") actions.switchTab(button.dataset.target);
-    if (action === "set-tx-type") actions.setTxType(button.dataset.val);
-    if (action === "add-custom-cat") actions.addCustomCat();
-    if (action === "add-fund-cat") actions.addFundCategory();
-    if (action === "edit-tx") actions.beginEditTx(button.dataset.id);
-    if (action === "edit-repayment") actions.editAdvanceRepayment(button.dataset.id);
-    if (action === "del-tx") actions.delTx(button.dataset.id);
-    if (action === "repay-advance") actions.repayAdvance(button.dataset.id);
-    if (action === "edit-bs") actions.beginEditBs(button.dataset.id, button.dataset.isacc === "true");
-    if (action === "del-bs") actions.delBs(button.dataset.id, button.dataset.isacc === "true");
-    if (action === "toggle-em") actions.toggleEm(button.dataset.id, button.dataset.isacc === "true");
-    if (action === "del-cat-budget") actions.delCatBudget(button.dataset.cat);
-    if (action === "cleanup-cat-budgets") actions.cleanupCatBudgets();
-    if (action === "edit-wish") actions.beginEditWish(button.dataset.id);
-    if (action === "prepare-fund-from-wish") actions.prepareFundFromWish(button.dataset.id);
-    if (action === "del-wish") actions.delWish(button.dataset.id);
-    if (action === "mv-wish") actions.mvWish(button.dataset.id, Number(button.dataset.dir));
-    if (action === "toggle-tbl") ui.toggleRetirementTable();
-    if (action === "preset-ret") actions.presetRet(Number(button.dataset.r), Number(button.dataset.i));
-    if (action === "del-fund") actions.delFund(button.dataset.id);
-    if (action === "edit-fund") actions.beginEditFund(button.dataset.id);
-    if (action === "topup-fund") actions.topupFund(button.dataset.id);
-    if (action === "open-fund") actions.openFund(button.dataset.id);
-    if (action === "export-data") {
-      exportData(store.getState());
-      toast.show("已匯出備份");
-    }
-    if (action === "trigger-import") dom.fileImport.click();
-    if (action === "export-andromoney") exportAndroMoneyCsv();
-    if (action === "trigger-andromoney-import") dom.fileAndroMoneyImport.click();
-  });
-
-  const bindForm = (id, callback) => {
-    const form = $(id, doc);
-    if (!form) return;
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (form.checkValidity()) callback();
-      else form.reportValidity();
-    });
-  };
-
-  bindForm("form-tx", () => actions.addTx());
-  bindForm("form-cat-bud", () => actions.setCatBudget());
-  bindForm("form-wish", () => actions.addWish());
-  bindForm("form-bs", () => actions.addBs());
-  bindForm("form-fund", () => actions.addFund());
-
-  dom.filterPreset.addEventListener("change", (event) => actions.setDatePreset(event.target.value));
-  dom.filterStart.addEventListener("change", () => actions.customDate());
-  dom.filterEnd.addEventListener("change", () => actions.customDate());
-  dom.inputCategory.addEventListener("change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
-  dom.balanceType.addEventListener("change", (event) => {
-    dom.balanceCategoryWrap.classList.toggle("d-none", event.target.value !== "item");
-  });
-  dom.txCancelButton.addEventListener("click", () => actions.cancelEditTx());
-  dom.fundCancelButton.addEventListener("click", () => actions.cancelEditFund());
-  dom.bsCancelButton.addEventListener("click", () => actions.cancelEditBs());
-  dom.wishCancelButton.addEventListener("click", () => actions.cancelEditWish());
-  dom.androMoneyCancel.addEventListener("click", () => ui.closeAndroMoneyImportDialog());
-  dom.androMoneyConfirm.addEventListener("click", () => {
-    confirmAndroMoneyImport().catch((error) => {
-      console.warn("AndroMoney import failed.", error);
-      toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
-    });
-  });
-
-  [
-    dom.inputAmount,
-    dom.inputOwnAmount,
-    dom.budgetCapInput,
-    dom.fundTarget,
-    dom.fundMonthly,
-    dom.balanceAmount,
-    dom.catBudgetAmount,
-    dom.wishPrice,
-  ]
-    .filter(Boolean)
-    .forEach((node) => {
-      node.addEventListener("change", () => {
-        if (!node.value) return;
-        node.value = String(toMoneyInt(node.value));
-      });
-    });
-
-  dom.budgetCapInput.addEventListener("change", () => {
-    commitState((state) => {
-      state.settings.budgetCap = toMoneyInt(dom.budgetCapInput.value);
-    }, { updateUi: renderWishlistOnly });
-  });
-  dom.retireLinked.addEventListener("change", () => {
-    commitState((state) => {
-      state.settings.retLinked = dom.retireLinked.checked;
-    }, {
-      updateUi: () => {
-        ui.toggleRetLinkUI();
+  const bindEvents = () => bindAppEvents({
+    doc,
+    win: window,
+    dom,
+    actions,
+    ui,
+    handlers: {
+      exportData: () => importController.exportBackup(),
+      triggerImport: () => dom.fileImport.click(),
+      exportAndroMoney: () => importController.exportAndroMoney(),
+      triggerAndroMoneyImport: () => dom.fileAndroMoneyImport.click(),
+      changeBalanceType: (value) => dom.balanceCategoryWrap.classList.toggle("d-none", value !== "item"),
+      cancelAndroMoneyImport: () => importController.cancelAndroMoneyImport(),
+      confirmAndroMoneyImport: () => {
+        importController.confirmAndroMoneyImport().catch((error) => {
+          console.warn("AndroMoney import failed.", error);
+          toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
+        });
+      },
+      normalizeMoneyInput: (node) => {
+        if (node.value) node.value = String(toMoneyInt(node.value));
+      },
+      updateBudgetCap: () => {
+        commitState((state) => {
+          state.settings.budgetCap = toMoneyInt(dom.budgetCapInput.value);
+        }, { updateUi: renderWishlistOnly });
+      },
+      updateRetirementLinked: () => {
+        commitState((state) => {
+          state.settings.retLinked = dom.retireLinked.checked;
+        }, {
+          updateUi: () => {
+            ui.toggleRetLinkUI();
+            renderAll();
+          },
+        });
+      },
+      runAuthAction: () => syncCoordinator.performAuthAction(),
+      updateRetirementAge: () => renderAll(),
+      updateRetirementInput: (inputKey, event) => {
+        const [outputKey, formatter] = retirementInputs[inputKey];
+        dom[outputKey].textContent = formatter(event.target.value);
+        if (inputKey === "retireAsset" && !store.getState().settings.retLinked) {
+          commitState((state) => {
+            state.settings.retManualAsset = toMoneyInt(event.target.value);
+          }, { updateUi: renderAll });
+          return;
+        }
         renderAll();
       },
-    });
-  });
-
-  dom.authButton.addEventListener("click", async () => {
-    if (!cloudSync.enabled || authAction) return;
-
-    const wantsGoogleLogin = !currentUser || currentUser.isAnonymous;
-    authAction = wantsGoogleLogin ? "signing-in" : "signing-out";
-    ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
-
-    try {
-      if (wantsGoogleLogin) {
-        await cloudSync.signInWithGoogle();
-        toast.show("Google 登入成功");
-      } else {
-        const result = await cloudSync.signOutToAnonymous();
-        toast.show(result?.mode === "anonymous" ? "已登出並切回本機模式" : "已登出，目前僅保留本機資料");
-      }
-    } catch (error) {
-      console.warn(`${wantsGoogleLogin ? "Sign-in" : "Sign-out"} action failed.`, error);
-      toast.show(wantsGoogleLogin ? "登入失敗，請稍後再試" : "登出失敗，請稍後再試", "error");
-    } finally {
-      authAction = null;
-      ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
-    }
-  });
-
-  ["currentAge", "retirementAge", "deathAge"].forEach((key) => {
-    dom[key].addEventListener("input", () => renderAll());
-  });
-
-  [
-    ["retireAsset", "retireAssetValue", (value) => formatMoney(toMoneyInt(value))],
-    ["retireMonthly", "retireMonthlyValue", (value) => formatMoney(toMoneyInt(value))],
-    ["retirePrincipalReturn", "retirePrincipalReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    ["retireContributionReturn", "retireContributionReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    ["retireInflation", "retireInflationValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    ["retireWithdraw", "retireWithdrawValue", (value) => formatMoney(toMoneyInt(value))],
-    ["retireTarget", "retireTargetValue", (value) => formatMoney(toMoneyInt(value))],
-  ].forEach(([inputKey, outputKey, formatter]) => {
-    dom[inputKey].addEventListener("input", (event) => {
-      dom[outputKey].textContent = formatter(event.target.value);
-      if (inputKey === "retireAsset" && !store.getState().settings.retLinked) {
-        store.update((state) => {
-          state.settings.retManualAsset = toMoneyInt(event.target.value);
-        });
-      }
-      renderAll();
-    });
-  });
-
-  dom.fileImport.addEventListener("change", async (event) => {
-    if (!event.target.files?.length) return;
-
-    try {
-      const nextState = await importData(event.target.files[0]);
-      replaceWholeState(nextState);
-      saveState();
-      ui.syncFromSettings();
-      syncRetirementInputs();
-      ui.renderTransactionCategorySelect();
-      ui.populateCategoryBudgetOptions();
-      ui.populateFundOptions();
-      ui.syncTxType();
-      renderAll();
-      toast.show("已匯入資料");
-    } catch (error) {
-      toast.show(error.message === "invalid-schema" ? "匯入失敗：檔案格式不符合目前資料模型" : "匯入失敗，請確認 JSON 內容", "error");
-    } finally {
-      event.target.value = "";
-    }
-  });
-
-  dom.fileAndroMoneyImport.addEventListener("change", async (event) => {
-    if (!event.target.files?.length) return;
-
-    try {
-      await openAndroMoneyImport(event.target.files[0]);
-    } catch (error) {
-      console.warn("AndroMoney CSV read failed.", error);
-      toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
-    } finally {
-      event.target.value = "";
-    }
+      importJsonFile: async (event) => {
+        if (!event.target.files?.length) return;
+        try {
+          await importController.importBackupFile(event.target.files[0]);
+        } catch (error) {
+          toast.show(error.message === "invalid-schema" ? "匯入失敗：檔案格式不符合目前資料模型" : "匯入失敗，請確認 JSON 內容", "error");
+        } finally {
+          event.target.value = "";
+        }
+      },
+      importAndroMoneyFile: async (event) => {
+        if (!event.target.files?.length) return;
+        try {
+          await importController.openAndroMoneyImport(event.target.files[0]);
+        } catch (error) {
+          console.warn("AndroMoney CSV read failed.", error);
+          toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
+        } finally {
+          event.target.value = "";
+        }
+      },
+      updateConnectivity: (status) => ui.updateCloudStatus(status),
+    },
   });
 
   ui.updateCloudStatus("local");
@@ -1055,7 +828,6 @@ export async function bootstrapFinanceApp(doc = document) {
   wishlistController.reset();
   sinkingFundController.reset();
   transactionController.reset();
-  ui.renderAuthState(currentUser, cloudSync.enabled, cloudSync.error);
 
   const now = new Date();
   dom.headerSub.textContent = `${now.getFullYear()} / ${now.getMonth() + 1}`;
@@ -1067,132 +839,13 @@ export async function bootstrapFinanceApp(doc = document) {
   cloudSync = await createRecordCloudSync({
     getState: () => store.getState(),
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
-    onUserChange: (user) => {
-      currentUser = user;
-      switchLocalScope(user);
-      const nextConflictUserId = user && !user.isAnonymous ? user.uid : "";
-      if (nextConflictUserId !== cloudConflictUserId) {
-        cloudConflictDecision = "";
-        cloudConflictUserId = nextConflictUserId;
-      }
-      ui.renderAuthState(currentUser, true, "");
-    },
-    onConflict: ({ localState, remoteState, keys }) => {
-      const choice = promptSyncChoice(
-        `偵測到 ${keys.length} 筆同時修改的雲端資料。\ncloud：保留雲端整筆版本\nlocal：用本機整筆版本重送\ncancel：暫停同步`,
-      );
-      if (choice === "cloud" && !preserveRollback(localState, "before-cloud-conflict")) return;
-      if (choice === "local" && !preserveRollback(remoteState, "before-local-conflict")) return;
-      cloudConflictDecision = choice === "cancel" ? "cancel" : "";
-      setTimeout(() => {
-        cloudSync.resolveConflict(choice).catch(() => {
-          ui.updateCloudStatus("error");
-          toast.show("同步衝突處理失敗，資料仍保留在本機", "error");
-        });
-      }, 0);
-    },
-    onRemoteState: (remoteState, metadata = {}) => {
-      const localState = store.getState();
-      const localHasData = hasMeaningfulFinanceData(localState);
-      const remoteHasData = hasMeaningfulFinanceData(remoteState);
-      const sameData = areFinanceStatesEquivalent(localState, remoteState);
-
-      if (cloudConflictDecision === "cancel" && metadata.source === "records") {
-        ui.updateCloudStatus("conflict");
-        return;
-      }
-
-      if (metadata.source === "conflict-resolution") {
-        applyRemoteState(remoteState);
-        return;
-      }
-
-      if (!metadata.initial && metadata.source === "records") {
-        applyRemoteState(remoteState);
-        return;
-      }
-
-      if (!localHasData && !remoteHasData && pendingUnboundLocalState) {
-        const shouldImport = window.confirm(
-          "這個 Google 帳號目前沒有本機或雲端資料。是否將登入前保留在此裝置的本機資料複製到這個帳號？",
-        );
-        if (shouldImport) {
-          replaceWholeState(cloneState(pendingUnboundLocalState));
-          saveLocalState(store.getState(), localScope);
-          pendingUnboundLocalState = null;
-          setTimeout(() => cloudSync.save(), 0);
-          toast.show("已將未綁定本機資料複製到目前帳號");
-          return;
-        }
-        pendingUnboundLocalState = null;
-      }
-
-      if (!remoteHasData && localHasData) {
-        cloudConflictDecision = "local";
-        setTimeout(() => {
-          cloudSync.save().then(() => {
-            toast.show("雲端沒有資料，已上傳本機資料");
-          }).catch(() => {
-            ui.updateCloudStatus("error");
-            toast.show("本機資料上傳雲端失敗，請稍後再試", "error");
-          });
-        }, 0);
-        return;
-      }
-
-      if (!remoteHasData || sameData) {
-        applyRemoteState(remoteState);
-        if (metadata.migrationRequired) setTimeout(() => cloudSync.save(), 0);
-        return;
-      }
-
-      if ((localHasData || metadata.hasPendingOutbox) && !cloudConflictDecision) {
-        cloudConflictDecision = promptSyncChoice(buildCloudConflictMessage(currentUser));
-        if (cloudConflictDecision === "cancel") {
-          ui.updateCloudStatus("conflict");
-          toast.show("已暫停這個帳號的雲端同步；本機與雲端資料都未覆蓋");
-          return;
-        }
-      }
-
-      if ((!localHasData && !metadata.hasPendingOutbox) || cloudConflictDecision === "cloud") {
-        if (localHasData && !preserveRollback(localState, "before-cloud-overwrite")) {
-          cloudConflictDecision = "cancel";
-          ui.updateCloudStatus("conflict");
-          return;
-        }
-        applyRemoteState(remoteState);
-        if (metadata.migrationRequired) setTimeout(() => cloudSync.save(), 0);
-        toast.show("已使用雲端資料更新本機");
-        return;
-      }
-
-      if (cloudConflictDecision === "local") {
-        if (!preserveRollback(remoteState, "before-local-overwrite")) {
-          cloudConflictDecision = "cancel";
-          ui.updateCloudStatus("conflict");
-          return;
-        }
-        setTimeout(() => {
-          cloudSync.save().then(() => {
-            toast.show("已使用本機資料覆蓋雲端");
-          }).catch(() => {
-            ui.updateCloudStatus("error");
-            toast.show("本機資料上傳雲端失敗，請稍後再試", "error");
-          });
-        }, 0);
-      }
-    },
+    onUserChange: (user) => syncCoordinator.onUserChange(user),
+    onConflict: (conflict) => syncCoordinator.onConflict(conflict),
+    onRemoteState: (remoteState, metadata) => syncCoordinator.onRemoteState(remoteState, metadata),
   });
-
-  if (!cloudSync.enabled && !localScope) {
-    switchLocalScope(null);
-  }
-
-  ui.renderAuthState(cloudSync.getUser?.() || currentUser, cloudSync.enabled, cloudSync.error);
-
-  window.addEventListener("online", () => ui.updateCloudStatus("online"));
-  window.addEventListener("offline", () => ui.updateCloudStatus("offline"));
+  syncCoordinator.attachCloudSync(cloudSync);
+  syncCoordinator.ensureLocalScopeIfDisabled();
+  bindEvents();
 
   renderAll();
 
