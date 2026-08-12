@@ -58,6 +58,7 @@ function renderWishCandidates(wishes, utils) {
 
 export function renderGoalCenter({ state, filterRange, utils, dom }) {
   if (!dom.goalCenter) return;
+  const detailsWereOpen = !!dom.goalCenter.querySelector?.(".goal-center-details")?.open;
   const model = buildGoalCenterData(state, filterRange);
   const filter = normalizeFilter(dom.goalCenter.dataset.filter);
   dom.goalCenter.dataset.filter = filter;
@@ -80,11 +81,6 @@ export function renderGoalCenter({ state, filterRange, utils, dom }) {
         <div class="goal-center-title">目標中心</div>
         <div class="goal-center-intro">把想做的事分成「準備中」與「考慮中」，願望不會被當成實際支出。</div>
       </div>
-      <div class="goal-center-filters" aria-label="篩選目標">
-        ${[["all", "全部"], ["active", "準備中"], ["considering", "考慮中"]].map(([value, label]) => `
-          <button type="button" class="goal-center-filter ${filter === value ? "on" : ""}" data-action="filter-goals" data-filter="${value}">${label}</button>
-        `).join("")}
-      </div>
     </div>
     <div class="goal-center-summary">
       <div class="mc"><div class="lb">本月可分配到目標</div><div class="vl text-inc">${utils.formatMoney(model.allocationRoom)}</div></div>
@@ -92,16 +88,29 @@ export function renderGoalCenter({ state, filterRange, utils, dom }) {
       <div class="mc"><div class="lb">本月額外補入</div><div class="vl">${utils.formatMoney(model.manualTopups)}</div></div>
     </div>
     ${attention}
-    <div class="goal-center-columns">
-      <section class="goal-center-pane" ${showActive ? "" : "hidden"}>
-        <div class="goal-center-pane-title">準備中的目標 <span>${model.activeFundGoals.length} 項</span></div>
-        ${renderActiveGoals(model.activeFundGoals, utils)}
-      </section>
-      <section class="goal-center-pane" ${showConsidering ? "" : "hidden"}>
-        <div class="goal-center-pane-title">考慮中的目標 <span>${model.wishCandidates.length} 項</span></div>
-        ${renderWishCandidates(model.wishCandidates, utils)}
-      </section>
-    </div>
-    ${visibleCount ? "" : '<div class="empty goal-center-empty">此篩選目前沒有項目。</div>'}
+    <details class="goal-center-details" ${detailsWereOpen ? "open" : ""}>
+      <summary>
+        <span>查看目標清單</span>
+        <span class="goal-center-detail-count">準備中 ${model.activeFundGoals.length} 項 · 考慮中 ${model.wishCandidates.length} 項</span>
+      </summary>
+      <div class="goal-center-detail-body">
+        <div class="goal-center-filters" aria-label="篩選目標">
+          ${[["all", "全部"], ["active", "準備中"], ["considering", "考慮中"]].map(([value, label]) => `
+            <button type="button" class="goal-center-filter ${filter === value ? "on" : ""}" data-action="filter-goals" data-filter="${value}">${label}</button>
+          `).join("")}
+        </div>
+        <div class="goal-center-columns">
+          <section class="goal-center-pane" ${showActive ? "" : "hidden"}>
+            <div class="goal-center-pane-title">準備中的目標 <span>${model.activeFundGoals.length} 項</span></div>
+            ${renderActiveGoals(model.activeFundGoals, utils)}
+          </section>
+          <section class="goal-center-pane" ${showConsidering ? "" : "hidden"}>
+            <div class="goal-center-pane-title">考慮中的目標 <span>${model.wishCandidates.length} 項</span></div>
+            ${renderWishCandidates(model.wishCandidates, utils)}
+          </section>
+        </div>
+        ${visibleCount ? "" : '<div class="empty goal-center-empty">此篩選目前沒有項目。</div>'}
+      </div>
+    </details>
   `;
 }

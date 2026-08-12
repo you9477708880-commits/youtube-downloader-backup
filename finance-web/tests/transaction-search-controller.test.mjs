@@ -40,7 +40,7 @@ test("blank query uses report transactions and does not expose search summary", 
   const model = harness.controller.render();
   assert.deepEqual(model.matches.map((item) => item.id), ["current"]);
   assert.equal(harness.elements.summary.hidden, true);
-  assert.match(harness.elements.status.textContent, /輸入關鍵字/);
+  assert.match(harness.elements.status.textContent, /不影響月度報表/);
 });
 
 test("active query uses an independent six-month range and renders occurrence summary", () => {
@@ -49,6 +49,7 @@ test("active query uses an independent six-month range and renders occurrence su
   const model = harness.controller.render();
   assert.deepEqual(model.matches.map((item) => item.id), ["current"]);
   assert.equal(model.range.start, "2026-02-13");
+  assert.match(harness.elements.status.textContent, /不影響月度報表/);
   assert.match(harness.elements.summary.textContent, /最近一次：2026-08-01/);
   assert.equal(harness.elements.clear.disabled, false);
 });

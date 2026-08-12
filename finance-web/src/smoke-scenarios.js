@@ -1027,6 +1027,9 @@ export async function runWishFundPrefillScenario(app) {
     document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
     await waitFor(() => document.getElementById("t-wl")?.classList.contains("on"));
     await waitFor(() => (document.getElementById("goal-center")?.textContent || "").includes("目標中心"));
+    const goalDetails = document.querySelector("#goal-center .goal-center-details");
+    if (!goalDetails || goalDetails.open) throw new Error("goal-center-progressive-disclosure-default-mismatch");
+    goalDetails.open = true;
 
     document.querySelector('#goal-center [data-action="filter-goals"][data-filter="considering"]')?.click();
     await waitFor(() => document.querySelector('#goal-center [data-filter="considering"]')?.classList.contains("on"));
@@ -1107,6 +1110,7 @@ export async function runTransactionSearchScenario() {
 
     if (
       !document.getElementById("tx-search-summary")?.textContent.includes("最近一次") ||
+      !document.getElementById("tx-search-status")?.textContent.includes("不影響月度報表") ||
       document.getElementById("tx-cnt")?.textContent !== "2 筆" ||
       document.getElementById("f-start")?.value !== reportStart ||
       document.getElementById("f-end")?.value !== reportEnd ||

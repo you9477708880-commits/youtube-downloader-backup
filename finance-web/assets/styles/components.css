@@ -676,6 +676,18 @@
   color: #7a5310;
   font-size: 13px;
 }
+.goal-center-details { margin-top: 12px; border-top: 1px solid var(--bdr); }
+.goal-center-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 2px 2px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.goal-center-detail-count { color: var(--tx2); font-size: 12px; font-weight: 500; }
+.goal-center-detail-body { padding-top: 12px; }
 .goal-center-columns { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .9fr); gap: 12px; margin-top: 12px; }
 .goal-center-pane { min-width: 0; border: 1px solid var(--bdr); border-radius: 12px; padding: 12px; }
 .goal-center-pane-title { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 10px; }
@@ -698,6 +710,8 @@
   .goal-center-item-head { align-items: stretch; flex-direction: column; }
   .goal-center-summary,
   .goal-center-columns { grid-template-columns: 1fr; }
+  .goal-center-summary .mc { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .goal-center-details > summary { align-items: flex-start; flex-direction: column; gap: 2px; }
   .goal-center-wish { grid-template-columns: auto minmax(0, 1fr); }
   .goal-center-wish .goal-center-amount { grid-column: 2; }
   .goal-center-prepare { grid-column: 2; }

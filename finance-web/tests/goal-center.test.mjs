@@ -79,6 +79,9 @@ test("goal center view escapes content, filters only the UI, and reuses existing
   renderGoalCenter({ state, filterRange: range, utils, dom });
 
   assert.match(dom.goalCenter.innerHTML, /目標中心/);
+  assert.match(dom.goalCenter.innerHTML, /<details class="goal-center-details" >/);
+  assert.match(dom.goalCenter.innerHTML, /查看目標清單/);
+  assert.match(dom.goalCenter.innerHTML, /準備中 2 項 · 考慮中 2 項/);
   assert.match(dom.goalCenter.innerHTML, /data-action="prepare-fund-from-wish"/);
   assert.match(dom.goalCenter.innerHTML, /&lt;img src=x onerror=&quot;bad&quot;&gt;/);
   assert.doesNotMatch(dom.goalCenter.innerHTML, /<img src=x/);
@@ -87,6 +90,23 @@ test("goal center view escapes content, filters only the UI, and reuses existing
   assert.match(dom.goalCenter.innerHTML, /期限前仍差 NT\$ 27,000/);
   assert.equal(dom.goalCenter.dataset.filter, "considering");
   assert.deepEqual(state, before);
+});
+
+test("goal center keeps its progressive disclosure open after a UI-only filter render", () => {
+  const state = createState();
+  const dom = {
+    goalCenter: {
+      dataset: { filter: "active" },
+      innerHTML: "",
+      querySelector: () => ({ open: true }),
+    },
+  };
+  const utils = { formatMoney: (value) => `NT$ ${value}`, escapeHTML: String };
+
+  renderGoalCenter({ state, filterRange: range, utils, dom });
+
+  assert.match(dom.goalCenter.innerHTML, /<details class="goal-center-details" open>/);
+  assert.equal(dom.goalCenter.dataset.filter, "active");
 });
 
 test("empty goal center remains stable for every ephemeral filter", () => {

@@ -6,12 +6,12 @@ export function renderTransactionSearch({ model, elements }) {
   elements.customRange.hidden = elements.preset.value !== "custom";
 
   if (!active) {
-    elements.status.textContent = "輸入關鍵字後，可從備註、分類、帳戶、代墊對象與準備金名稱搜尋。";
+    elements.status.textContent = "搜尋期間獨立，不影響月度報表。可搜尋備註、分類、帳戶、代墊對象與準備金名稱。";
     elements.summary.textContent = "";
     return;
   }
 
-  elements.status.textContent = `搜尋期間：${model.range.start || "最早紀錄"} ～ ${model.range.end || "今天"}`;
+  elements.status.textContent = `搜尋期間（不影響月度報表）：${model.range.start || "最早紀錄"} ～ ${model.range.end || "今天"}`;
   if (!model.matchCount) {
     elements.summary.textContent = "";
     elements.empty.textContent = "這個期間沒有符合的記帳紀錄。";
