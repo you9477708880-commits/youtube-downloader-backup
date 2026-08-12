@@ -26,6 +26,7 @@ import { renderCashFlow } from "../views/cashflow-view.js";
 import { renderBalanceSheet } from "../views/balance-sheet-view.js";
 import { renderMonthlyReview } from "../views/monthly-review-view.js";
 import { renderWishlist } from "../views/wishlist-view.js";
+import { renderGoalCenter } from "../views/goal-center-view.js";
 import { renderRetirement } from "../views/retirement-view.js";
 import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
@@ -98,6 +99,7 @@ function collectDom(doc = document) {
     budgetSourceList: $("bud-source-list", doc),
     leftoverNote: $("leftover-note", doc),
     categoryBudgetList: $("cb-list", doc),
+    goalCenter: $("goal-center", doc),
     wishList: $("wl-list", doc),
     budgetCapInput: $("bud-cap", doc),
     fundName: $("sf-name", doc),
@@ -474,8 +476,12 @@ export async function bootstrapFinanceApp(doc = document) {
     },
   };
 
-  const renderWishlistOnly = () =>
-    renderWishlist({ state: store.getState(), filterRange: getFilterRangeValue(), constants: CONSTANTS, utils, dom });
+  const renderBudgetOnly = () => {
+    const state = store.getState();
+    const filterRange = getFilterRangeValue();
+    renderGoalCenter({ state, filterRange, utils, dom });
+    renderWishlist({ state, filterRange, constants: CONSTANTS, utils, dom });
+  };
 
   const renderAll = () => {
     const state = store.getState();
@@ -486,11 +492,13 @@ export async function bootstrapFinanceApp(doc = document) {
     renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
     renderCashFlow({ state, filteredTxs, utils, dom });
     renderBalanceSheet({ state, utils, dom });
+    renderGoalCenter({ state, filterRange, utils, dom });
     renderWishlist({ state, filterRange, constants: CONSTANTS, utils, dom });
     renderRetirement({ state, utils, dom });
   };
 
   const refreshWholeStateUi = () => {
+    dom.goalCenter.dataset.filter = "all";
     ui.syncFromSettings();
     ui.renderTransactionCategorySelect();
     ui.populateCategoryBudgetOptions();
@@ -559,7 +567,7 @@ export async function bootstrapFinanceApp(doc = document) {
     constants: CONSTANTS,
     commitState,
     renderAll,
-    renderWishlist: renderWishlistOnly,
+    renderWishlist: renderBudgetOnly,
   };
 
   let replaceWholeState = null;
@@ -593,7 +601,7 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     setEditMode: (value) => ui.setWishEditMode(value),
     commitState,
-    renderWishlist: renderWishlistOnly,
+    renderWishlist: renderBudgetOnly,
     navigate: (tabId) => baseActions.switchTab(tabId),
   });
   const categoryBudgetController = createCategoryBudgetController({
@@ -606,7 +614,7 @@ export async function bootstrapFinanceApp(doc = document) {
     store,
     toast,
     commitState,
-    renderBudget: renderWishlistOnly,
+    renderBudget: renderBudgetOnly,
     populateOptions: () => ui.populateCategoryBudgetOptions(),
     constants: CONSTANTS,
     promptInput: (message) => window.prompt(message),
@@ -628,7 +636,7 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     setEditMode: (value) => ui.setFundEditMode(value),
     commitState,
-    renderWishlist: renderWishlistOnly,
+    renderWishlist: renderBudgetOnly,
     navigate: (tabId) => baseActions.switchTab(tabId),
     populateFundOptions: () => ui.populateFundOptions(),
     confirmAction: (message) => window.confirm(message),
@@ -783,6 +791,10 @@ export async function bootstrapFinanceApp(doc = document) {
         if (node.value) node.value = String(toMoneyInt(node.value));
       },
       updateBudgetCap: categoryBudgetController.updateBudgetCap,
+      filterGoalCenter: (filter) => {
+        dom.goalCenter.dataset.filter = filter;
+        renderGoalCenter({ state: store.getState(), filterRange: getFilterRangeValue(), utils, dom });
+      },
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
       updateRetirementAge: retirementController.updateAge,

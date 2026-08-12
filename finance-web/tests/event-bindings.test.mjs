@@ -65,6 +65,7 @@ function createHarness() {
     "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction",
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
     "updateConnectivity", "toggleRetirementTable",
+    "filterGoalCenter",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };
@@ -81,6 +82,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("preset-ret", { r: "8", i: "2.5" });
   dispatch("toggle-tbl");
   dispatch("export-data");
+  dispatch("filter-goals", { filter: "considering" });
   assert.equal(dispatch("unknown"), false);
 
   assert.deepEqual(calls, [
@@ -89,6 +91,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["presetRet", 8, 2.5],
     ["toggleRetirementTable"],
     ["exportData"],
+    ["filterGoalCenter", "considering"],
   ]);
 });
 

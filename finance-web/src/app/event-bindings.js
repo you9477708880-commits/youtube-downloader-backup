@@ -22,6 +22,7 @@ const DATA_ACTIONS = {
   "edit-fund": ({ button, actions }) => actions.beginEditFund(button.dataset.id),
   "topup-fund": ({ button, actions }) => actions.topupFund(button.dataset.id),
   "open-fund": ({ button, actions }) => actions.openFund(button.dataset.id),
+  "filter-goals": ({ button, handlers }) => handlers.filterGoalCenter(button.dataset.filter),
   "export-data": ({ handlers }) => handlers.exportData(),
   "trigger-import": ({ handlers }) => handlers.triggerImport(),
   "export-andromoney": ({ handlers }) => handlers.exportAndroMoney(),

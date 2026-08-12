@@ -50,11 +50,13 @@
   .budget-workspace {
     grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.25fr);
     grid-template-areas:
+      "goals goals"
       "allocation funds"
       "category funds"
       "wishlist wishlist";
   }
 
+  .budget-goal-center-block { grid-area: goals; }
   .budget-allocation-block { grid-area: allocation; }
   .budget-funds-block { grid-area: funds; }
   .budget-category-block { grid-area: category; }
@@ -66,6 +68,7 @@
     align-items: start;
   }
 
+  .budget-goal-center-block,
   .budget-allocation-block,
   .budget-funds-block,
   .budget-category-block,

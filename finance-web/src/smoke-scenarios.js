@@ -864,7 +864,7 @@ export async function runDesktopCoreLayoutScenario() {
         target: "wl",
         section: "t-wl",
         workspace: ".budget-workspace",
-        panes: [".budget-allocation-block", ".budget-funds-block", ".budget-category-block", ".budget-wishlist-block"],
+        panes: [".budget-goal-center-block", ".budget-allocation-block", ".budget-funds-block", ".budget-category-block", ".budget-wishlist-block"],
       },
       { target: "cf", section: "t-cf", workspace: ".cf-workspace", panes: [".cf-summary-pane", ".cf-detail-pane"] },
       { target: "bs", section: "t-bs", workspace: ".bs-workspace", panes: [".bs-form-pane", ".bs-report-pane"] },
@@ -1026,9 +1026,13 @@ export async function runWishFundPrefillScenario(app) {
   try {
     document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
     await waitFor(() => document.getElementById("t-wl")?.classList.contains("on"));
-    await waitFor(() => document.querySelector('[data-action="prepare-fund-from-wish"][data-id="wish-camera"]'));
+    await waitFor(() => (document.getElementById("goal-center")?.textContent || "").includes("目標中心"));
 
-    document.querySelector('[data-action="prepare-fund-from-wish"][data-id="wish-camera"]')?.click();
+    document.querySelector('#goal-center [data-action="filter-goals"][data-filter="considering"]')?.click();
+    await waitFor(() => document.querySelector('#goal-center [data-filter="considering"]')?.classList.contains("on"));
+    await waitFor(() => document.querySelector('#goal-center [data-action="prepare-fund-from-wish"][data-id="wish-camera"]'));
+
+    document.querySelector('#goal-center [data-action="prepare-fund-from-wish"][data-id="wish-camera"]')?.click();
     await waitFor(() => document.getElementById("sf-name")?.value === "Smoke camera");
 
     const fundName = document.getElementById("sf-name")?.value || "";
@@ -1051,7 +1055,7 @@ export async function runWishFundPrefillScenario(app) {
       );
     }
 
-    writeSmokeResult("pass", "wish item prefilled the large-expense fund form without creating a fund");
+    writeSmokeResult("pass", "goal center filters wishes and prefills the large-expense fund form without creating a fund");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

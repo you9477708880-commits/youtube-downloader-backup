@@ -15,6 +15,7 @@ const testFiles = [
   "tests/transaction-controller.test.mjs",
   "tests/import-controller.test.mjs",
   "tests/event-bindings.test.mjs",
+  "tests/goal-center.test.mjs",
   "tests/sync-coordinator.test.mjs",
   "tests/controller-lifecycle.test.mjs",
   "tests/storage-local.test.mjs",
