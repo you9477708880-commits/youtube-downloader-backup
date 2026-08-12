@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>目標中心概念原型</title>
+  <style>
+    :root {
+      --bg: #f4f4f4;
+      --surface: #fff;
+      --surface-2: #f0ede8;
+      --border: #e3e0dc;
+      --text: #222;
+      --muted: #6c6c6c;
+      --accent: #00796b;
+      --blue: #1976d2;
+      --blue-bg: #e3f2fd;
+      --green: #1a8b50;
+      --green-bg: #e8f5ee;
+      --amber: #b85c00;
+      --amber-bg: #fff3e0;
+      --radius: 14px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); }
+    button { font: inherit; }
+    .shell { width: min(1120px, 100%); margin: 0 auto; padding: 20px; }
+    .prototype-note {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px dashed #aaa;
+      border-radius: 10px;
+      color: var(--muted);
+      background: #fffef8;
+      font-size: 13px;
+    }
+    .header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 14px; }
+    h1 { margin: 0; font-size: 26px; }
+    .subtitle { color: var(--muted); margin-top: 5px; font-size: 14px; }
+    .segments { display: flex; gap: 6px; flex-wrap: wrap; }
+    .segment {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 13px;
+      color: var(--muted);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .segment.on { color: var(--blue); border-color: #90caf9; background: var(--blue-bg); font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+    .metric, .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,.03);
+    }
+    .metric { padding: 14px; }
+    .label { color: var(--muted); font-size: 12px; }
+    .value { margin-top: 5px; font: 700 21px ui-monospace, monospace; }
+    .value.green { color: var(--green); }
+    .attention { padding: 14px; margin-bottom: 12px; background: var(--amber-bg); border-color: #ffd19c; }
+    .attention strong { color: var(--amber); }
+    .attention p { margin: 5px 0 0; color: #74512e; font-size: 13px; }
+    .columns { display: grid; grid-template-columns: 1.25fr .9fr; gap: 12px; }
+    .card { padding: 15px; }
+    .card-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: 800; }
+    .count { color: var(--muted); font-size: 12px; font-weight: 500; }
+    .goal { padding: 13px 0; border-top: 1px solid var(--border); }
+    .goal:first-of-type { border-top: 0; padding-top: 0; }
+    .goal-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .goal-name { font-weight: 750; }
+    .goal-meta { color: var(--muted); margin-top: 4px; font-size: 12px; }
+    .amount { font: 700 14px ui-monospace, monospace; white-space: nowrap; }
+    .track { height: 9px; margin: 11px 0 6px; background: #e3e3e3; border-radius: 999px; overflow: hidden; }
+    .fill { height: 100%; background: #64b5f6; border-radius: inherit; }
+    .progress-row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+    .actions { display: flex; gap: 7px; margin-top: 11px; }
+    .btn { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 9px; padding: 7px 10px; cursor: pointer; }
+    .btn.primary { color: white; background: var(--accent); }
+    .wish { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+    .wish:first-of-type { border-top: 0; padding-top: 0; }
+    .order { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--green-bg); color: var(--green); font-weight: 800; font-size: 12px; }
+    .wish-action { grid-column: 2 / 4; justify-self: stretch; }
+    .empty { display: none; padding: 24px; text-align: center; color: var(--muted); }
+    .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); padding: 11px 15px; border-radius: 9px; background: #292929; color: white; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .toast.show { opacity: 1; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) {
+      .shell { padding: 13px; }
+      .header { align-items: flex-start; flex-direction: column; }
+      .summary { grid-template-columns: 1fr; }
+      .columns { grid-template-columns: 1fr; }
+      .goal-head { flex-direction: column; }
+      .goal-head .amount { white-space: normal; }
+      .wish { grid-template-columns: 26px minmax(0, 1fr); }
+      .wish > .amount { grid-column: 2; justify-self: start; white-space: normal; }
+      .wish-action { grid-column: 2; }
+      h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="prototype-note">
+      隔離式概念原型：只使用固定假資料，不連接 finance-web store、localStorage、Firebase 或正式計算。
+    </div>
+    <header class="header">
+      <div>
+        <h1>目標中心</h1>
+        <div class="subtitle">把想做的事分成「正在準備」與「仍在考慮」，不把願望誤算成支出。</div>
+      </div>
+      <div class="segments" aria-label="篩選目標">
+        <button class="segment on" data-filter="all">全部</button>
+        <button class="segment" data-filter="active">準備中</button>
+        <button class="segment" data-filter="considering">考慮中</button>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="本月目標空間">
+      <div class="metric"><div class="label">本月可分配到目標</div><div class="value green">NT$ 8,200</div></div>
+      <div class="metric"><div class="label">本月既有規劃提撥</div><div class="value">NT$ 7,000</div></div>
+      <div class="metric"><div class="label">本月額外補入</div><div class="value">NT$ 2,000</div></div>
+    </section>
+
+    <section class="card attention" data-section="active">
+      <strong>需要注意：日本旅行依目前提撥，期限前仍差 NT$ 12,000</strong>
+      <p>可考慮延後期限、提高每月提撥或保留日後手動補入。系統不會自動改動你的計畫。</p>
+    </section>
+
+    <div class="columns">
+      <section class="card" data-section="active">
+        <div class="card-title">準備中的目標 <span class="count">2 項</span></div>
+        <article class="goal">
+          <div class="goal-head"><div><div class="goal-name">日本旅行</div><div class="goal-meta">目標 2027-06 · 每月提撥 NT$ 5,000</div></div><div class="amount">NT$ 42,000 / 100,000</div></div>
+          <div class="track"><div class="fill" style="width:42%"></div></div>
+          <div class="progress-row"><span>尚差 NT$ 58,000</span><span>42%</span></div>
+          <div class="actions"><button class="btn" data-demo="查看日本旅行明細">查看明細</button><button class="btn" data-demo="調整日本旅行計畫">調整計畫</button></div>
+        </article>
+        <article class="goal">
+          <div class="goal-head"><div><div class="goal-name">新筆電</div><div class="goal-meta">目標 2026-12 · 每月提撥 NT$ 2,000</div></div><div class="amount">NT$ 18,000 / 30,000</div></div>
+          <div class="track"><div class="fill" style="width:60%"></div></div>
+          <div class="progress-row"><span>依目前計畫可達成</span><span>60%</span></div>
+          <div class="actions"><button class="btn" data-demo="查看新筆電明細">查看明細</button><button class="btn" data-demo="調整新筆電計畫">調整計畫</button></div>
+        </article>
+      </section>
+
+      <section class="card" data-section="considering">
+        <div class="card-title">考慮中的目標 <span class="count">2 項</span></div>
+        <article class="wish"><div class="order">1</div><div><div class="goal-name">人體工學椅</div><div class="goal-meta">居家 · 目前自由運用範圍內</div></div><div class="amount">NT$ 18,000</div><button class="btn primary wish-action" data-demo="帶入人體工學椅的準備表單">建立準備</button></article>
+        <article class="wish"><div class="order">2</div><div><div class="goal-name">相機</div><div class="goal-meta">3C／電子 · 尚超出自由運用</div></div><div class="amount">NT$ 32,000</div><button class="btn primary wish-action" data-demo="帶入相機的準備表單">建立準備</button></article>
+      </section>
+    </div>
+    <div class="empty" id="empty">此篩選目前沒有項目。</div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const filterButtons = [...document.querySelectorAll("[data-filter]")];
+    const sections = [...document.querySelectorAll("[data-section]")];
+    const empty = document.getElementById("empty");
+    const toast = document.getElementById("toast");
+    let toastTimer;
+
+    function applyFilter(filter) {
+      filterButtons.forEach((button) => button.classList.toggle("on", button.dataset.filter === filter));
+      sections.forEach((section) => {
+        section.hidden = filter !== "all" && section.dataset.section !== filter;
+      });
+      empty.style.display = sections.some((section) => !section.hidden) ? "none" : "block";
+    }
+
+    function showToast(message) {
+      toast.textContent = `${message}（原型不會保存資料）`;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    filterButtons.forEach((button) => button.addEventListener("click", () => applyFilter(button.dataset.filter)));
+    document.querySelectorAll("[data-demo]").forEach((button) => button.addEventListener("click", () => showToast(button.dataset.demo)));
+  </script>
+</body>
+</html>
