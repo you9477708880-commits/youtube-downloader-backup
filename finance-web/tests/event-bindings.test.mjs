@@ -51,6 +51,8 @@ function createHarness() {
     "wishPrice", "retireLinked", "authButton", "currentAge", "retirementAge", "deathAge",
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
+    "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
+    "transactionSearchEnd", "transactionSearchClear",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
   const record = (name) => (...args) => calls.push([name, ...args]);
@@ -66,6 +68,7 @@ function createHarness() {
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
+    "searchTransactions", "changeTransactionSearchPeriod", "clearTransactionSearch",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };
@@ -123,6 +126,9 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.filterPreset.value = "year";
   dom.filterPreset.emit("change");
   dom.inputCategory.emit("change");
+  dom.transactionSearchQuery.emit("input");
+  dom.transactionSearchPreset.emit("change");
+  dom.transactionSearchClear.emit("click");
   dom.balanceType.value = "item";
   dom.balanceType.emit("change");
   dom.inputAmount.value = "10.8";
@@ -141,6 +147,9 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   assert.deepEqual(calls.map(([name]) => name), [
     "setDatePreset",
     "populateTransactionSubcategoryOptions",
+    "searchTransactions",
+    "changeTransactionSearchPeriod",
+    "clearTransactionSearch",
     "changeBalanceType",
     "normalizeMoneyInput",
     "normalizeMoneyInput",

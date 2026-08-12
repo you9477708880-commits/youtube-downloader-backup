@@ -71,6 +71,11 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.filterPreset, "change", (event) => actions.setDatePreset(event.target.value));
   on(dom.filterStart, "change", () => actions.customDate());
   on(dom.filterEnd, "change", () => actions.customDate());
+  on(dom.transactionSearchQuery, "input", handlers.searchTransactions);
+  on(dom.transactionSearchPreset, "change", handlers.changeTransactionSearchPeriod);
+  on(dom.transactionSearchStart, "change", handlers.changeTransactionSearchPeriod);
+  on(dom.transactionSearchEnd, "change", handlers.changeTransactionSearchPeriod);
+  on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
 

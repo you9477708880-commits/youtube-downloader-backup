@@ -38,6 +38,7 @@ import { createWishlistController } from "./controllers/wishlist-controller.js";
 import { createImportController } from "./controllers/import-controller.js";
 import { createCategoryBudgetController } from "./controllers/category-budget-controller.js";
 import { createRetirementController } from "./controllers/retirement-controller.js";
+import { createTransactionSearchController } from "./controllers/transaction-search-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
 
@@ -85,6 +86,15 @@ function collectDom(doc = document) {
     aTx: $("a-tx", doc),
     advList: $("adv-list", doc),
     txCount: $("tx-cnt", doc),
+    transactionSearchQuery: $("tx-search-query", doc),
+    transactionSearchPreset: $("tx-search-preset", doc),
+    transactionSearchStart: $("tx-search-start", doc),
+    transactionSearchEnd: $("tx-search-end", doc),
+    transactionSearchClear: $("tx-search-clear", doc),
+    transactionSearchCustom: $("tx-search-custom", doc),
+    transactionSearchStatus: $("tx-search-status", doc),
+    transactionSearchSummary: $("tx-search-summary", doc),
+    transactionSearchEmpty: $("tx-search-empty", doc),
     cashflowBody: $("cf-b", doc),
     balanceSheetBody: $("bs-b", doc),
     budgetCap: $("bs-cap", doc),
@@ -255,6 +265,7 @@ export async function bootstrapFinanceApp(doc = document) {
   };
 
   let retirementController = null;
+  let transactionSearchController = null;
 
   const ui = {
     toast,
@@ -489,7 +500,8 @@ export async function bootstrapFinanceApp(doc = document) {
     const filterRange = getFilterRangeValue();
     renderOverview({ state, filteredTxs, constants: CONSTANTS, utils, dom });
     renderMonthlyReview({ state, filterRange, utils, dom });
-    renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
+    if (transactionSearchController) transactionSearchController.render();
+    else renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
     renderCashFlow({ state, filteredTxs, utils, dom });
     renderBalanceSheet({ state, utils, dom });
     renderGoalCenter({ state, filterRange, utils, dom });
@@ -673,6 +685,28 @@ export async function bootstrapFinanceApp(doc = document) {
     confirmDelete: (message) => window.confirm(message),
     promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
   });
+  transactionSearchController = createTransactionSearchController({
+    elements: {
+      query: dom.transactionSearchQuery,
+      preset: dom.transactionSearchPreset,
+      start: dom.transactionSearchStart,
+      end: dom.transactionSearchEnd,
+      clear: dom.transactionSearchClear,
+      customRange: dom.transactionSearchCustom,
+      status: dom.transactionSearchStatus,
+      summary: dom.transactionSearchSummary,
+      empty: dom.transactionSearchEmpty,
+    },
+    store,
+    getReportTransactions: getFiltered,
+    renderTransactions: (transactions) => renderLedger({
+      state: store.getState(),
+      filteredTxs: transactions,
+      constants: CONSTANTS,
+      utils,
+      dom,
+    }),
+  });
   const importController = createImportController({
     elements: {
       androMoneyModal: dom.androMoneyModal,
@@ -731,7 +765,7 @@ export async function bootstrapFinanceApp(doc = document) {
   });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, importController, retirementController],
+    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, importController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -795,6 +829,9 @@ export async function bootstrapFinanceApp(doc = document) {
         dom.goalCenter.dataset.filter = filter;
         renderGoalCenter({ state: store.getState(), filterRange: getFilterRangeValue(), utils, dom });
       },
+      searchTransactions: transactionSearchController.handleQueryInput,
+      changeTransactionSearchPeriod: transactionSearchController.handlePresetChange,
+      clearTransactionSearch: transactionSearchController.clear,
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
       updateRetirementAge: retirementController.updateAge,
@@ -836,6 +873,7 @@ export async function bootstrapFinanceApp(doc = document) {
   wishlistController.reset();
   sinkingFundController.reset();
   transactionController.reset();
+  transactionSearchController.reset();
 
   const now = new Date();
   dom.headerSub.textContent = `${now.getFullYear()} / ${now.getMonth() + 1}`;

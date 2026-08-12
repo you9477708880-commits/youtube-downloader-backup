@@ -211,6 +211,26 @@
       <div class="ledger-pane ledger-list-pane">
     <div class="card pad-sm">
       <div class="ct px-1">所有交易明細 <span class="ct-s" id="tx-cnt">0 筆</span></div>
+      <div class="tx-search" aria-label="搜尋記帳紀錄">
+        <div class="tx-search-controls">
+          <input type="search" id="tx-search-query" maxlength="200" autocomplete="off" placeholder="搜尋備註、分類、帳戶，例如：洗牙">
+          <select id="tx-search-preset" aria-label="搜尋期間">
+            <option value="6m">近 6 個月</option>
+            <option value="1y">近 1 年</option>
+            <option value="all">全部時間</option>
+            <option value="custom">自訂區間</option>
+          </select>
+          <button type="button" class="sbtn outline compact" id="tx-search-clear">清除</button>
+        </div>
+        <div class="tx-search-custom" id="tx-search-custom" hidden>
+          <input type="date" id="tx-search-start" aria-label="搜尋開始日期">
+          <span class="text-gray">～</span>
+          <input type="date" id="tx-search-end" aria-label="搜尋結束日期">
+        </div>
+        <div class="tx-search-status" id="tx-search-status"></div>
+        <div class="tx-search-summary" id="tx-search-summary" hidden></div>
+        <div class="empty tx-search-empty" id="tx-search-empty" hidden></div>
+      </div>
       <div id="a-tx"><div class="empty">尚無交易記錄</div></div>
     </div>
       </div>

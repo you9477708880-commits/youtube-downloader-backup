@@ -100,7 +100,7 @@ Complete one-command suite:
 npm test
 ```
 
-This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 12 UI smoke scenarios. It must not use a production Firebase project ID.
+This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 13 UI smoke scenarios. It must not use a production Firebase project ID.
 
 Syntax check:
 

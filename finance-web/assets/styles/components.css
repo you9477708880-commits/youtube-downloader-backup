@@ -702,3 +702,18 @@
   .goal-center-wish .goal-center-amount { grid-column: 2; }
   .goal-center-prepare { grid-column: 2; }
 }
+
+.tx-search { margin: 4px 4px 14px; padding-bottom: 12px; border-bottom: 1px solid var(--bdr); }
+.tx-search-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.tx-search-custom { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.tx-search-custom[hidden] { display: none; }
+.tx-search-status { margin-top: 8px; color: var(--tx2); font-size: 12px; }
+.tx-search-summary { margin-top: 8px; border-radius: var(--r); background: var(--grn-bg); color: var(--grn); padding: 10px 12px; font-size: 13px; font-weight: 600; }
+.tx-search-empty { padding: 14px 0 4px; }
+
+@media (max-width: 640px) {
+  .tx-search-controls { grid-template-columns: minmax(0, 1fr) auto; }
+  .tx-search-controls input { grid-column: 1 / -1; }
+  .tx-search-custom { align-items: stretch; flex-direction: column; }
+  .tx-search-custom span { display: none; }
+}

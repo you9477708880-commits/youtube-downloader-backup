@@ -13,6 +13,8 @@ const testFiles = [
   "tests/retirement-controller.test.mjs",
   "tests/sinking-fund-controller.test.mjs",
   "tests/transaction-controller.test.mjs",
+  "tests/transaction-search.test.mjs",
+  "tests/transaction-search-controller.test.mjs",
   "tests/import-controller.test.mjs",
   "tests/event-bindings.test.mjs",
   "tests/goal-center.test.mjs",

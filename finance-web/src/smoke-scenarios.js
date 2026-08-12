@@ -1060,3 +1060,74 @@ export async function runWishFundPrefillScenario(app) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareTransactionSearchScenario() {
+  const now = new Date();
+  const dateMonthsAgo = (months) => localDateKey(new Date(now.getFullYear(), now.getMonth() - months, Math.min(now.getDate(), 12)));
+  const seededState = {
+    txs: [
+      { id: "search-now", type: "expense", amount: 200, desc: "例行洗牙", date: localDateKey(now), category: "醫療", cat: "醫療", subcategory: "牙科", acc: "card" },
+      { id: "search-five-months", type: "expense", amount: 150, desc: "洗牙與檢查", date: dateMonthsAgo(5), category: "醫療", cat: "醫療", subcategory: "牙科", acc: "cash" },
+      { id: "search-eight-months", type: "expense", amount: 180, desc: "定期洗牙", date: dateMonthsAgo(8), category: "醫療", cat: "醫療", subcategory: "牙科", acc: "cash" },
+    ],
+    bsI: [],
+    wishes: [{ id: "search-wish", name: "Smoke camera", price: 5000, cat: "3C" }],
+    sinkingFunds: [{ id: "search-fund", name: "Smoke travel", category: "旅行", targetAmount: 12000, monthlyContribution: 1000, startMonth: smokeMonth, targetMonth: smokeMonth, carryoverEnabled: true, note: "", events: [] }],
+    accounts: [
+      { id: "cash", name: "現金", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "card", name: "信用卡", type: "liability", isEm: false, initialBalance: 0 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: { budgetCap: 20000, catBudgets: {}, leftoverMode: "manual", investingLabel: "投資", cashReserveLabel: "預備金", retLinked: true, retManualAsset: 0 },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runTransactionSearchScenario() {
+  try {
+    const reportStart = document.getElementById("f-start")?.value;
+    const reportEnd = document.getElementById("f-end")?.value;
+
+    document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
+    document.querySelector('#goal-center [data-action="filter-goals"][data-filter="considering"]')?.click();
+    const goalHtmlBefore = document.getElementById("goal-center")?.innerHTML;
+
+    document.querySelector('[data-action="tab"][data-target="lg"]')?.click();
+    const query = document.getElementById("tx-search-query");
+    query.value = "醫療 洗牙";
+    query.dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("tx-search-preset")?.dispatchEvent(new Event("change", { bubbles: true }));
+
+    if (
+      !document.getElementById("tx-search-summary")?.textContent.includes("最近一次") ||
+      document.getElementById("tx-cnt")?.textContent !== "2 筆" ||
+      document.getElementById("f-start")?.value !== reportStart ||
+      document.getElementById("f-end")?.value !== reportEnd ||
+      document.getElementById("goal-center")?.dataset.filter !== "considering" ||
+      document.getElementById("goal-center")?.innerHTML !== goalHtmlBefore
+    ) {
+      throw new Error("transaction-search-mutated-report-or-goal-center");
+    }
+
+    const preset = document.getElementById("tx-search-preset");
+    preset.value = "1y";
+    preset.dispatchEvent(new Event("change", { bubbles: true }));
+    if (document.getElementById("tx-cnt")?.textContent !== "3 筆") throw new Error("transaction-search-one-year-mismatch");
+
+    document.getElementById("tx-search-clear")?.click();
+    if (document.getElementById("tx-search-query")?.value !== "" || document.getElementById("tx-cnt")?.textContent !== "1 筆") {
+      throw new Error("transaction-search-clear-mismatch");
+    }
+
+    writeSmokeResult("pass", "independent transaction search periods, interval summary, clear behavior, and goal-center isolation all passed");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}
