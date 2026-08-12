@@ -288,6 +288,7 @@ function summarize(dom, url, scenario, browserPath, planLabel) {
     planLabel,
     title: extractTagText(dom, "title"),
     cloudStatus: extractTextById(dom, "cloud-status"),
+    cloudState: extractDatasetValueById(dom, "cloud-status", "state"),
     headerSub: extractTextById(dom, "hdr-s"),
     overviewIncome: extractTextById(dom, "o-i"),
     overviewExpense: extractTextById(dom, "o-e"),
@@ -386,7 +387,9 @@ async function testScenario(baseUrl, scenario) {
         }
 
         const summary = summarize(result.stdout, url, scenario, browserPath, plan.label);
-        const passed = scenario ? summary.smokeStatus === "pass" : Boolean(summary.title);
+        const passed = scenario
+          ? summary.smokeStatus === "pass"
+          : Boolean(summary.title) && ["local", "cloud", "cache", "offline", "warning", "conflict"].includes(summary.cloudState);
         if (scenario && !summary.smokeStatus) {
           errors.push(`${path.basename(browserPath)} / ${plan.label}: scenario produced DOM before reporting a result`);
           continue;

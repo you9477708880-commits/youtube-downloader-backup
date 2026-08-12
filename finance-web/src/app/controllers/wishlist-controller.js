@@ -1,5 +1,4 @@
 import { toMoneyInt } from "../../utils/format.js";
-import { getUnusedCategoryBudgetNames } from "../../domain/category-budgets.js";
 
 function defaultCreateId(prefix) {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -14,8 +13,6 @@ export function createWishlistController({
   commitState,
   renderWishlist,
   navigate,
-  constants = {},
-  confirmCleanup = (message) => globalThis.window.confirm(message),
   createId = defaultCreateId,
 }) {
   const { root, name, price, category } = elements;
@@ -110,31 +107,12 @@ export function createWishlistController({
     }, { updateUi: renderWishlist });
   };
 
-  const cleanupCatBudgets = () => {
-    const unusedCategories = getUnusedCategoryBudgetNames(store.getState(), constants);
-    if (!unusedCategories.length) {
-      toast.show("目前沒有需要清理的分類預算");
-      return;
-    }
-
-    const message = `將移除 ${unusedCategories.length} 個未使用分類預算：\n${unusedCategories.join("、")}\n\n確定要清理嗎？`;
-    if (!confirmCleanup(message)) return;
-
-    commitState((draft) => {
-      unusedCategories.forEach((categoryName) => {
-        delete draft.settings.catBudgets[categoryName];
-      });
-    }, { updateUi: renderWishlist });
-    toast.show(`已清理 ${unusedCategories.length} 個未使用分類預算`);
-  };
-
   return {
     addWish,
     beginEditWish,
     cancelEditWish,
     delWish,
     mvWish,
-    cleanupCatBudgets,
     reset,
   };
 }

@@ -64,7 +64,7 @@ function createHarness() {
     "changeBalanceType", "cancelAndroMoneyImport", "confirmAndroMoneyImport",
     "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction",
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
-    "updateConnectivity",
+    "updateConnectivity", "toggleRetirementTable",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };

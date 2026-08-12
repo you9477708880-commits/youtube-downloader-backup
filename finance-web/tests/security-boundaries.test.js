@@ -25,6 +25,8 @@ function testHostingUsesGeneratedAllowlist() {
   const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "firebase.json"), "utf8"));
   assert.equal(config.hosting.public, ".firebase-public");
   assert.ok(config.hosting.predeploy.includes("node scripts/prepare-hosting.js"));
+  const serviceWorkerHeaders = config.hosting.headers.find((entry) => entry.source === "/sw.js")?.headers || [];
+  assert.ok(serviceWorkerHeaders.some((header) => header.key === "Cache-Control" && /no-cache/.test(header.value)));
 
   const result = spawnSync(process.execPath, ["scripts/prepare-hosting.js"], {
     cwd: projectRoot,
@@ -35,11 +37,13 @@ function testHostingUsesGeneratedAllowlist() {
   const files = listOutputFiles();
   assert.ok(files.includes("index.html"));
   assert.ok(files.includes("404.html"));
+  assert.ok(files.includes("manifest.webmanifest"));
+  assert.ok(files.includes("sw.js"));
   assert.ok(files.includes("src/main.js"));
   assert.ok(files.includes("admin/main.js"));
   assert.ok(files.some((file) => file.startsWith("assets/")));
 
-  const allowedTopLevel = new Set(["index.html", "404.html", "assets", "src", "admin"]);
+  const allowedTopLevel = new Set(["index.html", "404.html", "manifest.webmanifest", "sw.js", "assets", "src", "admin"]);
   files.forEach((file) => {
     assert.ok(allowedTopLevel.has(file.split("/")[0]), `Unexpected Hosting file: ${file}`);
   });
@@ -61,6 +65,24 @@ function testHostingUsesGeneratedAllowlist() {
   });
 }
 
+function testPwaUsesStaticSameOriginFiles() {
+  const pwaSource = fs.readFileSync(path.join(projectRoot, "src", "services", "pwa.js"), "utf8");
+  assert.match(pwaSource, /new URL\("\.\.\/\.\.\/manifest\.webmanifest", import\.meta\.url\)/);
+  assert.match(pwaSource, /\.register\(new URL\("\.\.\/\.\.\/sw\.js", import\.meta\.url\)/);
+  assert.doesNotMatch(pwaSource, /serviceWorker\s*\.register\(URL\.createObjectURL|new Blob\(\[swCode\]/);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "manifest.webmanifest"), "utf8"));
+  assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.scope, "/");
+  assert.equal(manifest.display, "standalone");
+
+  const serviceWorker = fs.readFileSync(path.join(projectRoot, "sw.js"), "utf8");
+  assert.match(serviceWorker, /fetch\(request, \{ cache: "no-store" \}\)/);
+  assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
+  assert.match(serviceWorker, /request\.method !== "GET"/);
+  assert.match(serviceWorker, /caches\.delete/);
+}
+
 function testFirestoreRecordBoundaries() {
   const rules = fs.readFileSync(path.join(projectRoot, "firestore.rules"), "utf8");
   assert.match(rules, /request\.auth\.uid == userId/);
@@ -78,6 +100,7 @@ function testFirestoreRecordBoundaries() {
 try {
   testProductionEntryCannotRunSmokeScenarios();
   testHostingUsesGeneratedAllowlist();
+  testPwaUsesStaticSameOriginFiles();
   testFirestoreRecordBoundaries();
   console.log("Security boundary tests passed");
 } finally {

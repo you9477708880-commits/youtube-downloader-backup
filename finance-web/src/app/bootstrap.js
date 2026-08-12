@@ -35,6 +35,8 @@ import { createSinkingFundController } from "./controllers/sinking-fund-controll
 import { createTransactionController } from "./controllers/transaction-controller.js";
 import { createWishlistController } from "./controllers/wishlist-controller.js";
 import { createImportController } from "./controllers/import-controller.js";
+import { createCategoryBudgetController } from "./controllers/category-budget-controller.js";
+import { createRetirementController } from "./controllers/retirement-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
 
@@ -250,15 +252,7 @@ export async function bootstrapFinanceApp(doc = document) {
     }
   };
 
-  const syncRetirementInputs = () => {
-    dom.retireAssetValue.textContent = formatMoney(dom.retireAsset.value || 0);
-    dom.retireMonthlyValue.textContent = formatMoney(dom.retireMonthly.value || 0);
-    dom.retirePrincipalReturnValue.textContent = `${parseFloat(dom.retirePrincipalReturn.value || 0).toFixed(1)}%`;
-    dom.retireContributionReturnValue.textContent = `${parseFloat(dom.retireContributionReturn.value || 0).toFixed(1)}%`;
-    dom.retireInflationValue.textContent = `${parseFloat(dom.retireInflation.value || 0).toFixed(1)}%`;
-    dom.retireWithdrawValue.textContent = formatMoney(dom.retireWithdraw.value || 0);
-    dom.retireTargetValue.textContent = formatMoney(dom.retireTarget.value || 0);
-  };
+  let retirementController = null;
 
   const ui = {
     toast,
@@ -352,19 +346,7 @@ export async function bootstrapFinanceApp(doc = document) {
     syncFromSettings() {
       const state = store.getState();
       dom.budgetCapInput.value = state.settings.budgetCap;
-      dom.retireLinked.checked = state.settings.retLinked;
-      dom.retireAsset.value = state.settings.retManualAsset;
-      this.toggleRetLinkUI();
-    },
-    toggleRetLinkUI() {
-      const linked = store.getState().settings.retLinked;
-      dom.retireManualWrap.classList.toggle("opacity-50", linked);
-      dom.retireManualWrap.classList.toggle("pointer-none", linked);
-      dom.retireAsset.disabled = linked;
-    },
-    toggleRetirementTable() {
-      dom.tableWrap.classList.toggle("d-none");
-      dom.tableToggleLabel.textContent = dom.tableWrap.classList.contains("d-none") ? "展開 ▼" : "收合 ▲";
+      retirementController?.syncFromSettings();
     },
     askFundShortfallChoice({ fundName, availableFromFund, amount, shortfall, availableFreedom }) {
       return new Promise((resolve) => {
@@ -510,7 +492,6 @@ export async function bootstrapFinanceApp(doc = document) {
 
   const refreshWholeStateUi = () => {
     ui.syncFromSettings();
-    syncRetirementInputs();
     ui.renderTransactionCategorySelect();
     ui.populateCategoryBudgetOptions();
     ui.populateFundOptions();
@@ -614,7 +595,21 @@ export async function bootstrapFinanceApp(doc = document) {
     commitState,
     renderWishlist: renderWishlistOnly,
     navigate: (tabId) => baseActions.switchTab(tabId),
+  });
+  const categoryBudgetController = createCategoryBudgetController({
+    elements: {
+      category: dom.catBudgetCategory,
+      amount: dom.catBudgetAmount,
+      budgetCap: dom.budgetCapInput,
+      fundCategory: dom.fundCategory,
+    },
+    store,
+    toast,
+    commitState,
+    renderBudget: renderWishlistOnly,
+    populateOptions: () => ui.populateCategoryBudgetOptions(),
     constants: CONSTANTS,
+    promptInput: (message) => window.prompt(message),
     confirmCleanup: (message) => window.confirm(message),
   });
   const sinkingFundController = createSinkingFundController({
@@ -696,9 +691,39 @@ export async function bootstrapFinanceApp(doc = document) {
     formatMoney,
     escapeHTML,
   });
+  retirementController = createRetirementController({
+    elements: {
+      linked: dom.retireLinked,
+      manualWrap: dom.retireManualWrap,
+      currentAge: dom.currentAge,
+      retirementAge: dom.retirementAge,
+      deathAge: dom.deathAge,
+      asset: dom.retireAsset,
+      monthly: dom.retireMonthly,
+      principalReturn: dom.retirePrincipalReturn,
+      contributionReturn: dom.retireContributionReturn,
+      inflation: dom.retireInflation,
+      withdraw: dom.retireWithdraw,
+      target: dom.retireTarget,
+      assetValue: dom.retireAssetValue,
+      monthlyValue: dom.retireMonthlyValue,
+      principalReturnValue: dom.retirePrincipalReturnValue,
+      contributionReturnValue: dom.retireContributionReturnValue,
+      inflationValue: dom.retireInflationValue,
+      withdrawValue: dom.retireWithdrawValue,
+      targetValue: dom.retireTargetValue,
+      tableWrap: dom.tableWrap,
+      tableToggleLabel: dom.tableToggleLabel,
+    },
+    store,
+    commitState,
+    renderAll,
+    formatMoney,
+    toMoneyInt,
+  });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, sinkingFundController, transactionController, importController],
+    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, importController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -713,7 +738,10 @@ export async function bootstrapFinanceApp(doc = document) {
     cancelEditWish: wishlistController.cancelEditWish,
     delWish: wishlistController.delWish,
     mvWish: wishlistController.mvWish,
-    cleanupCatBudgets: wishlistController.cleanupCatBudgets,
+    addFundCategory: categoryBudgetController.addFundCategory,
+    setCatBudget: categoryBudgetController.setCatBudget,
+    delCatBudget: categoryBudgetController.delCatBudget,
+    cleanupCatBudgets: categoryBudgetController.cleanupCatBudgets,
     addFund: sinkingFundController.addFund,
     beginEditFund: sinkingFundController.beginEditFund,
     cancelEditFund: sinkingFundController.cancelEditFund,
@@ -729,16 +757,7 @@ export async function bootstrapFinanceApp(doc = document) {
     delTx: transactionController.delTx,
     repayAdvance: transactionController.repayAdvance,
     editAdvanceRepayment: transactionController.editAdvanceRepayment,
-  };
-
-  const retirementInputs = {
-    retireAsset: ["retireAssetValue", (value) => formatMoney(toMoneyInt(value))],
-    retireMonthly: ["retireMonthlyValue", (value) => formatMoney(toMoneyInt(value))],
-    retirePrincipalReturn: ["retirePrincipalReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    retireContributionReturn: ["retireContributionReturnValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    retireInflation: ["retireInflationValue", (value) => `${parseFloat(value).toFixed(1)}%`],
-    retireWithdraw: ["retireWithdrawValue", (value) => formatMoney(toMoneyInt(value))],
-    retireTarget: ["retireTargetValue", (value) => formatMoney(toMoneyInt(value))],
+    presetRet: retirementController.presetRet,
   };
 
   const bindEvents = () => bindAppEvents({
@@ -763,34 +782,12 @@ export async function bootstrapFinanceApp(doc = document) {
       normalizeMoneyInput: (node) => {
         if (node.value) node.value = String(toMoneyInt(node.value));
       },
-      updateBudgetCap: () => {
-        commitState((state) => {
-          state.settings.budgetCap = toMoneyInt(dom.budgetCapInput.value);
-        }, { updateUi: renderWishlistOnly });
-      },
-      updateRetirementLinked: () => {
-        commitState((state) => {
-          state.settings.retLinked = dom.retireLinked.checked;
-        }, {
-          updateUi: () => {
-            ui.toggleRetLinkUI();
-            renderAll();
-          },
-        });
-      },
+      updateBudgetCap: categoryBudgetController.updateBudgetCap,
+      updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
-      updateRetirementAge: () => renderAll(),
-      updateRetirementInput: (inputKey, event) => {
-        const [outputKey, formatter] = retirementInputs[inputKey];
-        dom[outputKey].textContent = formatter(event.target.value);
-        if (inputKey === "retireAsset" && !store.getState().settings.retLinked) {
-          commitState((state) => {
-            state.settings.retManualAsset = toMoneyInt(event.target.value);
-          }, { updateUi: renderAll });
-          return;
-        }
-        renderAll();
-      },
+      updateRetirementAge: retirementController.updateAge,
+      updateRetirementInput: retirementController.updateInput,
+      toggleRetirementTable: retirementController.toggleTable,
       importJsonFile: async (event) => {
         if (!event.target.files?.length) return;
         try {
@@ -818,7 +815,6 @@ export async function bootstrapFinanceApp(doc = document) {
 
   ui.updateCloudStatus("local");
   ui.syncFromSettings();
-  syncRetirementInputs();
   ui.renderTransactionCategorySelect();
   ui.populateCategoryBudgetOptions();
   ui.populateFundOptions();

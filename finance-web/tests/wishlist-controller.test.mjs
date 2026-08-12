@@ -30,7 +30,6 @@ function createHarness() {
     editModes: [],
     toasts: [],
     scroll: 0,
-    confirm: true,
   };
   const dom = {
     wishName: { value: "" },
@@ -60,8 +59,6 @@ function createHarness() {
       updateUi(store.getState());
     },
     navigate: (tabId) => calls.navigate.push(tabId),
-    constants: { expenseCategories: ["固定分類"] },
-    confirmCleanup: () => calls.confirm,
   });
   return { store, calls, dom, controller };
 }
@@ -195,30 +192,4 @@ test("reset clears editing identity without saving or rendering", () => {
   assert.equal(store.getState().wishes.at(-1).name, "切換資料後新增");
   assert.equal(calls.save, 1);
   assert.equal(calls.render, 1);
-});
-
-test("category budget cleanup removes only unused entries after confirmation", () => {
-  const { store, calls, controller } = createHarness();
-
-  controller.cleanupCatBudgets();
-
-  assert.deepEqual(store.getState().settings.catBudgets, {
-    "固定分類": 1000,
-    "自訂使用中": 2000,
-  });
-  assert.equal(calls.save, 1);
-  assert.equal(calls.render, 1);
-  assert.match(calls.toasts.at(-1)[0], /已清理 2 個/);
-});
-
-test("cancelled category budget cleanup has no side effects", () => {
-  const { store, calls, controller } = createHarness();
-  const original = structuredClone(store.getState());
-  calls.confirm = false;
-
-  controller.cleanupCatBudgets();
-
-  assert.deepEqual(store.getState(), original);
-  assert.equal(calls.save, 0);
-  assert.equal(calls.render, 0);
 });

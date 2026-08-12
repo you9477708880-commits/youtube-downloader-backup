@@ -5,8 +5,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "npm run test:unit && npm run test:emulators && npm run test:smoke",
+    "test": "npm run test:unit && npm run test:release && npm run test:emulators && npm run test:smoke",
     "test:unit": "node scripts/run-tests.mjs",
+    "test:release": "node scripts/release-check.mjs && node tests/smoke-runner.js --root=.firebase-public --port=0",
+    "test:release:remote": "node scripts/release-check.mjs --url=https://financial-computer.web.app",
     "test:emulators": "firebase emulators:exec --config firebase.emulator.json --only firestore,functions --project demo-finance-web \"node --test --test-concurrency=1 tests/firestore-rules.emulator.test.mjs tests/functions-emulator.test.mjs\"",
     "test:rules": "firebase emulators:exec --config firebase.emulator.json --only firestore --project demo-finance-web \"node --test tests/firestore-rules.emulator.test.mjs\"",
     "test:functions": "firebase emulators:exec --config firebase.emulator.json --only functions --project demo-finance-web \"node --test tests/functions-emulator.test.mjs\"",

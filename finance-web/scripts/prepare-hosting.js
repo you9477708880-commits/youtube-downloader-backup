@@ -3,7 +3,7 @@ const path = require("path");
 
 const projectRoot = path.resolve(__dirname, "..");
 const outputRoot = path.join(projectRoot, ".firebase-public");
-const rootFiles = ["index.html", "404.html"];
+const rootFiles = ["index.html", "404.html", "manifest.webmanifest", "sw.js"];
 const publicDirectories = ["assets", "src", "admin"];
 const excludedRelativePaths = new Set(["src/smoke-scenarios.js"]);
 
