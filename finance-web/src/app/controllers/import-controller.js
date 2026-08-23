@@ -36,6 +36,7 @@ export function createImportController({
   persistWholeState,
   refreshWholeStateUi,
   commitState,
+  waitForCloudSave = async () => false,
   refreshTransactionUi,
   readBackupFile,
   exportBackupFile,
@@ -198,9 +199,9 @@ export function createImportController({
     });
 
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
-    toast.show(
-      `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${skipped ? `，略過 ${skipped} 筆重複` : ""}`,
-    );
+    const cloudSaved = await waitForCloudSave();
+    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${skipped ? `，略過 ${skipped} 筆重複` : ""}`;
+    toast.show(cloudSaved ? `${result}，已同步雲端` : `${result}，已保存於本機，尚未同步雲端`);
   };
 
   return {

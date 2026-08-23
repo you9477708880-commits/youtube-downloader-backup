@@ -105,7 +105,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   const fx = createFixture();
   fx.coordinator.attachCloudSync(fx.cloud);
   assert.throws(() => fx.coordinator.onUserChange({ uid: "a", isAnonymous: false }), /replacer-not-bound/);
-  assert.throws(() => fx.coordinator.onRemoteState(state("remote"), { initial: true }), /replacer-not-bound/);
+  await assert.rejects(fx.coordinator.onRemoteState(state("remote"), { initial: true }), /replacer-not-bound/);
 }
 
 {
@@ -138,7 +138,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.setState(state("unbound"));
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
-  const result = fx.coordinator.onRemoteState(state(), { source: "records", initial: true });
+  const result = await fx.coordinator.onRemoteState(state(), { source: "records", initial: true });
   assert.equal(result, "imported-unbound-local");
   assert.equal(fx.getState().txs[0].id, "unbound");
   assert.equal(fx.saves.at(-1).scope, "uid:a");
@@ -152,12 +152,12 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state(), { source: "records", initial: true }), "kept-local");
+  assert.equal(await fx.coordinator.onRemoteState(state(), { source: "records", initial: true }), "kept-local");
   await fx.flushScheduled();
   assert.equal(fx.cloudCalls.save, 1);
 
   const same = state("local");
-  assert.equal(fx.coordinator.onRemoteState(same, { source: "legacy", initial: true, migrationRequired: true }), "applied-equivalent-or-empty");
+  assert.equal(await fx.coordinator.onRemoteState(same, { source: "legacy", initial: true, migrationRequired: true }), "applied-equivalent-or-empty");
   assert.equal(fx.getState().normalized, true);
   await fx.flushScheduled();
   assert.equal(fx.cloudCalls.save, 2);
@@ -170,7 +170,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
   assert.equal(
-    fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true, hasPendingOutbox: true }),
+    await fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true, hasPendingOutbox: true }),
     "applied-cloud",
   );
   assert.equal(fx.rollbackCalls[0].label, "before-cloud-overwrite");
@@ -183,7 +183,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   assert.equal(
-    fx.coordinator.onRemoteState(state("outbox-remote"), {
+    await fx.coordinator.onRemoteState(state("outbox-remote"), {
       source: "records",
       initial: true,
       hasPendingOutbox: true,
@@ -200,7 +200,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "kept-local");
+  assert.equal(await fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "kept-local");
   assert.equal(fx.rollbackCalls[0].label, "before-local-overwrite");
   await fx.flushScheduled();
   assert.equal(fx.cloudCalls.save, 1);
@@ -212,11 +212,29 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "cancelled");
+  assert.equal(await fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "cancelled");
   assert.equal(fx.coordinator.getConflictDecision(), "cancel");
   assert.equal(await fx.coordinator.enqueueCloudState(), false);
-  assert.equal(fx.coordinator.onRemoteState(state("later"), { source: "records", initial: false }), "cancelled");
+  assert.equal(await fx.coordinator.onRemoteState(state("later"), { source: "records", initial: false }), "cancelled");
   assert.equal(fx.getState().txs[0].id, "local");
+}
+
+{
+  let resolveChoice;
+  const choice = new Promise((resolve) => { resolveChoice = resolve; });
+  const fx = createFixture({ choices: [choice] });
+  fx.bind();
+  fx.coordinator.attachCloudSync(fx.cloud);
+  fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+  fx.setState(state("local"));
+
+  const pendingDecision = fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true });
+  assert.equal(fx.coordinator.getConflictDecision(), "pending");
+  assert.equal(await fx.coordinator.enqueueCloudState(), false);
+  resolveChoice("local");
+  assert.equal(await pendingDecision, "kept-local");
+  await fx.flushScheduled();
+  assert.equal(fx.cloudCalls.save, 1);
 }
 
 {
@@ -225,9 +243,9 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state("update"), { source: "records", initial: false }), "applied-record-update");
+  assert.equal(await fx.coordinator.onRemoteState(state("update"), { source: "records", initial: false }), "applied-record-update");
   assert.equal(fx.getState().txs[0].id, "update");
-  assert.equal(fx.coordinator.onRemoteState(state("resolved"), { source: "conflict-resolution" }), "applied-conflict-resolution");
+  assert.equal(await fx.coordinator.onRemoteState(state("resolved"), { source: "conflict-resolution" }), "applied-conflict-resolution");
   assert.equal(fx.getState().txs[0].id, "resolved");
   assert.equal(fx.saves.at(-1).scope, "uid:a");
   assert.ok(fx.refreshes.length >= 2);
@@ -238,15 +256,15 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.bind();
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
-  assert.equal(fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
+  assert.equal(await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
   await fx.flushScheduled();
   assert.equal(fx.rollbackCalls[0].label, "before-cloud-conflict");
   assert.deepEqual(fx.cloudCalls.resolve, ["cloud"]);
-  assert.equal(fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
+  assert.equal(await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
   await fx.flushScheduled();
   assert.equal(fx.rollbackCalls[1].label, "before-local-conflict");
   assert.deepEqual(fx.cloudCalls.resolve, ["cloud", "local"]);
-  fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] });
+  await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] });
   await fx.flushScheduled();
   assert.equal(fx.coordinator.getConflictDecision(), "cancel");
   assert.deepEqual(fx.cloudCalls.resolve, ["cloud", "local", "cancel"]);
@@ -257,7 +275,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.bind();
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
-  assert.equal(fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), false);
+  assert.equal(await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), false);
   await fx.flushScheduled();
   assert.deepEqual(fx.cloudCalls.resolve, []);
 }
@@ -268,7 +286,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "rollback-failed");
+  assert.equal(await fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "rollback-failed");
   assert.equal(fx.getState().txs[0].id, "local");
   assert.equal(fx.coordinator.getConflictDecision(), "cancel");
 }
@@ -279,7 +297,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   fx.coordinator.attachCloudSync(fx.cloud);
   fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
   fx.setState(state("local"));
-  assert.equal(fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "rollback-failed");
+  assert.equal(await fx.coordinator.onRemoteState(state("remote"), { source: "records", initial: true }), "rollback-failed");
   await fx.flushScheduled();
   assert.equal(fx.getState().txs[0].id, "local");
   assert.equal(fx.cloudCalls.save, 0);

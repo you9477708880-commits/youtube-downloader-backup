@@ -20,13 +20,6 @@ export function setupPWA() {
     return;
   }
 
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    refreshing = true;
-    location.reload();
-  });
-
   navigator.serviceWorker
     .register(new URL("../../sw.js", import.meta.url), { scope: "/" })
     .then((registration) => registration.update())

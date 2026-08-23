@@ -465,11 +465,12 @@ export function prepareAndroMoneyImportScenario() {
 
 export async function runAndroMoneyImportScenario(app) {
   try {
+    const longDiaryNote = "汽車保養與生活紀錄".repeat(60);
     const csv = [
       '"Google Documents","理財幫手AndroMoney","20260518"',
       '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
       '"6542","TWD","209","餐飲食品","午餐","20251103","台新銀行","","波奇波奇","","","","uid-meal","1202"',
-      '"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","政府普發","","","","uid-income","1020"',
+      `"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","${longDiaryNote}","","","","uid-income","1020"`,
     ].join("\n");
     const file = new File([csv], "AndroMoney.csv", { type: "text/csv" });
     const input = document.getElementById("file-andromoney-import");
@@ -496,6 +497,7 @@ export async function runAndroMoneyImportScenario(app) {
 
     const [expense, income] = [...app.store.getState().txs].sort((a, b) => String(a.externalId).localeCompare(String(b.externalId)));
     const fund = app.store.getState().sinkingFunds.find((item) => item.id === "sf-smoke-csv");
+    const appContent = document.querySelector(".app-content");
     const passed =
       expense?.type === "expense" &&
       expense?.id === "local-existing-6542" &&
@@ -507,14 +509,16 @@ export async function runAndroMoneyImportScenario(app) {
       expense?.externalSource === "andromoney" &&
       income?.type === "income" &&
       income?.acc === "bank" &&
+      income?.desc === longDiaryNote &&
       !fund?.events?.some((event) => String(event.linkedTxId) === "local-existing-6542") &&
-      document.getElementById("andromoney-modal").classList.contains("d-none");
+      document.getElementById("andromoney-modal").classList.contains("d-none") &&
+      appContent.scrollWidth <= appContent.clientWidth + 1;
 
     if (!passed) {
       throw new Error("andromoney-import-state-mismatch");
     }
 
-    writeSmokeResult("pass", "AndroMoney account mapping preview confirmed and transactions imported");
+    writeSmokeResult("pass", "AndroMoney import preserved long notes without horizontal overflow");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

@@ -56,9 +56,15 @@ function createMemoryStorage() {
 
 function createFirebaseFakes(
   initialUser,
-  { meta = { status: "active" }, legacy = null, fencedLegacy = undefined, records = new Map() } = {},
+  { meta = { status: "active" }, legacy = null, fencedLegacy = undefined, records = new Map(), authReadyUser = undefined } = {},
 ) {
   const auth = { currentUser: initialUser };
+  let anonymousSignIns = 0;
+  if (authReadyUser !== undefined) {
+    auth.authStateReady = async () => {
+      auth.currentUser = authReadyUser;
+    };
+  }
   const authCallbacks = new Set();
   const observers = [];
   const stored = new Map(records);
@@ -87,7 +93,7 @@ function createFirebaseFakes(
         queueMicrotask(() => callback(auth.currentUser));
         return () => authCallbacks.delete(callback);
       },
-      signInAnonymously: async () => {},
+      signInAnonymously: async () => { anonymousSignIns += 1; },
       signInWithCustomToken: async () => {},
       linkWithPopup: async () => {},
       signInWithPopup: async () => {},
@@ -146,6 +152,7 @@ function createFirebaseFakes(
     stored,
     getMeta: () => metaValue,
     getBatchCommits: () => batchCommits,
+    getAnonymousSignIns: () => anonymousSignIns,
     rejectCommit: (error = new Error("permission-denied")) => { rejectNextCommit = error; },
     setRecords: (next) => {
       stored.clear();
@@ -200,6 +207,24 @@ try {
   const userA = { uid: "user-a", isAnonymous: false, displayName: "A" };
   const initialState = stateWithTransactions(["tx-1", 100]);
   const initialRecords = recordsFromState(initialState);
+  const restoredAuthFakes = createFirebaseFakes(null, {
+    records: initialRecords,
+    authReadyUser: userA,
+  });
+  const restoredUsers = [];
+  const restoredSync = await createRecordCloudSync({
+    getState: () => initialState,
+    onStatus: () => {},
+    onUserChange: (user) => restoredUsers.push(user),
+    onRemoteState: () => {},
+    onConflict: () => {},
+    firebaseModules: restoredAuthFakes.modules,
+  });
+  await flush();
+  assert.equal(restoredAuthFakes.getAnonymousSignIns(), 0);
+  assert.equal(restoredUsers.at(-1)?.uid, "user-a");
+  restoredSync.destroy();
+
   const fakes = createFirebaseFakes(userA, { records: initialRecords });
   const remoteEvents = [];
   const conflictEvents = [];
@@ -214,12 +239,13 @@ try {
   });
   await flush();
   assert.equal(fakes.observers[0].options.includeMetadataChanges, true);
+  assert.equal(await sync.save(), false);
   fakes.emitRecords(0);
   assert.equal(remoteEvents.length, 1);
   assert.equal(remoteEvents[0].state.txs[0].amount, 100);
 
   currentState = stateWithTransactions(["tx-1", 150]);
-  await sync.save();
+  assert.equal(await sync.save(), true);
   const updatedTx = [...fakes.stored.values()].find((record) => record.kind === "transaction");
   assert.equal(updatedTx.revision, 2);
   assert.equal(updatedTx.payload.amount, 150);

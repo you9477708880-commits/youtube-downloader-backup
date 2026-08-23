@@ -410,14 +410,14 @@ The system should warn the user and suggest:
 - Firestore v7 使用 `sync/finance_v7` meta 與其下的 `records` collection。交易、帳戶、資產負債項目、待購項目、準備項目、準備事件、設定與自訂分類各自投影成 record。
 - `sinkingFunds.events` 只在同步層拆開；套回前端 state 時會重新組回原本巢狀結構，因此帳務 domain 不需要改寫。
 - 每筆 record 使用穩定 key、`revision`、`updatedBy`、server `updatedAt` 與 deletion tombstone。不同 record 的跨裝置修改可共存。
-- 同一 record 的 revision 競爭不做欄位拼裝；寫入會停止並要求選擇整筆雲端或整筆本機版本。覆蓋前會保存本機 rollback snapshot 並觸發另一份完整 JSON 備份下載；`cancel` 會保留衝突狀態並暫停該登入階段的雲端保存。
+- 同一 record 的 revision 競爭不做欄位拼裝；寫入會停止並顯示三個明確按鈕：「保留雲端」「保留本機」「暫不處理」。覆蓋前會保存本機 rollback snapshot 並觸發另一份完整 JSON 備份下載；「暫不處理」會保留衝突狀態並暫停該登入階段的雲端保存。
 - 一般 mutation group 使用單一 Firestore batch；超過 400 筆差異會拒絕而保留本機資料，不做可能部分成功的分批覆蓋。
 - 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
 
 後續限制：
 
 - Tombstone 目前永久保留，尚未設計安全的清理期限。
-- 衝突選擇目前使用簡單文字提示，後續可改成有資料摘要的專用 modal。
+- 衝突選擇已使用專用 modal；目前只顯示衝突筆數與覆蓋方向，尚未提供逐筆差異摘要。
 - 尚未提供清除 Firestore IndexedDB cache 與本機 namespace 的完整隱私操作。
 
 ### English
@@ -430,14 +430,14 @@ Current model:
 - Firestore v7 uses a `sync/finance_v7` meta document and a nested `records` collection.
 - Fund events are flattened only in the sync adapter and are rebuilt into `sinkingFunds.events` before entering the domain layer.
 - Records carry stable keys, revisions, server timestamps, writer IDs, and deletion tombstones.
-- Different records merge naturally. A same-record revision conflict pauses and asks for a whole-record cloud/local choice; field-level guessing is not used.
+- Different records merge naturally. A same-record revision conflict pauses and presents explicit Keep cloud, Keep local, and Not now buttons; field-level guessing is not used.
 - Normal mutation groups are one atomic batch and are rejected above 400 changed records.
 - The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.
 
 Remaining limits:
 
 - Tombstone garbage collection is not defined yet.
-- Conflict choice uses a basic text prompt and can later become a dedicated summary modal.
+- Conflict choice uses a dedicated modal; per-record difference summaries are still pending.
 - A complete device-data clearing action, including Firestore IndexedDB cache, is still pending.
 
 ## 10. 退休頁定位 / Retirement Page Positioning

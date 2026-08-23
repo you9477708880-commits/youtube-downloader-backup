@@ -185,6 +185,8 @@ function collectDom(doc = document) {
     choiceModal: $("choice-modal", doc),
     choiceSummary: $("choice-summary", doc),
     choiceCancel: $("choice-cancel", doc),
+    syncChoiceModal: $("sync-choice-modal", doc),
+    syncChoiceSummary: $("sync-choice-summary", doc),
   };
 }
 
@@ -203,12 +205,6 @@ function createFallbackCloudSync() {
 function backupFilename(label) {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `finance-backup-${label}-${stamp}.json`;
-}
-
-function promptSyncChoice(message) {
-  const answer = window.prompt(`${message}\n\n請輸入 cloud、local 或 cancel：`, "cancel");
-  const normalized = String(answer || "cancel").trim().toLowerCase();
-  return ["cloud", "local"].includes(normalized) ? normalized : "cancel";
 }
 
 function readFileAsText(file) {
@@ -388,6 +384,26 @@ export async function bootstrapFinanceApp(doc = document) {
         dom.choiceModal.querySelector(`[data-choice="${defaultChoice}"]`)?.focus();
       });
     },
+    askSyncChoice(message) {
+      return new Promise((resolve) => {
+        dom.syncChoiceSummary.textContent = message;
+
+        const close = (choice) => {
+          dom.syncChoiceModal.classList.add("d-none");
+          dom.syncChoiceModal.querySelectorAll("[data-sync-choice]").forEach((button) => {
+            button.removeEventListener("click", onChoice);
+          });
+          resolve(choice);
+        };
+        const onChoice = (event) => close(event.currentTarget.dataset.syncChoice);
+
+        dom.syncChoiceModal.querySelectorAll("[data-sync-choice]").forEach((button) => {
+          button.addEventListener("click", onChoice);
+        });
+        dom.syncChoiceModal.classList.remove("d-none");
+        dom.syncChoiceModal.querySelector('[data-sync-choice="cancel"]')?.focus();
+      });
+    },
     populateCategoryBudgetOptions() {
       const state = store.getState();
       const categories = [...CONSTANTS.expenseCategories, ...state.userCats.expense];
@@ -543,9 +559,9 @@ export async function bootstrapFinanceApp(doc = document) {
     hasMeaningfulData: hasMeaningfulFinanceData,
     areStatesEquivalent: areFinanceStatesEquivalent,
     buildConflictMessage: buildCloudConflictMessage,
-    promptSyncChoice: (request) => promptSyncChoice(
+    promptSyncChoice: (request) => ui.askSyncChoice(
       request.type === "record-conflict"
-        ? `偵測到 ${request.keys.length} 筆同一紀錄在本機與雲端同時修改。\ncloud：採用雲端版本\nlocal：採用本機版本\ncancel：暫停同步`
+        ? `偵測到 ${request.keys.length} 筆同一紀錄在本機與雲端同時修改。系統不會自動混合內容，請選擇要保留的版本。`
         : request.message,
     ),
     confirmUnboundImport: () => window.confirm("登入帳號目前沒有資料。是否把登入前儲存在這台裝置的資料複製到此帳號？"),
@@ -723,6 +739,7 @@ export async function bootstrapFinanceApp(doc = document) {
     persistWholeState: saveState,
     refreshWholeStateUi,
     commitState,
+    waitForCloudSave: enqueueCloudState,
     refreshTransactionUi: renderAll,
     readBackupFile: importData,
     exportBackupFile: exportData,
@@ -886,8 +903,14 @@ export async function bootstrapFinanceApp(doc = document) {
     getState: () => store.getState(),
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
     onUserChange: (user) => syncCoordinator.onUserChange(user),
-    onConflict: (conflict) => syncCoordinator.onConflict(conflict),
-    onRemoteState: (remoteState, metadata) => syncCoordinator.onRemoteState(remoteState, metadata),
+    onConflict: (conflict) => syncCoordinator.onConflict(conflict).catch((error) => {
+      console.warn("Cloud conflict dialog failed.", error);
+      ui.updateCloudStatus("error");
+    }),
+    onRemoteState: (remoteState, metadata) => syncCoordinator.onRemoteState(remoteState, metadata).catch((error) => {
+      console.warn("Cloud state handling failed.", error);
+      ui.updateCloudStatus("error");
+    }),
   });
   syncCoordinator.attachCloudSync(cloudSync);
   syncCoordinator.ensureLocalScopeIfDisabled();

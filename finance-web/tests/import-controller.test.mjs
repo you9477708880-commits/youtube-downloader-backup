@@ -77,6 +77,7 @@ function createHarness() {
     persist: 0,
     refreshWhole: 0,
     refreshTransactions: 0,
+    cloudWaits: 0,
     focus: 0,
     toasts: [],
     backupExports: [],
@@ -86,6 +87,7 @@ function createHarness() {
   let backupResult = structuredClone(initialState);
   let backupError = null;
   let commitError = null;
+  let cloudSaveResult = true;
 
   const importedTransactions = [
     {
@@ -143,6 +145,10 @@ function createHarness() {
       store.update(mutator);
       updateUi(store.getState());
     },
+    waitForCloudSave: async () => {
+      calls.cloudWaits += 1;
+      return cloudSaveResult;
+    },
     refreshTransactionUi: () => { calls.refreshTransactions += 1; },
     readBackupFile: async () => {
       if (backupError) throw backupError;
@@ -172,6 +178,7 @@ function createHarness() {
     setBackupResult(value) { backupResult = value; },
     setBackupError(error) { backupError = error; },
     setCommitError(error) { commitError = error; },
+    setCloudSaveResult(value) { cloudSaveResult = value; },
   };
 }
 
@@ -243,9 +250,11 @@ test("CSV skip adds only new transactions and reports the skipped duplicate", as
 
   assert.equal(harness.calls.commit, 1);
   assert.equal(harness.calls.refreshTransactions, 1);
+  assert.equal(harness.calls.cloudWaits, 1);
   assert.deepEqual(harness.store.getState().txs.map((transaction) => transaction.id), ["am-6543", "local-6542"]);
   assert.equal(harness.store.getState().sinkingFunds[0].events.length, 2);
   assert.match(harness.calls.toasts.at(-1)[0], /已新增 1 筆、更新 0 筆，略過 1 筆重複/);
+  assert.match(harness.calls.toasts.at(-1)[0], /已同步雲端/);
   assert.equal(harness.elements.androMoneyModal.classList.contains("d-none"), true);
   assert.deepEqual(harness.calls.parseOptions.at(-1), { accountMap: { 台新銀行: "bank" } });
 });
@@ -266,6 +275,19 @@ test("CSV update preserves the local transaction ID and atomically removes its o
   assert.equal(updated.linkedFundId, undefined);
   assert.deepEqual(harness.store.getState().sinkingFunds[0].events.map((event) => event.id), ["event-other"]);
   assert.match(harness.calls.toasts.at(-1)[0], /已新增 1 筆、更新 1 筆/);
+});
+
+test("CSV import reports local durability when cloud save is unavailable", async () => {
+  const harness = createHarness();
+  harness.setCloudSaveResult(false);
+  await harness.controller.openAndroMoneyImport({});
+  harness.accountSelects.push({ dataset: { andromoneyAccount: "台新銀行" }, value: "bank" });
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  assert.equal(harness.calls.cloudWaits, 1);
+  assert.match(harness.calls.toasts.at(-1)[0], /已保存於本機/);
+  assert.match(harness.calls.toasts.at(-1)[0], /尚未同步雲端/);
 });
 
 test("CSV with only skipped duplicates closes without committing", async () => {

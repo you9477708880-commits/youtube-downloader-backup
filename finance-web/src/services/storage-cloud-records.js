@@ -605,8 +605,9 @@ export async function createRecordCloudSync({
     };
 
     const save = async () => {
-      if (!userId || !saveReady || !saveQueue || conflictContext || auth.currentUser?.uid !== userId) return;
+      if (!userId || !saveReady || !saveQueue || conflictContext || auth.currentUser?.uid !== userId) return false;
       await saveQueue.enqueue(cloneState(getState()));
+      return true;
     };
 
     const resolveConflict = async (choice) => {
@@ -651,8 +652,12 @@ export async function createRecordCloudSync({
     const initAuth = async () => {
       if (globalThis.__initial_auth_token) {
         await authMod.signInWithCustomToken(auth, globalThis.__initial_auth_token);
-      } else if (!auth.currentUser) {
-        await authMod.signInAnonymously(auth);
+      } else {
+        // Firebase restores persisted credentials asynchronously. Wait before
+        // falling back to an anonymous user so a reload cannot replace a
+        // valid Google session.
+        await auth.authStateReady?.();
+        if (!auth.currentUser) await authMod.signInAnonymously(auth);
       }
     };
     initAuth().catch((error) => {

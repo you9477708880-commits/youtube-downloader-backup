@@ -208,6 +208,7 @@
 .app-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
   background: var(--bg);
   max-width: 480px;
@@ -217,6 +218,7 @@
 
 .sec {
   display: none;
+  min-width: 0;
   padding-bottom: 80px;
 }
 
@@ -253,6 +255,12 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
+}
+
+.grid-2 > *,
+.grid-3 > *,
+.grid-4 > * {
+  min-width: 0;
 }
 
 .flex-col {

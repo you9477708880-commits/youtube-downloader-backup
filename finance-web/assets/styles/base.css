@@ -28,6 +28,7 @@ input[type="number"],
 input[type="date"],
 select {
   width: 100%;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--bdr);
   border-radius: var(--r);

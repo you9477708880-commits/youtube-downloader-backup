@@ -110,13 +110,13 @@ export function createSyncCoordinator({
       !cloudSync.enabled ||
       !currentUser ||
       currentUser.isAnonymous ||
-      cloudConflictDecision === "cancel"
+      ["cancel", "pending"].includes(cloudConflictDecision)
     ) {
       return Promise.resolve(false);
     }
 
     return Promise.resolve(cloudSync.save()).then(
-      () => true,
+      (saved) => saved !== false,
       (error) => {
         onWarn("Cloud save failed.", error);
         onStatus("error");
@@ -165,13 +165,14 @@ export function createSyncCoordinator({
     emitAuthView();
   };
 
-  const onConflict = ({ localState, remoteState, keys = [] }) => {
-    const choice = promptSyncChoice({
+  const onConflict = async ({ localState, remoteState, keys = [] }) => {
+    const requestedChoice = await promptSyncChoice({
       type: "record-conflict",
       keys: [...keys],
       message: `${keys.length} cloud record conflict(s). Choose cloud, local, or cancel.`,
       user: currentUser,
     });
+    const choice = ["cloud", "local"].includes(requestedChoice) ? requestedChoice : "cancel";
 
     if (choice === "cloud" && !preserveRollback(localState, "before-cloud-conflict")) return false;
     if (choice === "local" && !preserveRollback(remoteState, "before-local-conflict")) return false;
@@ -189,7 +190,7 @@ export function createSyncCoordinator({
     return true;
   };
 
-  const onRemoteState = (remoteState, metadata = {}) => {
+  const onRemoteState = async (remoteState, metadata = {}) => {
     requireReplacer();
     const localState = store.getState();
     const localHasData = hasMeaningfulData(localState);
@@ -237,7 +238,9 @@ export function createSyncCoordinator({
     }
 
     if ((localHasData || metadata.hasPendingOutbox) && !cloudConflictDecision) {
-      cloudConflictDecision = promptSyncChoice({
+      const decisionUserId = currentUser?.uid || "";
+      cloudConflictDecision = "pending";
+      const choice = await promptSyncChoice({
         type: "initial-state-conflict",
         message: buildConflictMessage(currentUser),
         user: currentUser,
@@ -245,6 +248,8 @@ export function createSyncCoordinator({
         remoteState: cloneState(remoteState),
         hasPendingOutbox: Boolean(metadata.hasPendingOutbox),
       });
+      if ((currentUser?.uid || "") !== decisionUserId) return "stale-user";
+      cloudConflictDecision = ["cloud", "local"].includes(choice) ? choice : "cancel";
       if (cloudConflictDecision === "cancel") {
         onStatus("conflict");
         onNotify("cloud-sync-paused-by-user");

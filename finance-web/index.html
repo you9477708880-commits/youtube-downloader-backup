@@ -497,6 +497,27 @@
 
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+<div id="sync-choice-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="sync-choice-title">
+  <div class="modal-panel">
+    <div class="modal-title" id="sync-choice-title">選擇要保留的資料</div>
+    <div class="modal-sub" id="sync-choice-summary"></div>
+    <div class="choice-list">
+      <button type="button" class="choice-card" data-sync-choice="cloud">
+        <span class="choice-title">保留雲端</span>
+        <span class="choice-desc">用 Google 帳號中的雲端資料覆蓋這台裝置。</span>
+      </button>
+      <button type="button" class="choice-card" data-sync-choice="local">
+        <span class="choice-title">保留本機</span>
+        <span class="choice-desc">用這台裝置目前的本機資料覆蓋雲端。</span>
+      </button>
+      <button type="button" class="choice-card" data-sync-choice="cancel">
+        <span class="choice-title">暫不處理</span>
+        <span class="choice-desc">兩份資料都不覆蓋，暫停這次同步，之後再決定。</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="choice-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="choice-title">
   <div class="modal-panel">
     <div class="modal-title" id="choice-title">準備金不足</div>

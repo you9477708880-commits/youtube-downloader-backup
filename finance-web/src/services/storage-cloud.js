@@ -101,8 +101,9 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
 
     const save = async () => {
       const activeQueue = saveQueue;
-      if (!userId || !activeQueue || !saveReady || auth.currentUser?.uid !== userId) return;
+      if (!userId || !activeQueue || !saveReady || auth.currentUser?.uid !== userId) return false;
       await activeQueue.enqueue(cloneState(getState()));
+      return true;
     };
 
     const attachSnapshot = (uid, generation) => {
@@ -214,9 +215,8 @@ export async function createCloudSync({ onRemoteState, onStatus, onUserChange, g
         return;
       }
 
-      if (!auth.currentUser) {
-        await authMod.signInAnonymously(auth);
-      }
+      await auth.authStateReady?.();
+      if (!auth.currentUser) await authMod.signInAnonymously(auth);
     };
 
     unsubscribeAuth = authMod.onAuthStateChanged(auth, (user) => {

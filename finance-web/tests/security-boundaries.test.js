@@ -70,6 +70,7 @@ function testPwaUsesStaticSameOriginFiles() {
   assert.match(pwaSource, /new URL\("\.\.\/\.\.\/manifest\.webmanifest", import\.meta\.url\)/);
   assert.match(pwaSource, /\.register\(new URL\("\.\.\/\.\.\/sw\.js", import\.meta\.url\)/);
   assert.doesNotMatch(pwaSource, /serviceWorker\s*\.register\(URL\.createObjectURL|new Blob\(\[swCode\]/);
+  assert.doesNotMatch(pwaSource, /controllerchange[\s\S]*location\.reload/);
 
   const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "manifest.webmanifest"), "utf8"));
   assert.equal(manifest.start_url, "/");
@@ -81,6 +82,15 @@ function testPwaUsesStaticSameOriginFiles() {
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.match(serviceWorker, /request\.method !== "GET"/);
   assert.match(serviceWorker, /caches\.delete/);
+}
+
+function testSyncConflictUsesExplicitButtons() {
+  const html = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
+  const bootstrap = fs.readFileSync(path.join(projectRoot, "src", "app", "bootstrap.js"), "utf8");
+  assert.match(html, /data-sync-choice="cloud"[\s\S]*保留雲端/);
+  assert.match(html, /data-sync-choice="local"[\s\S]*保留本機/);
+  assert.match(html, /data-sync-choice="cancel"[\s\S]*暫不處理/);
+  assert.doesNotMatch(bootstrap, /請輸入 cloud、local 或 cancel/);
 }
 
 function testFirestoreRecordBoundaries() {
@@ -101,6 +111,7 @@ try {
   testProductionEntryCannotRunSmokeScenarios();
   testHostingUsesGeneratedAllowlist();
   testPwaUsesStaticSameOriginFiles();
+  testSyncConflictUsesExplicitButtons();
   testFirestoreRecordBoundaries();
   console.log("Security boundary tests passed");
 } finally {
