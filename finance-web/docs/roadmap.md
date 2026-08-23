@@ -1,8 +1,8 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-08-10
+最後更新 / Last updated: 2026-08-23
 目前主線 / Current mainline: `main`  
-最新已部署安全點 / Latest deployed safety point: `ada30a8 修正 Hosting 跨版本打包排除`
+最新已部署安全點 / Latest deployed safety point: `e01aa1c 避免相同資料誤判同步衝突`
 目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `e01aa1c`; Firestore v7 rules remain unchanged, and Firebase Functions remain intentionally undeployed.
 
 這份文件是後續開發的長期藍圖。最新本機、遠端、部署狀態與立即下一步以
@@ -91,6 +91,8 @@ The current priority is not advanced investment simulation. The priority is to c
 
 - 月度回顧 2.0 本機驗收版：除既有摘要與來源明細外，新增預設收合的同天數前期比較，顯示收入、生活支出、準備提撥 / 補入、動用準備與最大支出分類變化。比較只讀取既有帳務來源，不新增持久化欄位、不評分，也不把增加或減少直接判成好壞。
 - 帳戶中心與信用卡管理本機驗收版：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
+- 財務導航摘要 A 本機候選：收在月度回顧的預設折疊區，只整理收入、生活支出、資產、負債四個既有數字與兩個不保存答案的自評問題；不新增六要素分數或財務階段判定。
+- 退休情境比較 A 本機候選：比較目前設定、延後三年退休及每月提領降低 10%，每次只改一個條件；顯示退休時資產、最低需求估算及耗盡時間，維持個人估算器而非投資平台定位。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
@@ -154,6 +156,8 @@ Added on 2026-08-23 and currently local only, not pushed or deployed:
 
 - Monthly Review 2.0 local acceptance build keeps the traceable summary and source details, and adds a collapsed same-duration previous-period comparison for income, living expenses, fund preparation, fund usage, and the largest category change. It adds no persisted fields or judgmental scoring.
 - The Account Center and Credit Card Management local acceptance build adds expandable account details, monthly flow, credit limits and billing cycles, card charges/payments, and confirmed traceable reconciliation without a new top-level tab or duplicate totals.
+- Financial Navigation Summary A is a local-only collapsed monthly-review candidate. It reuses four existing figures—income, living expense, assets, and liabilities—and adds two non-persisted reflection questions without scoring or stage classification.
+- Retirement Scenario Comparison A is a local-only estimator candidate. It compares the current setup, retiring three years later, and withdrawing 10% less per month by changing one condition at a time; it does not persist scenarios or make guarantees.
 
 The following other batch was completed, pushed, and deployed on 2026-08-10:
 - The first wishlist-to-fund integration step is complete: a wishlist item can prefill the large-expense fund form with name, target amount, monthly contribution, category, and note. This only pre-fills the form; it does not directly create a fund, create a transaction, or create `topup` / `spend` events.
@@ -174,6 +178,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 - 若未來交易金額被編輯，應先解除原本準備指定，不自動猜測要怎麼改準備金。
 - 退休頁目前定位為個人估算器，不是完整投資模擬器。
 - 4% 法則只是參考提示，不是主要退休警告邏輯。
+- 退休情境比較只做透明的單一變因敏感度試算，不保存情境、不自動調整設定，也不代表投資建議或保證。
 - 本機資料已分成未登入 `local` 與 Firebase `uid` namespace；舊 `fin_v6_*`
   只遷移到未綁定 local，不會自動歸入 Google 帳號。
 
@@ -188,6 +193,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 - If a linked transaction amount is edited in the future, the fund link should be removed first. The system should not guess how fund events should change.
 - The retirement page is currently a personal estimator, not a full investment simulation tool.
 - The 4% rule is only a reference hint, not the main retirement warning logic.
+- Retirement scenario comparison is a transparent one-variable sensitivity check. It does not persist scenarios, change settings automatically, or represent investment advice or a guarantee.
 - Local data is separated into the signed-out `local` namespace and Firebase `uid`
   namespaces. Legacy `fin_v6_*` data migrates only to unbound local storage.
 
@@ -291,7 +297,8 @@ The immediate work order and current commit status are maintained in
       - 手動手機尺寸：375x667、390x844、430x932；若 headless / plugin 截圖與實機觀察衝突，以實機與 DOM/CSS 檢查優先。
 
 7. **月度回顧**
-   - 雛形與 2.0 同期比較均已完成本機版本；維持簡單、可追溯的月結視圖。
+   - 雛形、2.0 同期比較及財務導航摘要均已完成本機版本；維持簡單、可追溯的月結視圖。
+   - 財務導航第一版只呈現四個既有量化來源與兩個不保存答案的自評問題，不建立心態／習慣分數。
    - 下一步只在人工驗收確認資訊量合適後，再評估是否加入使用者自行填寫的下月行動；若需保存文字，必須先設計資料模型與同步語意。
    - 不做複雜建議引擎，不把支出增加直接解讀為負面。
 
@@ -416,7 +423,7 @@ Mid-term work:
 - 參考文件：`docs/finance-book-product-design-notes.md`
 - 可考慮的方向：
   - 財務階段視圖。
-  - 收入、支出、負債、資產、心態、習慣的六要素總覽。
+  - 六要素後續深化；收入、支出、負債、資產的折疊摘要已成為本機候選，心態與習慣仍只保留非持久化問題。
   - 使用者自選的生活品質情境。
   - 月度回顧：理財餘裕、支出調整、目標進度與下月行動。
   - 將待購清單與大額準備整合成更完整的目標系統。

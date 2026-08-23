@@ -34,6 +34,13 @@ test("monthly review compares traceable values without changing state", () => {
   assert.equal(review.comparison.metrics.income.current, 50000);
   assert.equal(review.comparison.metrics.income.previous, 40000);
   assert.equal(review.comparison.metrics.livingExpense.delta, 3000);
+  assert.deepEqual(review.navigation.metrics.map((metric) => [metric.id, metric.value]), [
+    ["income", 50000],
+    ["expense", 6000],
+    ["assets", 181000],
+    ["liabilities", 0],
+  ]);
+  assert.equal(review.navigation.questions.length, 2);
   assert.deepEqual(review.comparison.largestCategoryChange, {
     category: "餐飲", current: 5000, previous: 3000, delta: 2000,
   });
@@ -54,6 +61,9 @@ test("monthly review renders comparison progressively and escapes category text"
 
   assert.match(dom.monthlyReview.innerHTML, /<details class="review-comparison">/);
   assert.match(dom.monthlyReview.innerHTML, /與上期比較/);
+  assert.match(dom.monthlyReview.innerHTML, /財務導航/);
+  assert.match(dom.monthlyReview.innerHTML, /4 個數字＋2 個自評問題/);
+  assert.match(dom.monthlyReview.innerHTML, /不評分，也不保存自評答案/);
   assert.match(dom.monthlyReview.innerHTML, /只比較相同天數/);
   assert.doesNotMatch(dom.monthlyReview.innerHTML, /<img src=x/);
   assert.match(dom.monthlyReview.innerHTML, /&lt;img/);

@@ -68,6 +68,29 @@ function renderComparison(review, utils) {
   `;
 }
 
+function renderFinancialNavigation(review, utils) {
+  return `
+    <details class="review-comparison">
+      <summary>財務導航 <span class="text-xs text-gray">4 個數字＋2 個自評問題</span></summary>
+      <div class="detail-list mt-2">
+        ${review.navigation.metrics.map((metric) => `
+          <div class="detail-row">
+            <span class="detail-main"><span class="detail-title">${utils.escapeHTML(metric.label)}</span><span class="detail-sub">${utils.escapeHTML(metric.note)}</span></span>
+            <span class="detail-amt">${utils.formatMoney(metric.value)}</span>
+          </div>
+        `).join("")}
+        <div class="detail-row">
+          <div class="detail-main">
+            <div class="detail-title">本月自評</div>
+            <ul class="detail-sub mt-1">${renderTextItems(review.navigation.questions, utils)}</ul>
+          </div>
+        </div>
+      </div>
+      <div class="text-xs text-gray mt-2">收入與生活支出使用目前篩選期間；資產與負債是現在的快照。這裡不評分，也不保存自評答案。</div>
+    </details>
+  `;
+}
+
 export function renderMonthlyReview({ state, filterRange, utils, dom }) {
   if (!dom.monthlyReview) return;
 
@@ -89,6 +112,7 @@ export function renderMonthlyReview({ state, filterRange, utils, dom }) {
       ${renderMetric({ label: "目前淨值", value: review.balanceSheet.netWorth, utils, tone: worthTone })}
       ${renderMetric({ label: "應收代墊", value: review.balanceSheet.receivableTotal, utils })}
     </div>
+    ${renderFinancialNavigation(review, utils)}
     ${renderComparison(review, utils)}
     <div class="detail-list">
       <div class="detail-row">

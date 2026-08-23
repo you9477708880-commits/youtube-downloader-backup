@@ -978,10 +978,15 @@ export async function runDesktopCoreLayoutScenario() {
     }
 
     document.querySelector('[data-action="tab"][data-target="re"]')?.click();
+    await waitFor(() => (document.getElementById("r-scenarios")?.textContent || "").includes("情境比較"));
+    const retirementScenarioText = document.getElementById("r-scenarios")?.textContent || "";
+    if (!retirementScenarioText.includes("延後 3 年退休") || !retirementScenarioText.includes("每月提領減少 10%")) {
+      throw new Error("retirement-scenarios-missing");
+    }
     document.querySelector('[data-action="toggle-tbl"]')?.click();
     await waitFor(() => !document.getElementById("tbl-w").classList.contains("d-none"));
 
-    writeSmokeResult("pass", "desktop workspace stylesheet loaded, all core tabs expose grid workspaces, retirement table toggles");
+    writeSmokeResult("pass", "desktop workspaces render, retirement scenarios appear, and retirement table toggles");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
@@ -1066,6 +1071,8 @@ export async function runMonthlyReviewScenario() {
       !text.includes("NT$ 50,000") ||
       !text.includes("NT$ 8,000") ||
       !text.includes("動用準備") ||
+      !text.includes("財務導航") ||
+      !text.includes("不評分，也不保存自評答案") ||
       !text.includes("與上期比較") ||
       !text.includes("只比較相同天數") ||
       !text.includes("主要預算使用來源") ||
@@ -1082,7 +1089,7 @@ export async function runMonthlyReviewScenario() {
     }
     document.getElementById("transaction-detail-close").click();
 
-    writeSmokeResult("pass", "monthly review renders traceable totals, previous-period comparison, and complete budget-source details");
+    writeSmokeResult("pass", "monthly review renders financial navigation, traceable comparison, and complete source details");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

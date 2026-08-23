@@ -189,6 +189,7 @@ function collectDom(doc = document) {
     retirePaid: $("r-pr", doc),
     retireGain: $("r-g", doc),
     retireSuggestion: $("r-sg", doc),
+    retireScenarios: $("r-scenarios", doc),
     retireTable: $("r-tbl", doc),
     tableWrap: $("tbl-w", doc),
     tableToggleLabel: $("tg-lbl", doc),

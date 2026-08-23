@@ -1,5 +1,6 @@
 import { calculateBalanceSheet } from "./accounts.js";
 import { calculateBudgetData } from "./budget.js";
+import { buildFinancialNavigation } from "./financial-navigation.js";
 import { summarizeCashFlow, summarizeOverview } from "./transactions.js";
 
 function isDateInRange(date, range) {
@@ -122,7 +123,7 @@ export function calculateMonthlyReviewData(state, range) {
   if (balanceSheet.netWorth < 0) prompts.push("目前淨值為負數，資產負債頁需要優先檢查。");
   if (!prompts.length) prompts.push("本月沒有明顯需要立即檢查的提示。");
 
-  return {
+  const review = {
     range: {
       start: range?.start || "",
       end: range?.end || "",
@@ -160,5 +161,10 @@ export function calculateMonthlyReviewData(state, range) {
       "大額準備提撥、補入與動用來自 sinkingFunds.events 與既有準備規劃。",
       "資產負債是目前快照，不代表本月變化。",
     ],
+  };
+
+  return {
+    ...review,
+    navigation: buildFinancialNavigation(review),
   };
 }

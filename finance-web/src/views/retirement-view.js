@@ -1,4 +1,4 @@
-import { calculateRetirementProjection } from "../domain/retirement.js";
+import { calculateRetirementScenarios } from "../domain/retirement-scenarios.js";
 import { toMoneyInt } from "../utils/format.js";
 
 function parseNumberOrDefault(value, fallback) {
@@ -11,21 +11,17 @@ export function renderRetirement({ state, utils, dom }) {
   const retirementAge = parseInt(dom.retirementAge.value, 10) || 65;
   const deathAge = parseInt(dom.deathAge.value, 10) || 90;
 
-  const projection = calculateRetirementProjection({
-    state,
-    currentAge,
-    retirementAge,
-    deathAge,
-    inputs: {
-      currentAsset: toMoneyInt(dom.retireAsset.value),
-      monthlyContribution: toMoneyInt(dom.retireMonthly.value),
-      principalAnnualReturnRate: parseNumberOrDefault(dom.retirePrincipalReturn.value, 6),
-      contributionAnnualReturnRate: parseNumberOrDefault(dom.retireContributionReturn.value, 6),
-      inflationRate: parseNumberOrDefault(dom.retireInflation.value, 2),
-      monthlyWithdraw: toMoneyInt(dom.retireWithdraw.value) || 40000,
-      targetAsset: toMoneyInt(dom.retireTarget.value) || 20000000,
-    },
-  });
+  const inputs = {
+    currentAsset: toMoneyInt(dom.retireAsset.value),
+    monthlyContribution: toMoneyInt(dom.retireMonthly.value),
+    principalAnnualReturnRate: parseNumberOrDefault(dom.retirePrincipalReturn.value, 6),
+    contributionAnnualReturnRate: parseNumberOrDefault(dom.retireContributionReturn.value, 6),
+    inflationRate: parseNumberOrDefault(dom.retireInflation.value, 2),
+    monthlyWithdraw: toMoneyInt(dom.retireWithdraw.value) || 40000,
+    targetAsset: toMoneyInt(dom.retireTarget.value) || 20000000,
+  };
+  const scenarios = calculateRetirementScenarios({ state, currentAge, retirementAge, deathAge, inputs });
+  const projection = scenarios[0].projection;
 
   dom.retireLinkedValue.textContent = `可連動資產：${utils.formatMoney(projection.retirementReadyAsset)}`;
 
@@ -77,6 +73,26 @@ export function renderRetirement({ state, utils, dom }) {
 
   if (projection.depletedAgeLabel) {
     dom.retireSuggestion.innerHTML += `<div class="text-xs text-exp mt-1">依目前設定，退休後資產可能在 ${projection.depletedAgeLabel} 左右用完，建議調低每月提領、延後退休，或提高退休前累積資產。</div>`;
+  }
+
+  if (dom.retireScenarios) {
+    dom.retireScenarios.innerHTML = `
+      <details class="review-comparison">
+        <summary>情境比較 <span class="text-xs text-gray">只改一個條件</span></summary>
+        <div class="detail-list mt-2">
+          ${scenarios.map((scenario) => `
+            <div class="detail-row">
+              <span class="detail-main">
+                <span class="detail-title">${utils.escapeHTML(scenario.label)}</span>
+                <span class="detail-sub">${utils.escapeHTML(scenario.description)}｜退休時資產 ${utils.formatMoney(scenario.projection.retirementValue)}｜最低需求估算 ${utils.formatMoney(scenario.projection.minimumRequiredAsset)}</span>
+              </span>
+              <span class="detail-amt">${utils.escapeHTML(scenario.projection.depletedAgeLabel || "規劃期內未耗盡")}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="text-xs text-gray mt-2">這是敏感度比較：每次只改一個條件，其他設定維持不變。結果不是投資建議、承諾或保證。</div>
+      </details>
+    `;
   }
 
   dom.retireTable.innerHTML = projection.table
