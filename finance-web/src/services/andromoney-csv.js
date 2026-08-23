@@ -77,13 +77,23 @@ function rowToObject(headers, row) {
   return Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]));
 }
 
+function normalizeAccountName(value) {
+  return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function accountNameKey(value) {
+  return normalizeAccountName(value).toLocaleLowerCase("zh-Hant");
+}
+
 function uniqueAccountNames(rows) {
-  const names = new Set();
+  const names = new Map();
   rows.forEach((row) => {
-    if (row["付款(轉出)"]) names.add(row["付款(轉出)"]);
-    if (row["收款(轉入)"]) names.add(row["收款(轉入)"]);
+    [row["付款(轉出)"], row["收款(轉入)"]].forEach((value) => {
+      const name = normalizeAccountName(value);
+      if (name && !names.has(accountNameKey(name))) names.set(accountNameKey(name), name);
+    });
   });
-  return [...names].sort((a, b) => a.localeCompare(b, "zh-Hant"));
+  return [...names.values()].sort((a, b) => a.localeCompare(b, "zh-Hant"));
 }
 
 function buildExternalTransactionId(row) {
@@ -91,11 +101,16 @@ function buildExternalTransactionId(row) {
   return externalId ? `am-${externalId}` : createTransactionId("am");
 }
 
+function resolveMappedAccountId(accountMap, name) {
+  const key = accountNameKey(name);
+  return Object.prototype.hasOwnProperty.call(accountMap, key) ? accountMap[key] : "";
+}
+
 function convertRowToTransaction(row, accountMap = {}) {
-  const paymentAccountName = String(row["付款(轉出)"] || "").trim();
-  const receivingAccountName = String(row["收款(轉入)"] || "").trim();
-  const paymentAccountId = accountMap[paymentAccountName] || "";
-  const receivingAccountId = accountMap[receivingAccountName] || "";
+  const paymentAccountName = normalizeAccountName(row["付款(轉出)"]);
+  const receivingAccountName = normalizeAccountName(row["收款(轉入)"]);
+  const paymentAccountId = resolveMappedAccountId(accountMap, paymentAccountName);
+  const receivingAccountId = resolveMappedAccountId(accountMap, receivingAccountName);
   const category = String(row["分類"] || "").trim() || DEFAULT_SUBCATEGORY;
   const subcategory = String(row["子分類"] || "").trim() || DEFAULT_SUBCATEGORY;
   const base = {
@@ -141,9 +156,12 @@ export function parseAndroMoneyCsv(text, { accountMap = {} } = {}) {
   const headers = rows[HEADER_ROW_INDEX] || [];
   const records = rows.slice(DATA_START_INDEX).map((row) => rowToObject(headers, row));
   const accountNames = uniqueAccountNames(records);
-  const unmappedAccounts = accountNames.filter((name) => !accountMap[name]);
+  const normalizedAccountMap = Object.fromEntries(
+    Object.entries(accountMap).map(([name, accountId]) => [accountNameKey(name), accountId]),
+  );
+  const unmappedAccounts = accountNames.filter((name) => !resolveMappedAccountId(normalizedAccountMap, name));
   const transactions = records
-    .map((row) => convertRowToTransaction(row, accountMap))
+    .map((row) => convertRowToTransaction(row, normalizedAccountMap))
     .filter((tx) => tx.amount > 0 && tx.date);
 
   return {

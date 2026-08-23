@@ -555,7 +555,7 @@
 </div>
 
 <div id="andromoney-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="andromoney-title">
-  <div class="modal-panel">
+  <div class="modal-panel andromoney-modal-panel">
     <div class="modal-title" id="andromoney-title">匯入 AndroMoney CSV</div>
     <div class="modal-sub" id="andromoney-summary"></div>
     <div id="andromoney-accounts" class="flex-col gap-2"></div>
@@ -565,7 +565,7 @@
         <option value="skip">略過已存在交易</option>
         <option value="update">更新已存在交易</option>
       </select>
-      <div class="text-xs text-gray">更新時會保留本機交易 ID；如果該交易已連到大額準備，會先解除準備事件，避免舊金額重複計算。</div>
+      <div class="text-xs text-gray">重新匯入同一份 CSV 時，選擇「更新」可依這次的帳戶設定修正既有交易，並保留本機交易 ID。CSV 欄位會覆蓋先前匯入內容；若交易已連到大額準備，會先解除準備事件，避免舊金額重複計算。</div>
     </div>
     <div id="andromoney-preview" class="detail-list mt-3"></div>
     <div class="grid-2 mt-3">

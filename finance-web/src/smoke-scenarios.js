@@ -470,7 +470,8 @@ export async function runAndroMoneyImportScenario(app) {
       '"Google Documents","理財幫手AndroMoney","20260518"',
       '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
       '"6542","TWD","209","餐飲食品","午餐","20251103","台新銀行","","波奇波奇","","","","uid-meal","1202"',
-      `"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","${longDiaryNote}","","","","uid-income","1020"`,
+      `"6543","TWD","1000","一般收入","其他","20251104","","新光銀行","${longDiaryNote}","","","","uid-income","1020"`,
+      '"6544","TWD","800","交通","汽車保養","20251105","玉山信用卡","","刷卡保養","","","","uid-card","1810"',
     ].join("\n");
     const file = new File([csv], "AndroMoney.csv", { type: "text/csv" });
     const input = document.getElementById("file-andromoney-import");
@@ -490,12 +491,25 @@ export async function runAndroMoneyImportScenario(app) {
     if (!previewText.includes("已存在") || !summaryText.includes("已匯入過")) {
       throw new Error("andromoney-duplicate-preview-missing");
     }
-    document.querySelector('[data-andromoney-account="台新銀行"]').value = "bank";
+    const existingBankChoice = document.querySelector('[data-andromoney-account="台新銀行"]');
+    const newBankChoice = document.querySelector('[data-andromoney-account="新光銀行"]');
+    const newCardChoice = document.querySelector('[data-andromoney-account="玉山信用卡"]');
+    const newCardType = document.querySelector('[data-andromoney-account-type="玉山信用卡"]');
+    if (
+      existingBankChoice?.value !== "bank" ||
+      newBankChoice?.value !== "__create_andromoney_account__" ||
+      newCardChoice?.value !== "__create_andromoney_account__"
+    ) {
+      throw new Error("andromoney-account-auto-mapping-mismatch");
+    }
+    newCardType.value = "liability";
     document.getElementById("andromoney-duplicate-mode").value = "update";
     document.getElementById("andromoney-confirm").click();
-    await waitFor(() => app.store.getState().txs.length === 2);
+    await waitFor(() => app.store.getState().txs.length === 3);
 
-    const [expense, income] = [...app.store.getState().txs].sort((a, b) => String(a.externalId).localeCompare(String(b.externalId)));
+    const [expense, income, cardExpense] = [...app.store.getState().txs].sort((a, b) => String(a.externalId).localeCompare(String(b.externalId)));
+    const importedBank = app.store.getState().accounts.find((account) => account.name === "新光銀行");
+    const importedCard = app.store.getState().accounts.find((account) => account.name === "玉山信用卡");
     const fund = app.store.getState().sinkingFunds.find((item) => item.id === "sf-smoke-csv");
     const appContent = document.querySelector(".app-content");
     const passed =
@@ -508,8 +522,14 @@ export async function runAndroMoneyImportScenario(app) {
       !expense?.linkedFundId &&
       expense?.externalSource === "andromoney" &&
       income?.type === "income" &&
-      income?.acc === "bank" &&
+      income?.acc === importedBank?.id &&
       income?.desc === longDiaryNote &&
+      importedBank?.type === "asset" &&
+      importedBank?.initialBalance === 0 &&
+      importedCard?.type === "liability" &&
+      importedCard?.initialBalance === 0 &&
+      cardExpense?.type === "expense" &&
+      cardExpense?.acc === importedCard?.id &&
       !fund?.events?.some((event) => String(event.linkedTxId) === "local-existing-6542") &&
       document.getElementById("andromoney-modal").classList.contains("d-none") &&
       appContent.scrollWidth <= appContent.clientWidth + 1;
@@ -564,7 +584,7 @@ export async function runAndroMoneyImportScenario(app) {
       throw new Error("andromoney-detail-modal-not-closed");
     }
 
-    writeSmokeResult("pass", "AndroMoney import preserved long notes and inline detail editing safely changed type, account, and note");
+    writeSmokeResult("pass", "AndroMoney import matched existing accounts, created asset and liability accounts, repaired duplicates, and preserved inline detail editing");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

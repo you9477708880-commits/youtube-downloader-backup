@@ -323,7 +323,7 @@ Mid-term work:
 6. **AndroMoney compatibility layer**
    - Use AndroMoney CSV as a mobile-compatible transaction interchange format, not as backup/restore for this website.
    - Upgrade the transaction category model from one field to `category` + `subcategory` so imported AndroMoney data can preserve both levels.
-   - On CSV import, ask the user to map AndroMoney account names to website accounts instead of silently creating or guessing accounts.
+   - On CSV import, automatically match normalized exact account names. Missing names default to new zero-balance asset accounts, while the confirmation UI lets the user choose liability for credit cards; never use fuzzy account guessing.
    - Preserve external identifiers such as `externalSource`, `externalId`, and `externalUid` so repeated imports can detect duplicates and future sync logic has stable references.
    - Full website backup and restore must remain a single complete JSON file that includes both `txs` and website-only data.
    - Do not pair edited CSV files with a separate extension JSON for system restore; that can create mismatched fund links and orphan events.
@@ -687,7 +687,8 @@ AndroMoney CSV 適合作為「手機端交易交換格式」，但不適合作�
    - 核心 CSV 解析已完成，可將付款帳戶轉成支出、收款帳戶轉成收入、同時有付款與收款時轉成轉帳。
    - 解析結果會保留 `category`、`subcategory`、`externalSource`、`externalId`、`externalUid` 與 `externalTime`。
    - 已建立 CSV 匯入 UI：先顯示匯入預覽
-   - 匯入時由使用者手動對應帳戶名稱
+   - 匯入時先依正規化後的完整名稱自動對應既有帳戶；缺少的名稱預設建立起始餘額為 `0` 的資產帳戶，並可在確認畫面改成信用卡等負債帳戶。
+   - 新帳戶與交易在同一次 `commitState()` 保存；重新匯入並選擇更新時，可以修復先前被對應到預設帳戶的交易而不複製交易。
    - 完整保留主分類與子分類
    - 目前以 `externalSource` / `externalId` 偵測重複匯入，確認匯入時可選擇略過或更新既有外部交易。
    - 更新既有外部交易時會保留原本本機交易 ID；若該交易有大額準備事件，會先移除關聯，讓使用者之後重新指定。
@@ -748,7 +749,8 @@ Recommended implementation order:
    - Core CSV parsing is complete: payment accounts become expenses, receiving accounts become income, and rows with both sides become transfers.
    - Parsed rows preserve `category`, `subcategory`, `externalSource`, `externalId`, `externalUid`, and `externalTime`.
    - CSV import UI is implemented: show a preview before committing
-   - ask the user to map account names manually during import
+   - automatically map normalized exact account names; default missing names to new zero-balance asset accounts and allow the user to choose liability accounts for credit cards
+   - persist new accounts and transactions in one `commitState()` call; reimporting in update mode can repair transactions previously mapped to default accounts without duplicating them
    - preserve both category levels
    - currently use `externalSource` / `externalId` to detect duplicate imports; confirmation can skip or update existing external transactions
    - updating an existing external transaction preserves the local transaction ID; if the transaction has fund events, those links are removed so the user can reassign them later

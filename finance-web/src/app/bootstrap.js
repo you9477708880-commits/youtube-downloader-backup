@@ -870,6 +870,7 @@ export async function bootstrapFinanceApp(doc = document) {
       triggerAndroMoneyImport: () => dom.fileAndroMoneyImport.click(),
       changeBalanceType: (value) => dom.balanceCategoryWrap.classList.toggle("d-none", value !== "item"),
       cancelAndroMoneyImport: () => importController.cancelAndroMoneyImport(),
+      syncAndroMoneyAccountChoice: (select) => importController.syncAndroMoneyAccountChoice(select),
       confirmAndroMoneyImport: () => {
         importController.confirmAndroMoneyImport().catch((error) => {
           console.warn("AndroMoney import failed.", error);

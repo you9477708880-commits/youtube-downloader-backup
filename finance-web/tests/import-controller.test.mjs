@@ -56,12 +56,13 @@ function createHarness() {
   };
   const store = createStore(structuredClone(initialState));
   const accountSelects = [];
+  const accountTypeSelects = [];
   const elements = {
     androMoneyModal: { classList: createClassList(["d-none"]) },
     androMoneySummary: { textContent: "" },
     androMoneyAccounts: {
       innerHTML: "",
-      querySelectorAll: () => accountSelects,
+      querySelectorAll: (selector) => selector.includes("account-type") ? accountTypeSelects : accountSelects,
     },
     androMoneyDuplicates: { classList: createClassList(["d-none"]) },
     androMoneyDuplicateMode: { value: "skip" },
@@ -88,8 +89,9 @@ function createHarness() {
   let backupError = null;
   let commitError = null;
   let cloudSaveResult = true;
+  let nextAccountId = 1;
 
-  const importedTransactions = [
+  let importedTransactions = [
     {
       id: "am-6542",
       type: "expense",
@@ -120,11 +122,13 @@ function createHarness() {
 
   const parseAndroMoneyCsv = (_text, options = {}) => {
     calls.parseOptions.push(options);
+    const accountNames = [...new Set(importedTransactions.map((transaction) => transaction.sourceAccountName || "台新銀行"))];
     return {
-      accountNames: ["台新銀行"],
+      accountNames,
       transactions: importedTransactions.map((transaction) => {
-        if (!options.accountMap) return { ...transaction, acc: "" };
-        return { ...transaction, acc: options.accountMap["台新銀行"] || "" };
+        const { sourceAccountName = "台新銀行", ...imported } = transaction;
+        if (!options.accountMap) return { ...imported, acc: "" };
+        return { ...imported, acc: options.accountMap[sourceAccountName] || "" };
       }),
     };
   };
@@ -165,6 +169,7 @@ function createHarness() {
       .replaceAll('"', "&quot;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;"),
+    createId: () => `imported-account-${nextAccountId++}`,
   });
 
   return {
@@ -172,13 +177,15 @@ function createHarness() {
     initialState,
     elements,
     accountSelects,
+    accountTypeSelects,
     calls,
     controller,
-    importedTransactions,
+    get importedTransactions() { return importedTransactions; },
     setBackupResult(value) { backupResult = value; },
     setBackupError(error) { backupError = error; },
     setCommitError(error) { commitError = error; },
     setCloudSaveResult(value) { cloudSaveResult = value; },
+    setImportedTransactions(value) { importedTransactions = value; },
   };
 }
 
@@ -236,9 +243,163 @@ test("opening AndroMoney import shows duplicate preview and account mapping with
   assert.match(harness.elements.androMoneyPreview.innerHTML, /已存在/);
   assert.match(harness.elements.androMoneyPreview.innerHTML, /新午餐/);
   assert.match(harness.elements.androMoneyAccounts.innerHTML, /data-andromoney-account="台新銀行"/);
+  assert.match(harness.elements.androMoneyAccounts.innerHTML, /value="bank" selected/);
+  assert.doesNotMatch(harness.elements.androMoneySummary.textContent, /將建立/);
   assert.equal(harness.elements.androMoneyModal.classList.contains("d-none"), false);
   assert.equal(harness.calls.focus, 1);
   assert.equal(harness.calls.commit, 0);
+});
+
+test("CSV import creates a missing account as an asset by default in the same commit as its transactions", async () => {
+  const harness = createHarness();
+  harness.store.update((state) => {
+    state.accounts = state.accounts.filter((account) => account.id !== "bank");
+  });
+  await harness.controller.openAndroMoneyImport({});
+  harness.accountSelects.push({
+    dataset: { andromoneyAccount: "台新銀行" },
+    value: "__create_andromoney_account__",
+  });
+  harness.accountTypeSelects.push({
+    dataset: { andromoneyAccountType: "台新銀行" },
+    value: "asset",
+  });
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  const account = harness.store.getState().accounts.find((item) => item.id === "imported-account-1");
+  const imported = harness.store.getState().txs.find((transaction) => transaction.externalId === "6543");
+  assert.deepEqual(account, {
+    id: "imported-account-1",
+    name: "台新銀行",
+    type: "asset",
+    isEm: false,
+    initialBalance: 0,
+  });
+  assert.equal(imported.acc, account.id);
+  assert.equal(harness.calls.commit, 1);
+  assert.match(harness.calls.toasts.at(-1)[0], /建立 1 個帳戶/);
+});
+
+test("reimporting only duplicate rows can create a liability account and remap existing transactions without duplicating them", async () => {
+  const harness = createHarness();
+  harness.store.update((state) => {
+    state.accounts = state.accounts.filter((account) => account.id !== "bank");
+    state.txs.push({ ...harness.importedTransactions[1], id: "local-6543", acc: "cash" });
+  });
+  await harness.controller.openAndroMoneyImport({});
+  harness.accountSelects.push({
+    dataset: { andromoneyAccount: "台新銀行" },
+    value: "__create_andromoney_account__",
+  });
+  harness.accountTypeSelects.push({
+    dataset: { andromoneyAccountType: "台新銀行" },
+    value: "liability",
+  });
+  harness.elements.androMoneyDuplicateMode.value = "update";
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  const state = harness.store.getState();
+  const account = state.accounts.find((item) => item.id === "imported-account-1");
+  assert.equal(account.type, "liability");
+  assert.equal(account.initialBalance, 0);
+  assert.equal(state.txs.length, 2);
+  assert.deepEqual(state.txs.map((transaction) => transaction.id).sort(), ["local-6542", "local-6543"]);
+  assert.ok(state.txs.every((transaction) => transaction.acc === account.id));
+  assert.match(harness.calls.toasts.at(-1)[0], /已新增 0 筆、更新 2 筆，建立 1 個帳戶/);
+});
+
+test("skip mode does not create an orphan account used only by a skipped duplicate", async () => {
+  const harness = createHarness();
+  harness.setImportedTransactions([
+    { ...harness.importedTransactions[0], sourceAccountName: "只在重複列" },
+    { ...harness.importedTransactions[1], externalId: "new-cash", id: "am-new-cash", sourceAccountName: "現金" },
+  ]);
+  await harness.controller.openAndroMoneyImport({});
+  harness.accountSelects.push(
+    { dataset: { andromoneyAccount: "只在重複列" }, value: "__create_andromoney_account__" },
+    { dataset: { andromoneyAccount: "現金" }, value: "cash" },
+  );
+  harness.accountTypeSelects.push({
+    dataset: { andromoneyAccountType: "只在重複列" },
+    value: "asset",
+  });
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  const state = harness.store.getState();
+  assert.equal(state.accounts.some((account) => account.name === "只在重複列"), false);
+  assert.equal(state.txs.find((transaction) => transaction.externalId === "new-cash")?.acc, "cash");
+  assert.doesNotMatch(harness.calls.toasts.at(-1)[0], /建立 .*帳戶/);
+});
+
+test("reimporting 450 duplicate rows repairs account references without changing transaction count or local IDs", async () => {
+  const harness = createHarness();
+  const imported = Array.from({ length: 450 }, (_, index) => ({
+    id: `am-bulk-${index}`,
+    type: "expense",
+    amount: index + 1,
+    date: "2026-08-01",
+    desc: `批次 ${index}`,
+    cat: "測試",
+    category: "測試",
+    subcategory: "批次",
+    acc: "",
+    externalSource: "andromoney",
+    externalId: `bulk-${index}`,
+    sourceAccountName: "批次信用卡",
+  }));
+  harness.setImportedTransactions(imported);
+  harness.store.update((state) => {
+    state.accounts = state.accounts.filter((account) => account.id !== "bank");
+    state.sinkingFunds = [];
+    state.txs = imported.map(({ sourceAccountName: _sourceAccountName, ...transaction }, index) => ({
+      ...transaction,
+      id: `local-bulk-${index}`,
+      acc: "cash",
+    }));
+  });
+  await harness.controller.openAndroMoneyImport({});
+  harness.accountSelects.push({
+    dataset: { andromoneyAccount: "批次信用卡" },
+    value: "__create_andromoney_account__",
+  });
+  harness.accountTypeSelects.push({
+    dataset: { andromoneyAccountType: "批次信用卡" },
+    value: "liability",
+  });
+  harness.elements.androMoneyDuplicateMode.value = "update";
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  const state = harness.store.getState();
+  const account = state.accounts.find((item) => item.name === "批次信用卡");
+  assert.equal(state.txs.length, 450);
+  assert.equal(account.type, "liability");
+  assert.ok(state.txs.every((transaction, index) => transaction.id === `local-bulk-${index}`));
+  assert.ok(state.txs.every((transaction) => transaction.acc === account.id));
+  assert.match(harness.calls.toasts.at(-1)[0], /已新增 0 筆、更新 450 筆，建立 1 個帳戶/);
+});
+
+test("account choice toggles the new-account type field", () => {
+  const harness = createHarness();
+  const toggles = [];
+  const typeSelect = { disabled: true };
+  const fields = { classList: { toggle: (...args) => toggles.push(args) } };
+  const row = {
+    querySelector: (selector) => selector.includes("new-account-fields") ? fields : typeSelect,
+  };
+  const select = {
+    dataset: { andromoneyAccount: "台新銀行" },
+    value: "__create_andromoney_account__",
+    closest: () => row,
+  };
+
+  harness.controller.syncAndroMoneyAccountChoice(select);
+
+  assert.deepEqual(toggles, [["d-none", false]]);
+  assert.equal(typeSelect.disabled, false);
 });
 
 test("CSV skip adds only new transactions and reports the skipped duplicate", async () => {

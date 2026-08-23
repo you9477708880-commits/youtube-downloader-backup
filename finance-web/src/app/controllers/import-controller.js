@@ -1,5 +1,25 @@
 import { withoutFundEventsLinkedToTransaction } from "../../domain/sinking-funds.js";
 
+const CREATE_ACCOUNT_VALUE = "__create_andromoney_account__";
+
+function defaultCreateId(prefix) {
+  if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeAccountName(value) {
+  return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function accountNameKey(value) {
+  return normalizeAccountName(value).toLocaleLowerCase("zh-Hant");
+}
+
+function findMatchingAccount(accounts, name) {
+  const key = accountNameKey(name);
+  return accounts.find((account) => accountNameKey(account.name) === key) || null;
+}
+
 function sameExternalTransaction(left, right) {
   return Boolean(
     left?.externalSource &&
@@ -46,6 +66,7 @@ export function createImportController({
   downloadTextFile,
   formatMoney,
   escapeHTML,
+  createId = defaultCreateId,
 }) {
   const {
     androMoneyModal,
@@ -72,24 +93,50 @@ export function createImportController({
     const state = store.getState();
     const duplicates = findDuplicateExternalTransactions(state.txs, parsed.transactions);
     const duplicateKeys = new Set(duplicates.map(externalTransactionKey));
-    const accountOptions = state.accounts
-      .map((account) => `<option value="${escapeHTML(account.id)}">${escapeHTML(account.name)}</option>`)
-      .join("");
+    const matchedAccountCount = parsed.accountNames.filter((name) => findMatchingAccount(state.accounts, name)).length;
+    const newAccountCount = parsed.accountNames.length - matchedAccountCount;
 
     androMoneySummary.textContent =
       `讀到 ${parsed.transactions.length} 筆交易、${parsed.accountNames.length} 個帳戶名稱。` +
+      (matchedAccountCount ? ` 已自動對應 ${matchedAccountCount} 個既有帳戶。` : "") +
+      (newAccountCount ? ` 將建立 ${newAccountCount} 個缺少的帳戶。` : "") +
       (duplicates.length ? ` 其中 ${duplicates.length} 筆看起來已匯入過。` : "");
     androMoneyDuplicates.classList.toggle("d-none", duplicates.length === 0);
     androMoneyDuplicateMode.value = "skip";
     androMoneyAccounts.innerHTML = parsed.accountNames.length
       ? parsed.accountNames
           .map(
-            (name) => `
-              <label class="flex-col gap-1">
-                <span class="flb">${escapeHTML(name)}</span>
-                <select data-andromoney-account="${escapeHTML(name)}">${accountOptions}</select>
-              </label>
-            `,
+            (name) => {
+              const matchingAccount = findMatchingAccount(state.accounts, name);
+              const accountOptions = state.accounts
+                .map((account) => {
+                  const label = account.type === "liability" ? `${account.name}（負債）` : account.name;
+                  return `<option value="${escapeHTML(account.id)}"${matchingAccount?.id === account.id ? " selected" : ""}>${escapeHTML(label)}</option>`;
+                })
+                .join("");
+              const creating = !matchingAccount;
+              return `
+                <div class="andromoney-account-row" data-andromoney-account-row>
+                  <div class="flb">CSV 帳戶：${escapeHTML(name)}</div>
+                  <div class="andromoney-account-fields">
+                    <label class="flex-col gap-1">
+                      <span class="text-xs text-gray">匯入方式</span>
+                      <select data-andromoney-account="${escapeHTML(name)}">
+                        ${accountOptions}
+                        <option value="${CREATE_ACCOUNT_VALUE}"${creating ? " selected" : ""}>建立新帳戶「${escapeHTML(name)}」</option>
+                      </select>
+                    </label>
+                    <label class="flex-col gap-1${creating ? "" : " d-none"}" data-andromoney-new-account-fields>
+                      <span class="text-xs text-gray">新帳戶類型</span>
+                      <select data-andromoney-account-type="${escapeHTML(name)}"${creating ? "" : " disabled"}>
+                        <option value="asset" selected>資產（現金／銀行／電子支付）</option>
+                        <option value="liability">負債（信用卡）</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              `;
+            },
           )
           .join("")
       : '<div class="empty">CSV 裡沒有可對應的帳戶名稱。</div>';
@@ -115,12 +162,63 @@ export function createImportController({
     androMoneyConfirm.focus?.();
   };
 
-  const readAndroMoneyAccountMap = () => Object.fromEntries(
-    [...androMoneyAccounts.querySelectorAll("[data-andromoney-account]")].map((select) => [
-      select.dataset.andromoneyAccount,
-      select.value,
-    ]),
-  );
+  const syncAndroMoneyAccountChoice = (select) => {
+    if (!select?.dataset?.andromoneyAccount) return;
+    const row = select.closest?.("[data-andromoney-account-row]");
+    const fields = row?.querySelector?.("[data-andromoney-new-account-fields]");
+    const typeSelect = row?.querySelector?.("[data-andromoney-account-type]");
+    const creating = select.value === CREATE_ACCOUNT_VALUE;
+    fields?.classList?.toggle("d-none", !creating);
+    if (typeSelect) typeSelect.disabled = !creating;
+  };
+
+  const readAndroMoneyAccountChoices = () => {
+    const typeByName = new Map(
+      [...androMoneyAccounts.querySelectorAll("[data-andromoney-account-type]")]
+        .map((select) => [select.dataset.andromoneyAccountType, select.value]),
+    );
+    return new Map(
+      [...androMoneyAccounts.querySelectorAll("[data-andromoney-account]")]
+        .map((select) => [select.dataset.andromoneyAccount, {
+          accountId: select.value,
+          type: typeByName.get(select.dataset.andromoneyAccount) === "liability" ? "liability" : "asset",
+        }]),
+    );
+  };
+
+  const buildAccountImportPlan = (accountNames) => {
+    const state = store.getState();
+    const choices = readAndroMoneyAccountChoices();
+    const accountMapEntries = [];
+    const newAccounts = [];
+
+    accountNames.forEach((name) => {
+      const choice = choices.get(name);
+      const selectedAccount = state.accounts.find((account) => String(account.id) === String(choice?.accountId));
+      if (selectedAccount) {
+        accountMapEntries.push([name, selectedAccount.id]);
+        return;
+      }
+
+      const fallbackMatch = choice ? null : findMatchingAccount(state.accounts, name);
+      if (fallbackMatch) {
+        accountMapEntries.push([name, fallbackMatch.id]);
+        return;
+      }
+
+      const account = {
+        id: createId("a"),
+        name: normalizeAccountName(name),
+        type: choice?.type === "liability" ? "liability" : "asset",
+        isEm: false,
+        initialBalance: 0,
+      };
+      newAccounts.push(account);
+      accountMapEntries.push([name, account.id]);
+    });
+
+    return { accountMap: Object.fromEntries(accountMapEntries), newAccounts };
+  };
 
   const exportBackup = () => {
     exportBackupFile(store.getState());
@@ -155,7 +253,8 @@ export function createImportController({
   const confirmAndroMoneyImport = async () => {
     if (!pendingAndroMoneyText) return;
 
-    const accountMap = readAndroMoneyAccountMap();
+    const initialParse = parseAndroMoneyCsv(pendingAndroMoneyText);
+    const { accountMap, newAccounts: plannedAccounts } = buildAccountImportPlan(initialParse.accountNames);
     const parsed = parseAndroMoneyCsv(pendingAndroMoneyText, { accountMap });
     const existingTransactions = store.getState().txs;
     const duplicateMode = androMoneyDuplicateMode.value || "skip";
@@ -171,6 +270,13 @@ export function createImportController({
           })
           .filter(Boolean)
       : [];
+    const referencedAccountIds = new Set(
+      [...newTransactions, ...updateTransactions]
+        .flatMap((transaction) => [transaction.acc, transaction.fromAcc, transaction.toAcc])
+        .filter(Boolean)
+        .map(String),
+    );
+    const newAccounts = plannedAccounts.filter((account) => referencedAccountIds.has(String(account.id)));
 
     if (!newTransactions.length && !updateTransactions.length) {
       toast.show("沒有新的 AndroMoney 交易可匯入");
@@ -179,6 +285,7 @@ export function createImportController({
     }
 
     commitState((draft) => {
+      draft.accounts.push(...newAccounts);
       const updateIds = new Set(updateTransactions.map((transaction) => String(transaction.id)));
       let nextFunds = draft.sinkingFunds;
       updateIds.forEach((id) => {
@@ -200,7 +307,7 @@ export function createImportController({
 
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
     const cloudSaved = await waitForCloudSave();
-    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${skipped ? `，略過 ${skipped} 筆重複` : ""}`;
+    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}`;
     toast.show(cloudSaved ? `${result}，已同步雲端` : `${result}，已保存於本機，尚未同步雲端`);
   };
 
@@ -210,6 +317,7 @@ export function createImportController({
     exportAndroMoney,
     openAndroMoneyImport,
     confirmAndroMoneyImport,
+    syncAndroMoneyAccountChoice,
     cancelAndroMoneyImport: reset,
     reset,
   };

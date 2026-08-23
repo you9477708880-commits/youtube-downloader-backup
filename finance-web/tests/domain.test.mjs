@@ -484,12 +484,13 @@ function testAndroMoneyCsvConversionPreservesTwoCategoryLevels() {
   const csv = [
     '"Google Documents","理財幫手AndroMoney","20260518"',
     '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
-    '"6542","TWD","209","餐飲食品","午餐","20251103","台新銀行","","波奇波奇","","","","uid-meal","1202"',
+    '"6542","TWD","209","餐飲食品","午餐","20251103","  台新銀行  ","","波奇波奇","","","","uid-meal","1202"',
     '"6543","TWD","1000","一般收入","其他","20251104","","台新銀行","政府普發","","","","uid-income","1020"',
     '"6544","TWD","3000","帳目整理","帳目整理","20251105","現金","台新銀行","轉入銀行","","","","uid-transfer","1538"',
   ].join("\n");
 
   const parsed = parseAndroMoneyCsv(csv, { accountMap: { 台新銀行: "bank", 現金: "cash" } });
+  assert.deepEqual(parsed.accountNames, ["台新銀行", "現金"]);
   assert.deepEqual(parsed.unmappedAccounts, []);
   assert.equal(parsed.transactions.length, 3);
   assert.equal(parsed.transactions[0].type, "expense");
@@ -510,6 +511,35 @@ function testAndroMoneyCsvConversionPreservesTwoCategoryLevels() {
   assert.match(exported, /^"Google Documents","理財幫手AndroMoney","20260520"/);
   assert.match(exported, /"餐飲食品","午餐","20251103","銀行",""/);
   assert.match(exported, /"一般收入","其他","20251104","","銀行"/);
+}
+
+function testAndroMoneyAccountNamesDoNotReadInheritedObjectProperties() {
+  const csv = [
+    '"Google Documents","理財幫手AndroMoney","20260518"',
+    '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
+    '"safe-1","TWD","100","費用","測試","20260518","constructor","","安全測試","","","","",""',
+  ].join("\n");
+
+  const unmapped = parseAndroMoneyCsv(csv);
+  assert.deepEqual(unmapped.unmappedAccounts, ["constructor"]);
+  assert.equal(unmapped.transactions[0].acc, "");
+
+  const mapped = parseAndroMoneyCsv(csv, {
+    accountMap: Object.fromEntries([["constructor", "safe-account-id"]]),
+  });
+  assert.deepEqual(mapped.unmappedAccounts, []);
+  assert.equal(mapped.transactions[0].acc, "safe-account-id");
+
+  const caseCsv = [
+    '"Google Documents","理財幫手AndroMoney","20260518"',
+    '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
+    '"case-1","TWD","100","費用","測試","20260518","VISA","","大寫","","","","",""',
+    '"case-2","TWD","200","費用","測試","20260519","visa","","小寫","","","","",""',
+  ].join("\n");
+  const caseParsed = parseAndroMoneyCsv(caseCsv, { accountMap: { VISA: "visa-account" } });
+  assert.deepEqual(caseParsed.accountNames, ["VISA"]);
+  assert.deepEqual(caseParsed.unmappedAccounts, []);
+  assert.ok(caseParsed.transactions.every((transaction) => transaction.acc === "visa-account"));
 }
 
 function testTransactionIdsAreNotDateNowOnly() {
@@ -1255,6 +1285,7 @@ testTraceabilityHelpers();
 testMoneyNormalization();
 testCategorySchemaMigration();
 testAndroMoneyCsvConversionPreservesTwoCategoryLevels();
+testAndroMoneyAccountNamesDoNotReadInheritedObjectProperties();
 testTransactionIdsAreNotDateNowOnly();
 testDeletedAccountFallbackKeepsHistoricalBalance();
 testStateMoneyNormalization();

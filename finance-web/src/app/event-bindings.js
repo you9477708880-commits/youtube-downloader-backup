@@ -72,6 +72,12 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
     if (event.target?.id === "transaction-detail-type") actions.syncTransactionDetailType();
   });
 
+  on(dom.androMoneyAccounts, "change", (event) => {
+    if (event.target?.matches?.("[data-andromoney-account]")) {
+      handlers.syncAndroMoneyAccountChoice(event.target);
+    }
+  });
+
   const bindForm = (id, callback) => {
     const form = doc.getElementById(id);
     on(form, "submit", (event) => {

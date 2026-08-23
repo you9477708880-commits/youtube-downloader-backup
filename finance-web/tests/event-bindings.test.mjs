@@ -48,7 +48,7 @@ function createHarness() {
   const domKeys = [
     "filterPreset", "filterStart", "filterEnd", "inputCategory", "balanceType",
     "txCancelButton", "fundCancelButton", "bsCancelButton", "wishCancelButton",
-    "androMoneyCancel", "androMoneyConfirm", "inputAmount", "inputOwnAmount",
+    "androMoneyCancel", "androMoneyConfirm", "androMoneyAccounts", "inputAmount", "inputOwnAmount",
     "budgetCapInput", "fundTarget", "fundMonthly", "balanceAmount", "catBudgetAmount",
     "wishPrice", "retireLinked", "authButton", "cloudStatus", "currentAge", "retirementAge", "deathAge",
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
@@ -65,7 +65,7 @@ function createHarness() {
   };
   const handlerNames = [
     "exportData", "triggerImport", "exportAndroMoney", "triggerAndroMoneyImport",
-    "changeBalanceType", "cancelAndroMoneyImport", "confirmAndroMoneyImport",
+    "changeBalanceType", "cancelAndroMoneyImport", "confirmAndroMoneyImport", "syncAndroMoneyAccountChoice",
     "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction", "retryCloudSync",
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
     "updateConnectivity", "toggleRetirementTable",
@@ -154,6 +154,8 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.cloudStatus.emit("click");
   dom.transactionDetailModal.emit("click", { target: dom.transactionDetailModal });
   dom.transactionDetailModal.emit("change", { target: { id: "transaction-detail-type" } });
+  const accountChoice = { matches: () => true };
+  dom.androMoneyAccounts.emit("change", { target: accountChoice });
   harness.doc.emit("keydown", { key: "Escape" });
   harness.doc.emit("keydown", { key: "Tab" });
   dom.currentAge.emit("input");
@@ -179,6 +181,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "retryCloudSync",
     "closeTransactionDetail",
     "syncTransactionDetailType",
+    "syncAndroMoneyAccountChoice",
     "closeTransactionDetail",
     "trapTransactionDetailFocus",
     "updateRetirementAge",
