@@ -40,6 +40,19 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cloud-st:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.cloud-st:not(:disabled):hover,
+.cloud-st:not(:disabled):focus-visible {
+  border-color: currentColor;
+  outline: none;
 }
 
 .cloud-st.err {

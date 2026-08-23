@@ -100,6 +100,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.budgetCapInput, "change", handlers.updateBudgetCap);
   on(dom.retireLinked, "change", handlers.updateRetirementLinked);
   on(dom.authButton, "click", handlers.runAuthAction);
+  on(dom.cloudStatus, "click", handlers.retryCloudSync);
 
   ["currentAge", "retirementAge", "deathAge"].forEach((key) => {
     on(dom[key], "input", (event) => handlers.updateRetirementAge(key, event));

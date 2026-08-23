@@ -72,6 +72,8 @@ function createFirebaseFakes(
   let legacyValue = legacy;
   let rejectNextCommit = null;
   let batchCommits = 0;
+  let batchCommitAttempts = 0;
+  let rejectCommitAttempt = null;
   let legacyReads = 0;
 
   const pathOf = (...parts) => parts.filter((part) => part !== undefined).join("/");
@@ -123,6 +125,12 @@ function createFirebaseFakes(
         return {
           set: (ref, value) => writes.push({ ref, value: structuredClone(value) }),
           commit: async () => {
+            batchCommitAttempts += 1;
+            if (rejectCommitAttempt?.attempt === batchCommitAttempts) {
+              const error = rejectCommitAttempt.error;
+              rejectCommitAttempt = null;
+              throw error;
+            }
             if (rejectNextCommit) {
               const error = rejectNextCommit;
               rejectNextCommit = null;
@@ -154,6 +162,9 @@ function createFirebaseFakes(
     getBatchCommits: () => batchCommits,
     getAnonymousSignIns: () => anonymousSignIns,
     rejectCommit: (error = new Error("permission-denied")) => { rejectNextCommit = error; },
+    rejectCommitAfter: (successfulBatches, error = new Error("temporarily-unavailable")) => {
+      rejectCommitAttempt = { attempt: batchCommitAttempts + successfulBatches + 1, error };
+    },
     setRecords: (next) => {
       stored.clear();
       next.forEach((value, key) => stored.set(key, structuredClone(value)));
@@ -224,6 +235,30 @@ try {
   assert.equal(restoredAuthFakes.getAnonymousSignIns(), 0);
   assert.equal(restoredUsers.at(-1)?.uid, "user-a");
   restoredSync.destroy();
+
+  const bulkBaseState = stateWithTransactions();
+  const bulkFakes = createFirebaseFakes(userA, { records: recordsFromState(bulkBaseState) });
+  let bulkState = structuredClone(bulkBaseState);
+  const bulkConflicts = [];
+  const bulkSync = await createRecordCloudSync({
+    getState: () => bulkState,
+    onStatus: () => {},
+    onUserChange: () => {},
+    onRemoteState: () => {},
+    onConflict: (conflict) => bulkConflicts.push(conflict),
+    firebaseModules: bulkFakes.modules,
+  });
+  await flush();
+  bulkFakes.emitRecords(0);
+  bulkState = stateWithTransactions(...Array.from({ length: 450 }, (_, index) => [`bulk-${index}`, index + 1]));
+  bulkFakes.rejectCommitAfter(1);
+  await assert.rejects(bulkSync.save(), /temporarily-unavailable/);
+  assert.equal(bulkFakes.getBatchCommits(), 1);
+  assert.equal(bulkConflicts.length, 0);
+  assert.equal(await bulkSync.save(), true);
+  assert.equal(bulkFakes.getBatchCommits(), 2);
+  assert.equal([...bulkFakes.stored.values()].filter((record) => record.kind === "transaction").length, 450);
+  bulkSync.destroy();
 
   const fakes = createFirebaseFakes(userA, { records: initialRecords });
   const remoteEvents = [];

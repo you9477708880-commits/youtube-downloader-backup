@@ -301,12 +301,7 @@ export async function createRecordCloudSync({
     };
 
     const writeMutationGroup = async (recordsRef, mutations) => {
-      if (mutations.length > RECORD_BATCH_LIMIT) throw new Error("mutation-group-too-large");
-      const batch = firestoreMod.writeBatch(db);
-      mutations.forEach((mutation) => {
-        batch.set(firestoreMod.doc(recordsRef, mutation.key), mutation.envelope);
-      });
-      await batch.commit();
+      await writeBatches(recordsRef, mutations);
     };
 
     const activateMigration = async (uid, generation, state, refs) => {
@@ -446,7 +441,10 @@ export async function createRecordCloudSync({
             workingRecords = baselineRecords;
           }
           const conflictKeys = mutations
-            .filter(({ key, baseRevision }) => Number(latestRecords.get(key)?.revision || 0) > baseRevision)
+            .filter(({ key, baseRevision, envelope }) => {
+              const latest = latestRecords.get(key);
+              return Number(latest?.revision || 0) > baseRevision && recordFingerprint(latest) !== recordFingerprint(envelope);
+            })
             .map(({ key }) => key);
           if (conflictKeys.length) {
             if (isCurrent(uid, generation)) {

@@ -895,6 +895,18 @@ export async function runDesktopCoreLayoutScenario() {
       if (display !== "grid") {
         throw new Error(`workspace-not-grid-${check.target}-${display}`);
       }
+
+      if (check.target === "ov") {
+        for (const selector of [".ov-main-zone", ".ov-secondary-zone"]) {
+          const pane = section.querySelector(selector);
+          if (getComputedStyle(pane).minWidth !== "0px") {
+            throw new Error(`overview-pane-cannot-shrink-${selector}`);
+          }
+          if (pane.scrollWidth > pane.clientWidth + 1) {
+            throw new Error(`overview-pane-overflow-${selector}-${pane.scrollWidth}-${pane.clientWidth}`);
+          }
+        }
+      }
     }
 
     document.querySelector('[data-action="tab"][data-target="re"]')?.click();

@@ -32,6 +32,11 @@
   .ov-metric-zone { grid-area: metrics; }
   .ov-main-zone { grid-area: main; display: grid; gap: 16px; }
   .ov-secondary-zone { grid-area: secondary; display: grid; gap: 16px; align-self: start; }
+  .ov-main-zone,
+  .ov-secondary-zone {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .ov-metric-zone .grid-2 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   .ledger-workspace {

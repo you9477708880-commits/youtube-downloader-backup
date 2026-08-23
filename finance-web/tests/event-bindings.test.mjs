@@ -48,7 +48,7 @@ function createHarness() {
     "txCancelButton", "fundCancelButton", "bsCancelButton", "wishCancelButton",
     "androMoneyCancel", "androMoneyConfirm", "inputAmount", "inputOwnAmount",
     "budgetCapInput", "fundTarget", "fundMonthly", "balanceAmount", "catBudgetAmount",
-    "wishPrice", "retireLinked", "authButton", "currentAge", "retirementAge", "deathAge",
+    "wishPrice", "retireLinked", "authButton", "cloudStatus", "currentAge", "retirementAge", "deathAge",
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
@@ -64,7 +64,7 @@ function createHarness() {
   const handlerNames = [
     "exportData", "triggerImport", "exportAndroMoney", "triggerAndroMoneyImport",
     "changeBalanceType", "cancelAndroMoneyImport", "confirmAndroMoneyImport",
-    "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction",
+    "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction", "retryCloudSync",
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
@@ -137,6 +137,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.txCancelButton.emit("click");
   dom.androMoneyConfirm.emit("click");
   dom.authButton.emit("click");
+  dom.cloudStatus.emit("click");
   dom.currentAge.emit("input");
   dom.retireAsset.emit("input");
   dom.fileImport.emit("change");
@@ -157,6 +158,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "cancelEditTx",
     "confirmAndroMoneyImport",
     "runAuthAction",
+    "retryCloudSync",
     "updateRetirementAge",
     "updateRetirementInput",
     "importJsonFile",

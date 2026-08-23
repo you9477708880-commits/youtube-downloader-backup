@@ -269,44 +269,55 @@ export async function bootstrapFinanceApp(doc = document) {
     updateCloudStatus(status, meta) {
       const currentUser = syncCoordinator?.getCurrentUser();
       const hasCloudUser = currentUser && !currentUser.isAnonymous;
+      const setRetryState = (enabled, title) => {
+        dom.cloudStatus.disabled = !enabled;
+        dom.cloudStatus.title = title;
+        dom.cloudStatus.setAttribute("aria-label", title);
+      };
       if (status === "syncing") {
-        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 同步中" : "💾 僅本機";
+        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 正在備份" : "💾 僅本機";
         dom.cloudStatus.className = "cloud-st";
         dom.cloudStatus.dataset.state = hasCloudUser ? "syncing" : "local";
+        setRetryState(false, hasCloudUser ? "資料正在備份到雲端" : "目前只保存於這台裝置");
         return;
       }
 
       if (status === "online") {
-        dom.cloudStatus.textContent = hasCloudUser ? (meta?.fromCache ? "☁️ 已連線（快取）" : "☁️ 雲端同步") : "💾 僅本機";
+        dom.cloudStatus.textContent = hasCloudUser ? (meta?.fromCache ? "☁️ 已連線（快取）" : "☁️ 已備份") : "💾 僅本機";
         dom.cloudStatus.className = hasCloudUser ? "cloud-st" : "cloud-st off";
         dom.cloudStatus.dataset.state = hasCloudUser ? (meta?.fromCache ? "cache" : "cloud") : "local";
+        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "立即再次備份到雲端" : "目前只保存於這台裝置");
         return;
       }
 
       if (status === "offline") {
-        dom.cloudStatus.textContent = "☁️ 暫時離線";
+        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 離線｜重試" : "💾 僅本機";
         dom.cloudStatus.className = "cloud-st off";
         dom.cloudStatus.dataset.state = "offline";
+        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "重新嘗試備份到雲端" : "目前只保存於這台裝置");
         return;
       }
 
       if (status === "error") {
-        dom.cloudStatus.textContent = "☁️ 同步提醒";
+        dom.cloudStatus.textContent = "⚠️ 備份失敗｜重試";
         dom.cloudStatus.className = "cloud-st off";
         dom.cloudStatus.dataset.state = "warning";
+        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "備份尚未完成；按此立即重試" : "請先登入 Google 才能備份到雲端");
         return;
       }
 
       if (status === "conflict") {
-        dom.cloudStatus.textContent = "☁️ 同步衝突";
+        dom.cloudStatus.textContent = "⚠️ 待選擇資料";
         dom.cloudStatus.className = "cloud-st off";
         dom.cloudStatus.dataset.state = "conflict";
+        setRetryState(false, "請先在同步視窗選擇保留雲端或本機資料");
         return;
       }
 
       dom.cloudStatus.textContent = "💾 僅本機";
       dom.cloudStatus.className = "cloud-st off";
       dom.cloudStatus.dataset.state = "local";
+      setRetryState(false, "目前只保存於這台裝置");
     },
     renderAuthState(user, cloudEnabled, errorMessage = "", action = null) {
       if (!cloudEnabled) {
@@ -851,6 +862,17 @@ export async function bootstrapFinanceApp(doc = document) {
       clearTransactionSearch: transactionSearchController.clear,
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
+      retryCloudSync: async () => {
+        ui.updateCloudStatus("syncing");
+        const saved = await syncCoordinator.enqueueCloudState();
+        if (saved) {
+          ui.updateCloudStatus("online");
+          toast.show("資料已備份到雲端");
+          return;
+        }
+        ui.updateCloudStatus("error");
+        toast.show("雲端備份仍未完成，請確認網路後再按一次重試", "error");
+      },
       updateRetirementAge: retirementController.updateAge,
       updateRetirementInput: retirementController.updateInput,
       toggleRetirementTable: retirementController.toggleTable,
