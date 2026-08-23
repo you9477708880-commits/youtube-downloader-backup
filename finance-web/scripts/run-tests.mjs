@@ -17,6 +17,8 @@ const testFiles = [
   "tests/transaction-search-controller.test.mjs",
   "tests/transaction-detail-controller.test.mjs",
   "tests/import-controller.test.mjs",
+  "tests/conflict-recovery.test.mjs",
+  "tests/recovery-center-controller.test.mjs",
   "tests/event-bindings.test.mjs",
   "tests/goal-center.test.mjs",
   "tests/sync-coordinator.test.mjs",

@@ -174,8 +174,18 @@ export function createSyncCoordinator({
     });
     const choice = ["cloud", "local"].includes(requestedChoice) ? requestedChoice : "cancel";
 
-    if (choice === "cloud" && !preserveRollback(localState, "before-cloud-conflict")) return false;
-    if (choice === "local" && !preserveRollback(remoteState, "before-local-conflict")) return false;
+    if (choice === "cloud" && !await preserveRollback(localState, "before-cloud-conflict", {
+      choice,
+      conflictType: "record",
+      recordKeys: keys,
+      winnerState: remoteState,
+    })) return false;
+    if (choice === "local" && !await preserveRollback(remoteState, "before-local-conflict", {
+      choice,
+      conflictType: "record",
+      recordKeys: keys,
+      winnerState: localState,
+    })) return false;
 
     cloudConflictDecision = choice === "cancel" ? "cancel" : "";
     runScheduled(async () => {
@@ -258,7 +268,11 @@ export function createSyncCoordinator({
     }
 
     if ((!localHasData && !metadata.hasPendingOutbox) || cloudConflictDecision === "cloud") {
-      if (localHasData && !preserveRollback(localState, "before-cloud-overwrite")) {
+      if (localHasData && !await preserveRollback(localState, "before-cloud-overwrite", {
+        choice: "cloud",
+        conflictType: "initial",
+        winnerState: remoteState,
+      })) {
         cloudConflictDecision = "cancel";
         onStatus("conflict");
         return "rollback-failed";
@@ -270,7 +284,11 @@ export function createSyncCoordinator({
     }
 
     if (cloudConflictDecision === "local") {
-      if (!preserveRollback(remoteState, "before-local-overwrite")) {
+      if (!await preserveRollback(remoteState, "before-local-overwrite", {
+        choice: "local",
+        conflictType: "initial",
+        winnerState: localState,
+      })) {
         cloudConflictDecision = "cancel";
         onStatus("conflict");
         return "rollback-failed";

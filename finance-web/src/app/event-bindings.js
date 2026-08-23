@@ -33,6 +33,11 @@ const DATA_ACTIONS = {
   "trigger-import": ({ handlers }) => handlers.triggerImport(),
   "export-andromoney": ({ handlers }) => handlers.exportAndroMoney(),
   "trigger-andromoney-import": ({ handlers }) => handlers.triggerAndroMoneyImport(),
+  "open-recovery-center": ({ handlers }) => { void handlers.openRecoveryCenter(); },
+  "close-recovery-center": ({ handlers }) => handlers.closeRecoveryCenter(),
+  "restore-recovery": ({ button, handlers }) => { void handlers.restoreRecovery(button.dataset.id); },
+  "export-recovery": ({ button, handlers }) => { void handlers.exportRecovery(button.dataset.id); },
+  "delete-recovery": ({ button, handlers }) => { void handlers.deleteRecovery(button.dataset.id); },
 };
 
 export function dispatchDataAction({ button, actions, ui, handlers }) {
@@ -61,6 +66,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
 
   on(doc, "keydown", (event) => {
     if (event.key === "Escape") actions.closeTransactionDetail();
+    if (event.key === "Escape") handlers.closeRecoveryCenter();
     if (event.key === "Tab") actions.trapTransactionDetailFocus(event);
   });
 
@@ -70,6 +76,10 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
 
   on(dom.transactionDetailModal, "change", (event) => {
     if (event.target?.id === "transaction-detail-type") actions.syncTransactionDetailType();
+  });
+
+  on(dom.recoveryCenterModal, "click", (event) => {
+    if (event.target === dom.recoveryCenterModal) handlers.closeRecoveryCenter();
   });
 
   on(dom.androMoneyAccounts, "change", (event) => {

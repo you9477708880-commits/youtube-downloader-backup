@@ -54,8 +54,8 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
     buildConflictMessage: (user) => `conflict:${user?.uid || "none"}`,
     promptSyncChoice: () => choices.shift() || "cancel",
     confirmUnboundImport: () => confirmations.shift() || false,
-    preserveRollback: (next, label) => {
-      rollbackCalls.push({ state: clone(next), label });
+    preserveRollback: (next, label, metadata) => {
+      rollbackCalls.push({ state: clone(next), label, metadata: clone(metadata || {}) });
       return typeof rollback === "function" ? rollback(label) : rollback;
     },
     schedule: (callback) => scheduled.push(callback),
@@ -174,6 +174,9 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
     "applied-cloud",
   );
   assert.equal(fx.rollbackCalls[0].label, "before-cloud-overwrite");
+  assert.equal(fx.rollbackCalls[0].metadata.choice, "cloud");
+  assert.equal(fx.rollbackCalls[0].metadata.conflictType, "initial");
+  assert.equal(fx.rollbackCalls[0].metadata.winnerState.txs[0].id, "remote");
   assert.equal(fx.getState().txs[0].id, "remote");
 }
 
@@ -259,10 +262,13 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   assert.equal(await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
   await fx.flushScheduled();
   assert.equal(fx.rollbackCalls[0].label, "before-cloud-conflict");
+  assert.deepEqual(fx.rollbackCalls[0].metadata.recordKeys, ["k"]);
+  assert.equal(fx.rollbackCalls[0].metadata.winnerState.txs[0].id, "r");
   assert.deepEqual(fx.cloudCalls.resolve, ["cloud"]);
   assert.equal(await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] }), true);
   await fx.flushScheduled();
   assert.equal(fx.rollbackCalls[1].label, "before-local-conflict");
+  assert.equal(fx.rollbackCalls[1].metadata.winnerState.txs[0].id, "l");
   assert.deepEqual(fx.cloudCalls.resolve, ["cloud", "local"]);
   await fx.coordinator.onConflict({ localState: state("l"), remoteState: state("r"), keys: ["k"] });
   await fx.flushScheduled();

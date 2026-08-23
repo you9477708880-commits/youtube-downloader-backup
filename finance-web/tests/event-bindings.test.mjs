@@ -55,6 +55,7 @@ function createHarness() {
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
     "transactionSearchEnd", "transactionSearchClear", "transactionDetailModal",
+    "recoveryCenterModal",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
   const record = (name) => (...args) => calls.push([name, ...args]);
@@ -71,6 +72,7 @@ function createHarness() {
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
     "searchTransactions", "changeTransactionSearchPeriod", "clearTransactionSearch",
+    "openRecoveryCenter", "closeRecoveryCenter", "restoreRecovery", "exportRecovery", "deleteRecovery",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };
@@ -94,6 +96,11 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("save-transaction-detail");
   dispatch("cancel-transaction-detail-edit");
   dispatch("close-transaction-detail");
+  dispatch("open-recovery-center");
+  dispatch("restore-recovery", { id: "recovery-1" });
+  dispatch("export-recovery", { id: "recovery-1" });
+  dispatch("delete-recovery", { id: "recovery-1" });
+  dispatch("close-recovery-center");
   assert.equal(dispatch("unknown"), false);
 
   assert.deepEqual(calls, [
@@ -109,6 +116,11 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["saveTransactionDetail"],
     ["cancelTransactionDetailEdit"],
     ["closeTransactionDetail"],
+    ["openRecoveryCenter"],
+    ["restoreRecovery", "recovery-1"],
+    ["exportRecovery", "recovery-1"],
+    ["deleteRecovery", "recovery-1"],
+    ["closeRecoveryCenter"],
   ]);
 });
 
@@ -154,6 +166,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.cloudStatus.emit("click");
   dom.transactionDetailModal.emit("click", { target: dom.transactionDetailModal });
   dom.transactionDetailModal.emit("change", { target: { id: "transaction-detail-type" } });
+  dom.recoveryCenterModal.emit("click", { target: dom.recoveryCenterModal });
   const accountChoice = { matches: () => true };
   dom.androMoneyAccounts.emit("change", { target: accountChoice });
   harness.doc.emit("keydown", { key: "Escape" });
@@ -181,8 +194,10 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "retryCloudSync",
     "closeTransactionDetail",
     "syncTransactionDetailType",
+    "closeRecoveryCenter",
     "syncAndroMoneyAccountChoice",
     "closeTransactionDetail",
+    "closeRecoveryCenter",
     "trapTransactionDetailFocus",
     "updateRetirementAge",
     "updateRetirementInput",

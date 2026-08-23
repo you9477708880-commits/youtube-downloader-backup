@@ -93,6 +93,21 @@ function testSyncConflictUsesExplicitButtons() {
   assert.doesNotMatch(bootstrap, /請輸入 cloud、local 或 cancel/);
 }
 
+function testConflictRecoveryIsScopedAndDoesNotAutoDownload() {
+  const html = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
+  const bootstrap = fs.readFileSync(path.join(projectRoot, "src", "app", "bootstrap.js"), "utf8");
+  const recovery = fs.readFileSync(path.join(projectRoot, "src", "services", "conflict-recovery.js"), "utf8");
+  assert.match(html, /data-action="open-recovery-center"/);
+  assert.match(html, /id="recovery-center-modal"/);
+  assert.match(bootstrap, /createRecoveryPreserver/);
+  assert.match(bootstrap, /exportEmergency:/);
+  assert.doesNotMatch(bootstrap, /saveRollbackSnapshot/);
+  assert.match(recovery, /entry\?\.scope === normalizedScope/);
+  assert.match(recovery, /entry\.scope !== normalizeScope\(scope\)/);
+  assert.match(recovery, /RECOVERY_RETENTION_COUNT = 10/);
+  assert.match(recovery, /RECOVERY_RETENTION_DAYS = 30/);
+}
+
 function testFirestoreRecordBoundaries() {
   const rules = fs.readFileSync(path.join(projectRoot, "firestore.rules"), "utf8");
   assert.match(rules, /request\.auth\.uid == userId/);
@@ -112,6 +127,7 @@ try {
   testHostingUsesGeneratedAllowlist();
   testPwaUsesStaticSameOriginFiles();
   testSyncConflictUsesExplicitButtons();
+  testConflictRecoveryIsScopedAndDoesNotAutoDownload();
   testFirestoreRecordBoundaries();
   console.log("Security boundary tests passed");
 } finally {

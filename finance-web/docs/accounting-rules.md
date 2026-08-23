@@ -350,6 +350,8 @@ Inline detail editing addendum:
 
 Firestore 同步以帳務 record 為單位。不同 record 可自動共存；同一 record 的 revision 衝突必須整筆選擇本機或雲端，不得把金額、帳戶、分類或 fund link 自動拼裝。
 
+覆蓋前的落敗版本必須先存入與目前 `local`／Firebase UID 相同 scope 的衝突復原中心。復原時可以選擇整筆 record，但仍必須經過正常 normalize、保存、render 與雲端 queue，形成新的 revision；不得直接倒轉 revision 或繞過帳務正規化。準備事件不得脫離母準備項目存在。
+
 刪除使用 tombstone，避免離線舊裝置重新帶回已刪資料。同步轉接層不得改變 `txs` 與 `sinkingFunds.events` 的帳務事實地位。
 
 ### English
@@ -357,6 +359,8 @@ Firestore 同步以帳務 record 為單位。不同 record 可自動共存；同
 Local data is separated into an unbound local namespace and Firebase UID namespaces. Signing out or switching accounts must replace the whole frontend state.
 
 Firestore synchronizes accounting records. Different records may coexist, while a same-record revision conflict requires a whole-record local/cloud choice. Amount, account, category, and fund-link fields must not be guessed or spliced together.
+
+The losing version must be preserved in the matching local or Firebase-UID recovery scope before overwrite. A selected record is restored through the normal normalization and commit pipeline as a new revision. Revision rollback and orphan fund events are not allowed.
 
 Deletions use tombstones so stale offline devices cannot silently restore removed records. The sync adapter must not change the source-of-truth roles of `txs` and `sinkingFunds.events`.
 

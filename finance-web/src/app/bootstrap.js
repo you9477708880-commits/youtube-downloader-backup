@@ -6,10 +6,10 @@ import {
   LOCAL_STORAGE_SCOPE,
   loadLocalState,
   migrateLegacyLocalState,
-  saveRollbackSnapshot,
   saveLocalState,
   userStorageScope,
 } from "../services/storage-local.js";
+import { createConflictRecoveryStore, createRecoveryPreserver } from "../services/conflict-recovery.js";
 import { setupPWA } from "../services/pwa.js";
 import { createRecordCloudSync } from "../services/storage-cloud-records.js";
 import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
@@ -40,6 +40,7 @@ import { createCategoryBudgetController } from "./controllers/category-budget-co
 import { createRetirementController } from "./controllers/retirement-controller.js";
 import { createTransactionSearchController } from "./controllers/transaction-search-controller.js";
 import { createTransactionDetailController } from "./controllers/transaction-detail-controller.js";
+import { createRecoveryCenterController } from "./controllers/recovery-center-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
 
@@ -188,6 +189,11 @@ function collectDom(doc = document) {
     choiceCancel: $("choice-cancel", doc),
     syncChoiceModal: $("sync-choice-modal", doc),
     syncChoiceSummary: $("sync-choice-summary", doc),
+    recoveryCenterModal: $("recovery-center-modal", doc),
+    recoveryCenterSummary: $("recovery-center-summary", doc),
+    recoveryCenterList: $("recovery-center-list", doc),
+    recoveryCenterEmpty: $("recovery-center-empty", doc),
+    recoveryCenterClose: $("recovery-center-close", doc),
     transactionDetailModal: $("transaction-detail-modal", doc),
     transactionDetailTitle: $("transaction-detail-title", doc),
     transactionDetailBody: $("transaction-detail-body", doc),
@@ -244,6 +250,7 @@ export async function bootstrapFinanceApp(doc = document) {
   migrateLegacyLocalState(baseState);
   const initialState = createInitialState();
   const store = createStore(initialState);
+  const conflictRecoveryStore = createConflictRecoveryStore();
   const utils = { formatMoney, escapeHTML, localDateStr };
 
   let cloudSync = createFallbackCloudSync();
@@ -252,19 +259,15 @@ export async function bootstrapFinanceApp(doc = document) {
   const getFilterRangeValue = () => getFilterRange(doc);
   const getFiltered = () => getFilteredTransactions(store.getState(), getFilterRangeValue());
 
-  const preserveRollback = (state, label) => {
-    const localScope = syncCoordinator?.getLocalScope();
-    if (!localScope) return false;
-    try {
-      saveRollbackSnapshot(state, localScope, label);
-      exportData(state, backupFilename(label));
-      return true;
-    } catch (error) {
-      console.warn("Rollback snapshot could not be saved.", error);
-      toast.show("無法建立覆蓋前復原快照，因此已取消這次同步選擇", "error");
-      return false;
-    }
-  };
+  const preserveRollback = createRecoveryPreserver({
+    recoveryStore: conflictRecoveryStore,
+    getScope: () => syncCoordinator?.getLocalScope(),
+    exportEmergency: (state, label) => exportData(state, backupFilename(`emergency-${label}`)),
+    onSaved: () => toast.show("已在復原中心保留覆蓋前資料，不會自動下載檔案"),
+    onEmergency: () => toast.show("瀏覽器無法保存復原紀錄，已改為下載緊急 JSON 備份", "error"),
+    onFailure: () => toast.show("無法建立復原紀錄或緊急備份，因此已取消這次覆蓋", "error"),
+    onWarn: (message, error) => console.warn(message, error),
+  });
 
   let retirementController = null;
   let transactionSearchController = null;
@@ -780,6 +783,23 @@ export async function bootstrapFinanceApp(doc = document) {
     formatMoney,
     escapeHTML,
   });
+  const recoveryCenterController = createRecoveryCenterController({
+    elements: {
+      modal: dom.recoveryCenterModal,
+      summary: dom.recoveryCenterSummary,
+      list: dom.recoveryCenterList,
+      empty: dom.recoveryCenterEmpty,
+      close: dom.recoveryCenterClose,
+    },
+    store,
+    recoveryStore: conflictRecoveryStore,
+    getScope: () => syncCoordinator.getLocalScope(),
+    commitState,
+    refreshWholeStateUi,
+    exportBackupFile: exportData,
+    toast,
+    escapeHTML,
+  });
   retirementController = createRetirementController({
     elements: {
       linked: dom.retireLinked,
@@ -812,7 +832,7 @@ export async function bootstrapFinanceApp(doc = document) {
   });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, retirementController],
+    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, recoveryCenterController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -868,6 +888,11 @@ export async function bootstrapFinanceApp(doc = document) {
       triggerImport: () => dom.fileImport.click(),
       exportAndroMoney: () => importController.exportAndroMoney(),
       triggerAndroMoneyImport: () => dom.fileAndroMoneyImport.click(),
+      openRecoveryCenter: recoveryCenterController.open,
+      closeRecoveryCenter: recoveryCenterController.close,
+      restoreRecovery: recoveryCenterController.restore,
+      exportRecovery: recoveryCenterController.exportEntry,
+      deleteRecovery: recoveryCenterController.remove,
       changeBalanceType: (value) => dom.balanceCategoryWrap.classList.toggle("d-none", value !== "item"),
       cancelAndroMoneyImport: () => importController.cancelAndroMoneyImport(),
       syncAndroMoneyAccountChoice: (select) => importController.syncAndroMoneyAccountChoice(select),

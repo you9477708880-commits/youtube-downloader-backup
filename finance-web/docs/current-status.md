@@ -1,15 +1,19 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-08-10
+- 最後更新：2026-08-23
 - 目前分支：`main`
 - 遠端 `origin/main`：`main`（含本次發布紀錄文件）
-- 正式站已知部署點：`ada30a8`
+- 正式站已知部署點：`7ed533f`
 
 這份文件是專案目前的主要交接入口。需要理解長期產品方向時讀
 `roadmap.md`；準備部署時讀 `deploy-checklist.md`；修改帳務行為前則必須讀
 `accounting-rules.md`、`data-model.md` 與 `report-traceability.md`。
 
 ## 目前結論
+
+衝突復原中心階段已在本機完成，尚未推送或部署。現在選擇「保留雲端」或「保留本機」時，落敗版本會存入裝置內 IndexedDB，不再自動下載大量備份檔；可由資料備份區開啟復原中心，檢視差異、選擇整筆紀錄復原、手動匯出或刪除。每個 `local`／Firebase UID scope 最多 10 份、最長 30 天，內部保存失敗才會下載緊急 JSON。
+
+正式站目前仍是 `7ed533f 新增 CSV 帳戶安全修復模式`；本段功能要等本機完整測試與人工驗收後另行授權推送、部署。
 
 發布前穩定批次已於 2026-08-10 完成、推送並部署。Firestore v7 rules 與 Firebase
 Hosting 均已發布到 `financial-computer`，正式網址為
@@ -49,6 +53,15 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ## 最近驗證結果
 
+2026-08-23 衝突復原中心本機批次執行完整 `npm test`：
+
+- 語法、單元與安全邊界測試：通過。
+- Hosting 允許清單打包：69 個檔案，通過。
+- Firestore／Functions Emulator：10/10 通過。
+- UI smoke scenarios：14/14 通過，包含衝突復原中心介面與事件接線。
+- 復原專項另驗證 UID scope 隔離、10 份／30 天清理、選擇性復原、準備金母子完整性、緊急 JSON fallback，以及帳號切換時取消舊查詢。
+- 本批未修改或部署 Firestore Rules、Firebase Functions 或 Hosting。
+
 2026-08-10 發布前穩定批次執行完整 `npm test`：
 
 - 語法與單元測試：通過。
@@ -73,6 +86,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
   在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
 - Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
+- 衝突復原中心尚未推送、部署與人工驗收；復原歷史刻意維持裝置本機，不跨裝置同步。
 
 ## 已知的小型維護缺口
 

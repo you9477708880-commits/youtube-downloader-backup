@@ -612,6 +612,110 @@
   width: min(100%, 620px);
 }
 
+.recovery-center-panel {
+  width: min(100%, 720px);
+}
+
+.recovery-list {
+  display: grid;
+  gap: 12px;
+}
+
+.recovery-card {
+  min-width: 0;
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  padding: 14px;
+  background: var(--sur2);
+}
+
+.recovery-card-head,
+.recovery-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.recovery-card-title,
+.recovery-record-title {
+  color: var(--tx);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.recovery-card-meta,
+.recovery-record-diff {
+  margin-top: 3px;
+  color: var(--tx3);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.recovery-details {
+  margin-top: 12px;
+}
+
+.recovery-details > summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recovery-record-list {
+  max-height: 280px;
+  margin-top: 8px;
+  overflow-y: auto;
+  border-top: 1px solid var(--bdr);
+}
+
+.recovery-record {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--bdr);
+  cursor: pointer;
+}
+
+.recovery-record input {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.recovery-record-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.recovery-record-title,
+.recovery-record-diff {
+  overflow-wrap: anywhere;
+}
+
+.recovery-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+@media (max-width: 560px) {
+  .recovery-card-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recovery-card-head .bdg {
+    align-self: flex-start;
+  }
+
+  .recovery-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 .andromoney-account-row {
   min-width: 0;
   border: 1px solid var(--bdr);

@@ -1227,3 +1227,24 @@ export async function runTransactionSearchScenario() {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareConflictRecoveryCenterScenario() {
+  // The dump-DOM smoke runner exits before asynchronous IndexedDB work can
+  // settle. Repository and restore behavior are covered by dedicated tests;
+  // this scenario protects the shipped UI surface and action wiring.
+}
+
+export async function runConflictRecoveryCenterScenario() {
+  try {
+    const trigger = document.querySelector('[data-action="open-recovery-center"]');
+    const modal = document.getElementById("recovery-center-modal");
+    const list = document.getElementById("recovery-center-list");
+    const close = document.querySelector('[data-action="close-recovery-center"]');
+    if (!trigger || !modal || !list || !close || !modal.textContent.includes("衝突復原中心")) {
+      throw new Error("conflict-recovery-center-ui-missing");
+    }
+    writeSmokeResult("pass", "conflict recovery center UI and delegated actions are present; repository and selective restore tests cover IndexedDB behavior");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}

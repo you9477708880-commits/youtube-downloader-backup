@@ -201,6 +201,9 @@ For future transaction editing:
 - 待送標記依 UID 保存；帳號切換會停用舊 listener 和 queue。
 - 遷移必須先完成 records 數量與完整 state round-trip 驗證，`sync/finance_v7` 才能標記為 `active`。
 - JSON 匯出仍是完整、可理解的 state，不包含 revision、tombstone 或同步內部資料。
+- 衝突覆蓋前的落敗版本會存入裝置內 IndexedDB，依 `local`／Firebase UID 隔離，最多 10 份且最長 30 天；它不是新的帳務來源，也不會跨裝置同步。
+- 復原中心只顯示有差異的 record 與欄位摘要；使用者選擇復原後，資料會沿正常 `commitState()` 形成新 revision，因此後續報表仍由正式 state 重算，不直接讀取復原歷史。
+- JSON 只在使用者手動匯出復原項目，或 IndexedDB 緊急保存失敗時下載，不再每次衝突自動產生檔案。
 
 ### English
 
@@ -213,6 +216,7 @@ Traceability rules:
 - Pending metadata, listeners, and queues are isolated by UID.
 - Migration activates v7 only after record-count and full-state round-trip verification.
 - JSON export remains a user-readable complete state without sync internals.
+- Losing conflict versions are kept in device-local, scope-isolated IndexedDB for at most 10 entries and 30 days. Recovery creates a normal new revision; reports never read recovery history directly.
 
 ## 8. 退休頁追溯 / Retirement Traceability
 

@@ -103,8 +103,9 @@
             <button type="button" class="sbtn outline" data-action="trigger-andromoney-import">匯入 AndroMoney CSV</button>
             <input type="file" id="file-andromoney-import" class="d-none" accept=".csv,text/csv">
           </div>
+          <button type="button" class="sbtn outline w-100 mt-2" data-action="open-recovery-center">開啟衝突復原中心</button>
           <div class="text-xs text-gray mt-2">
-            JSON 是完整備份 / 還原；AndroMoney CSV 只匯入或匯出一般交易，不會還原大額準備、資產負債或退休設定。
+            JSON 是完整備份 / 還原；AndroMoney CSV 只匯入或匯出一般交易。同步衝突會先保存在復原中心，不再每次自動下載檔案。
           </div>
         </div>
 
@@ -529,6 +530,20 @@
         <span class="choice-desc">兩份資料都不覆蓋，暫停這次同步，之後再決定。</span>
       </button>
     </div>
+  </div>
+</div>
+
+<div id="recovery-center-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="recovery-center-title">
+  <div class="modal-panel recovery-center-panel">
+    <div class="transaction-detail-header">
+      <div>
+        <div class="modal-title" id="recovery-center-title">衝突復原中心</div>
+        <div class="modal-sub" id="recovery-center-summary"></div>
+      </div>
+      <button type="button" id="recovery-center-close" class="del-btn text-lg p-1" data-action="close-recovery-center" aria-label="關閉衝突復原中心">×</button>
+    </div>
+    <div id="recovery-center-empty" class="empty mt-3">目前沒有復原紀錄。</div>
+    <div id="recovery-center-list" class="recovery-list mt-3"></div>
   </div>
 </div>
 
