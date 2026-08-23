@@ -1,8 +1,8 @@
 # 目前工作狀態與下一步
 
 - 最後更新：2026-08-23
-- 目前分支：`main`
-- 遠端 `origin/main`：`main`（含本次發布紀錄文件）
+- 目前開發分支：`codex/next`
+- 本機 `main` 與遠端 `origin/main`：`e01aa1c`
 - 正式站已知部署點：`e01aa1c`
 
 這份文件是專案目前的主要交接入口。需要理解長期產品方向時讀
@@ -10,6 +10,17 @@
 `accounting-rules.md`、`data-model.md` 與 `report-traceability.md`。
 
 ## 目前結論
+
+正式版與本機驗收版已完成程式層隔離。`main` 固定停在目前正式站安全點
+`e01aa1c`；尚未發布的帳戶中心、月度回顧 2.0、財務導航、退休情境與後續候選
+集中在 `codex/next`。本機驗收版由 `.acceptance-public` 專用打包產生，強制停用
+Firebase、Google 登入、雲端 queue 與 PWA，並使用 `fin_v7:acceptance:*` localStorage
+及獨立 IndexedDB。它不會讀取、覆蓋或遷移正式版的本機資料。
+
+正式 Hosting 部署現在必須使用 `npm run deploy:hosting:production`。部署保護會要求
+明確確認、位於 `main`、`HEAD == origin/main`、finance-web tracked worktree 乾淨，且
+Firebase 專案與 runtime 均為正式設定；直接執行 `firebase deploy --only hosting`
+會在 Hosting predeploy 被阻止。
 
 衝突復原中心與「相同資料不誤判衝突」已於 2026-08-23 推送、通過 CI、部署 Hosting 並完成正式站唯讀檢查。現在選擇「保留雲端」或「保留本機」時，落敗版本會存入裝置內 IndexedDB，不再自動下載大量備份檔。
 
@@ -59,6 +70,15 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ## 最近驗證結果
 
+2026-08-23 正式版與本機驗收版安全隔離批次：
+
+- 本機 `main` 已對齊 `origin/main` 的正式安全點 `e01aa1c`；三個未發布功能提交保留在 `codex/next`。
+- 驗收包不包含 Firebase 設定、管理入口、Service Worker、manifest 或 smoke 原始碼；畫面明示「本機驗收版」。
+- 驗收版登入按鈕與雲端同步均停用，localStorage、legacy migration 與衝突復原 IndexedDB 均與正式版隔離。
+- 正式部署 guard 已由測試驗證會拒絕錯誤分支、未同步遠端、dirty worktree、錯誤 Firebase 專案或驗收 runtime。
+- 完整語法與單元測試、正式打包 74 個檔案、正式版 smoke、驗收隔離測試、驗收版 smoke、Firestore／Functions Emulator 10/10、UI smoke 15/15 與 `git diff --check` 均通過。
+- 本批只建立本機程式與提交，不推送、不部署、不建立 Firebase 專案，也不讀寫正式 Firestore。
+
 2026-08-23 正式發布與帳戶中心本機批次：
 
 - `37a7a35`、`e01aa1c` 已推送；GitHub Actions 公開狀態為 passing。
@@ -106,6 +126,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 月度回顧 2.0 尚待與帳戶中心一起人工驗收、推送與部署。
 - 財務導航摘要與退休情境比較尚待人工驗收；目前只存在本機，不推送、不部署。
 - 衝突復原歷史刻意維持裝置本機，不跨裝置同步。
+- `codex/next` 的候選功能仍待使用 `.acceptance-public` 人工驗收；驗收通過前不合併到 `main`。
 
 ## 已知的小型維護缺口
 
@@ -121,10 +142,13 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 1. 統一人工驗收
 
-- 使用本機預覽一次驗收帳戶中心、月度回顧同期比較、財務導航及退休情境比較。
+- 之後由 Codex 執行 `npm run preview:acceptance`，再一次驗收帳戶中心、月度回顧同期比較、財務導航及退休情境比較。
+- 驗收版不提供 Google 登入或雲端同步；可匯入正式 JSON 的副本測試，但驗收資料只存在獨立本機 namespace。
 - 財務導航重點檢查資訊是否重複、手機捲動距離是否可接受；退休情境重點確認文字容易理解且不會被誤認為保證。
 - 驗收前不需要修改資料模型；若未來要保存自評答案或自訂情境，才另行設計同步、遷移與刪除語意。
 
 ### 2. 驗收後發布批次
 
-人工驗收通過後，再把目前本機提交一起推送、確認 CI、部署 Hosting 並做發布後唯讀檢查。Firestore Rules 與 Firebase Functions 都沒有因本批候選而需要部署。
+人工驗收通過後，再決定哪些提交合併到 `main`，推送、確認 CI，使用
+`npm run deploy:hosting:production` 部署 Hosting 並做發布後唯讀檢查。Firestore
+Rules 與 Firebase Functions 都沒有因本批候選而需要部署。

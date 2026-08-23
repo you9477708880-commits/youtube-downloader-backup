@@ -441,6 +441,7 @@ The system should warn the user and suggest:
 
 目前模型：
 
+- 本機驗收 runtime 使用 `fin_v7:acceptance:state:*`、獨立 migration／rollback key 與 `finance-web-recovery-v1-acceptance` IndexedDB。它不讀取 legacy key、不執行 legacy migration、不初始化 Firebase，也不共用正式版衝突復原歷史。
 - 未登入資料使用 `fin_v7:state:local`；Google 帳號資料使用 `fin_v7:state:uid:<encoded uid>`，不同帳號不共用本機 snapshot。
 - 舊 `fin_v6_*` 只會複製到未綁定的 `local` namespace，保留舊 key 作為回復來源，不會自動歸入任何 Google 帳號。
 - 登出或切換 Firebase `uid` 時，store 會立即切換到對應 namespace；第一個遠端 snapshot 完成前不開放雲端保存。
@@ -463,6 +464,7 @@ The system should warn the user and suggest:
 
 Current model:
 
+- The forced-offline acceptance runtime uses `fin_v7:acceptance:state:*`, separate migration and rollback keys, and the `finance-web-recovery-v1-acceptance` IndexedDB database. It neither reads legacy keys nor initializes Firebase, and it never shares production recovery history.
 - Signed-out data uses `fin_v7:state:local`; Google accounts use `fin_v7:state:uid:<encoded uid>`.
 - Legacy `fin_v6_*` data is copied only to the unbound local namespace and is never automatically assigned to a Google account.
 - Auth changes replace the store with the matching namespace, and cloud saves remain blocked until the first remote snapshot is resolved.

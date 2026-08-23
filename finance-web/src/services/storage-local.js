@@ -1,12 +1,26 @@
 import { STORAGE_KEYS } from "../config/constants.js";
+import { getFinanceRuntime, runtimeStoragePrefix } from "../config/runtime.js";
 import { cloneState } from "../state/initial-state.js";
 import { normalizeFinanceStateMoney } from "../utils/normalize-state.js";
 
 export const LOCAL_STORAGE_SCOPE = "local";
-const SNAPSHOT_PREFIX = "fin_v7:state:";
-const ROLLBACK_PREFIX = "fin_v7:rollback:";
-const LEGACY_MIGRATION_KEY = "fin_v7:migration:legacy-v6";
 const PARSE_FAILED = Symbol("parse-failed");
+
+function snapshotPrefix() {
+  return `${runtimeStoragePrefix()}state:`;
+}
+
+function rollbackPrefix() {
+  return `${runtimeStoragePrefix()}rollback:`;
+}
+
+function legacyMigrationKey() {
+  return `${runtimeStoragePrefix()}migration:legacy-v6`;
+}
+
+function canReadLegacyStorage() {
+  return !getFinanceRuntime().isAcceptance;
+}
 
 function safeParse(raw, fallback, label) {
   if (!raw) return fallback;
@@ -27,7 +41,7 @@ function normalizeScope(scope) {
 }
 
 function snapshotKey(scope) {
-  return `${SNAPSHOT_PREFIX}${encodeURIComponent(normalizeScope(scope))}`;
+  return `${snapshotPrefix()}${encodeURIComponent(normalizeScope(scope))}`;
 }
 
 function loadLegacyState(baseState, storage) {
@@ -58,13 +72,13 @@ export function loadLocalState(baseState, scope = LOCAL_STORAGE_SCOPE, storage =
   if (!storage) return cloneState(baseState);
   const normalizedScope = normalizeScope(scope);
   const raw = storage.getItem(snapshotKey(normalizedScope));
-  if (!raw && normalizedScope === LOCAL_STORAGE_SCOPE) {
+  if (!raw && normalizedScope === LOCAL_STORAGE_SCOPE && canReadLegacyStorage()) {
     const hasLegacy = Object.values(STORAGE_KEYS).some((key) => storage.getItem(key) !== null);
     if (hasLegacy) return loadLegacyState(baseState, storage);
   }
   const parsed = safeParse(raw, PARSE_FAILED, snapshotKey(scope));
   if (parsed === PARSE_FAILED) {
-    if (normalizedScope === LOCAL_STORAGE_SCOPE) {
+    if (normalizedScope === LOCAL_STORAGE_SCOPE && canReadLegacyStorage()) {
       const hasLegacy = Object.values(STORAGE_KEYS).some((key) => storage.getItem(key) !== null);
       if (hasLegacy) return loadLegacyState(baseState, storage);
     }
@@ -87,22 +101,24 @@ export function saveLocalState(state, scope = LOCAL_STORAGE_SCOPE, storage = glo
 
 export function migrateLegacyLocalState(baseState, storage = globalThis.localStorage) {
   if (!storage) return { migrated: false, reason: "storage-unavailable" };
-  if (storage.getItem(LEGACY_MIGRATION_KEY)) return { migrated: false, reason: "already-checked" };
+  if (!canReadLegacyStorage()) return { migrated: false, reason: "acceptance-runtime-isolated" };
+  const migrationKey = legacyMigrationKey();
+  if (storage.getItem(migrationKey)) return { migrated: false, reason: "already-checked" };
 
   const hasLegacy = Object.values(STORAGE_KEYS).some((key) => storage.getItem(key) !== null);
   if (!hasLegacy) {
-    storage.setItem(LEGACY_MIGRATION_KEY, "no-legacy-data");
+    storage.setItem(migrationKey, "no-legacy-data");
     return { migrated: false, reason: "no-legacy-data" };
   }
 
   if (hasLocalState(LOCAL_STORAGE_SCOPE, storage)) {
-    storage.setItem(LEGACY_MIGRATION_KEY, "local-snapshot-already-exists");
+    storage.setItem(migrationKey, "local-snapshot-already-exists");
     return { migrated: false, reason: "local-snapshot-already-exists" };
   }
 
   const migratedState = loadLegacyState(baseState, storage);
   saveLocalState(migratedState, LOCAL_STORAGE_SCOPE, storage);
-  storage.setItem(LEGACY_MIGRATION_KEY, "migrated-to-local");
+  storage.setItem(migrationKey, "migrated-to-local");
   return { migrated: true, state: migratedState };
 }
 
@@ -114,7 +130,7 @@ export function saveRollbackSnapshot(state, scope, label, storage = globalThis.l
   if (!storage) throw new Error("storage-unavailable");
   const normalizedScope = normalizeScope(scope);
   const normalized = normalizeFinanceStateMoney(cloneState(state));
-  storage.setItem(`${ROLLBACK_PREFIX}${encodeURIComponent(normalizedScope)}`, JSON.stringify({
+  storage.setItem(`${rollbackPrefix()}${encodeURIComponent(normalizedScope)}`, JSON.stringify({
     label: String(label || "before-overwrite"),
     createdAt: new Date().toISOString(),
     state: normalized,
@@ -123,6 +139,6 @@ export function saveRollbackSnapshot(state, scope, label, storage = globalThis.l
 
 export const __localStorageTestUtils = {
   snapshotKey,
-  legacyMigrationKey: LEGACY_MIGRATION_KEY,
-  rollbackKey: (scope) => `${ROLLBACK_PREFIX}${encodeURIComponent(normalizeScope(scope))}`,
+  get legacyMigrationKey() { return legacyMigrationKey(); },
+  rollbackKey: (scope) => `${rollbackPrefix()}${encodeURIComponent(normalizeScope(scope))}`,
 };

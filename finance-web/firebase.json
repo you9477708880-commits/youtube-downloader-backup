@@ -5,6 +5,7 @@
   "hosting": {
     "public": ".firebase-public",
     "predeploy": [
+      "node scripts/production-deploy-guard.mjs",
       "node scripts/prepare-hosting.js"
     ],
     "headers": [

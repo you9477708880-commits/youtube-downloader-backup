@@ -17,6 +17,7 @@ const scenarioArg = getArg("scenario") || "";
 const scenarios = scenarioArg.split(",").map((item) => item.trim()).filter(Boolean);
 const keepOpen = args.includes("--serve");
 const verbose = args.includes("--verbose");
+const acceptanceRoot = path.basename(root).toLowerCase() === ".acceptance-public";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -290,6 +291,9 @@ function summarize(dom, url, scenario, browserPath, planLabel) {
     cloudStatus: extractTextById(dom, "cloud-status"),
     cloudState: extractDatasetValueById(dom, "cloud-status", "state"),
     headerSub: extractTextById(dom, "hdr-s"),
+    authButton: extractTextById(dom, "auth-btn"),
+    headerTag: extractTextById(dom, "hdr-tag"),
+    runtimeBanner: extractTextById(dom, "runtime-banner"),
     overviewIncome: extractTextById(dom, "o-i"),
     overviewExpense: extractTextById(dom, "o-e"),
     overviewNet: extractTextById(dom, "o-n"),
@@ -387,9 +391,14 @@ async function testScenario(baseUrl, scenario) {
         }
 
         const summary = summarize(result.stdout, url, scenario, browserPath, plan.label);
-        const passed = scenario
-          ? summary.smokeStatus === "pass"
-          : Boolean(summary.title) && ["local", "cloud", "cache", "offline", "warning", "conflict"].includes(summary.cloudState);
+        const defaultPassed = Boolean(summary.title) && ["local", "cloud", "cache", "offline", "warning", "conflict"].includes(summary.cloudState);
+        const acceptancePassed = !acceptanceRoot || (
+          summary.authButton === "驗收版不提供登入"
+          && summary.headerTag === "驗收版｜僅本機"
+          && summary.runtimeBanner.includes("本機驗收版")
+          && summary.cloudStatus === "🧪 驗收資料"
+        );
+        const passed = scenario ? summary.smokeStatus === "pass" : defaultPassed && acceptancePassed;
         if (scenario && !summary.smokeStatus) {
           errors.push(`${path.basename(browserPath)} / ${plan.label}: scenario produced DOM before reporting a result`);
           continue;
@@ -465,6 +474,11 @@ async function main() {
       console.log(`- Browser: ${path.basename(summary.browserPath)} / ${summary.planLabel}`);
       console.log(`- Title: ${summary.title || "(empty)"}`);
       console.log(`- Cloud status: ${summary.cloudStatus || "(empty)"}`);
+      if (acceptanceRoot) {
+        console.log(`- Auth control: ${summary.authButton || "(empty)"}`);
+        console.log(`- Runtime tag: ${summary.headerTag || "(empty)"}`);
+        console.log(`- Runtime banner: ${summary.runtimeBanner || "(empty)"}`);
+      }
       console.log(`- Smoke result: ${summary.smokeResult || "(none)"}`);
       console.log(`- Smoke detail: ${summary.smokeDetail || "(none)"}`);
     } else if (result.stderr) {

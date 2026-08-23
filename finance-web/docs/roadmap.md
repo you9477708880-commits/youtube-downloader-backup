@@ -1,7 +1,8 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
 最後更新 / Last updated: 2026-08-23
-目前主線 / Current mainline: `main`  
+正式穩定分支 / Production stable branch: `main` at `e01aa1c`
+本機候選分支 / Local candidate branch: `codex/next`
 最新已部署安全點 / Latest deployed safety point: `e01aa1c 避免相同資料誤判同步衝突`
 目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `e01aa1c`; Firestore v7 rules remain unchanged, and Firebase Functions remain intentionally undeployed.
 
@@ -89,6 +90,7 @@ The current priority is not advanced investment simulation. The priority is to c
 
 2026-08-23 新增、目前僅在本機提交或工作區，尚未推送與部署：
 
+- 正式版與本機驗收版安全隔離：`main` 對齊遠端正式安全點，候選功能留在 `codex/next`；驗收包強制關閉 Firebase、Google 登入、雲端同步與 PWA，並使用獨立 localStorage／IndexedDB。正式 Hosting 部署則需通過分支、遠端 commit、乾淨工作區、Firebase 專案與 runtime guard。
 - 月度回顧 2.0 本機驗收版：除既有摘要與來源明細外，新增預設收合的同天數前期比較，顯示收入、生活支出、準備提撥 / 補入、動用準備與最大支出分類變化。比較只讀取既有帳務來源，不新增持久化欄位、不評分，也不把增加或減少直接判成好壞。
 - 帳戶中心與信用卡管理本機驗收版：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
 - 財務導航摘要 A 本機候選：收在月度回顧的預設折疊區，只整理收入、生活支出、資產、負債四個既有數字與兩個不保存答案的自評問題；不新增六要素分數或財務階段判定。

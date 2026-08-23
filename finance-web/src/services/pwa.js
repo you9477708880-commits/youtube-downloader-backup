@@ -1,5 +1,18 @@
+import { getFinanceRuntime } from "../config/runtime.js";
+
 export function setupPWA() {
   const isLocalhost = ["localhost", "127.0.0.1"].includes(location.hostname);
+  const runtime = getFinanceRuntime();
+
+  if (!runtime.pwaEnabled) {
+    navigator.serviceWorker?.getRegistrations?.().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    });
+    globalThis.caches?.keys?.().then((keys) => {
+      keys.forEach((key) => globalThis.caches.delete(key));
+    });
+    return;
+  }
 
   if (!document.querySelector('link[rel="manifest"]')) {
     const manifestLink = document.createElement("link");

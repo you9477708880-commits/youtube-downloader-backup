@@ -1,4 +1,5 @@
 import { CATEGORY_SUBCATEGORY_SUGGESTIONS, CONSTANTS, DEFAULT_SUBCATEGORY } from "../config/constants.js";
+import { getFinanceRuntime } from "../config/runtime.js";
 import { cloneState, createInitialState } from "../state/initial-state.js";
 import { createStore } from "../state/store.js";
 import { getFilterRange, getFilteredTransactions } from "../state/selectors.js";
@@ -253,6 +254,7 @@ function downloadTextFile({ content, filename, type }) {
 export async function bootstrapFinanceApp(doc = document) {
   setupPWA();
 
+  const runtime = getFinanceRuntime();
   const dom = collectDom(doc);
   const toast = createToastManager(doc);
   const baseState = createInitialState();
@@ -285,6 +287,15 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     setActiveTab: (tabId) => setActiveTab(tabId, doc),
     updateCloudStatus(status, meta) {
+      if (runtime.isAcceptance) {
+        dom.cloudStatus.textContent = "🧪 驗收資料";
+        dom.cloudStatus.className = "cloud-st off";
+        dom.cloudStatus.dataset.state = "local";
+        dom.cloudStatus.disabled = true;
+        dom.cloudStatus.title = "本機驗收版使用獨立資料區，不連接正式雲端";
+        dom.cloudStatus.setAttribute("aria-label", dom.cloudStatus.title);
+        return;
+      }
       const currentUser = syncCoordinator?.getCurrentUser();
       const hasCloudUser = currentUser && !currentUser.isAnonymous;
       const setRetryState = (enabled, title) => {
@@ -338,6 +349,15 @@ export async function bootstrapFinanceApp(doc = document) {
       setRetryState(false, "目前只保存於這台裝置");
     },
     renderAuthState(user, cloudEnabled, errorMessage = "", action = null) {
+      if (runtime.isAcceptance) {
+        dom.authButton.disabled = true;
+        dom.authButton.className = "auth-btn";
+        dom.authButton.textContent = "驗收版不提供登入";
+        dom.headerTag.textContent = "驗收版｜僅本機";
+        dom.headerTag.dataset.state = "local";
+        dom.headerTag.title = "資料只保存在獨立驗收區，不會讀寫正式 Firebase。";
+        return;
+      }
       if (!cloudEnabled) {
         dom.authButton.disabled = true;
         dom.authButton.className = "auth-btn";

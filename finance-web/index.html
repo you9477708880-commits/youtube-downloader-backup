@@ -13,7 +13,13 @@
 <link rel="stylesheet" href="./assets/styles/layout.css">
 <link rel="stylesheet" href="./assets/styles/components.css">
 <link rel="stylesheet" href="./assets/styles/workspaces.css">
+<!-- FINANCE_RUNTIME_CONFIG_START -->
 <script>
+  Object.defineProperty(window, "__finance_runtime", {
+    value: Object.freeze({ mode: "production", cloudEnabled: true, pwaEnabled: true }),
+    writable: false,
+    configurable: false
+  });
   window.__app_id = "financial-computer";
   window.__firebase_config = JSON.stringify({
     apiKey: "AIzaSyCI6PsPnFnZFPK6OMseyvhT6Auk6eXt8kk",
@@ -24,10 +30,16 @@
     appId: "1:943410547757:web:42e848ca63543371517ca4",
     measurementId: "G-J9Y9TJJ2CE"
   });
+  document.documentElement.dataset.financeRuntime = "production";
 </script>
+<!-- FINANCE_RUNTIME_CONFIG_END -->
 <!-- styles moved to ./assets/styles/* -->
 </head>
 <body>
+<div id="runtime-banner" class="runtime-banner" role="status" aria-live="polite">
+  <strong>本機驗收版</strong>
+  <span>資料只保存在這個驗收環境，不提供 Google 登入，也不會連接正式雲端。</span>
+</div>
 <header class="app-header">
   <div class="hdr-top">
     <div>

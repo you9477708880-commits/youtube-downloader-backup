@@ -4,6 +4,7 @@ import {
   recordFingerprint,
   stateToRecordSpecs,
 } from "./record-codec.js";
+import { runtimeDatabaseName } from "../config/runtime.js";
 
 export const RECOVERY_RETENTION_COUNT = 10;
 export const RECOVERY_RETENTION_DAYS = 30;
@@ -52,7 +53,7 @@ export function createIndexedDbRecoveryDriver(indexedDb = globalThis.indexedDB) 
   const openDatabase = () => {
     if (databasePromise) return databasePromise;
     databasePromise = new Promise((resolve, reject) => {
-      const request = indexedDb.open(DATABASE_NAME, DATABASE_VERSION);
+      const request = indexedDb.open(runtimeDatabaseName(DATABASE_NAME), DATABASE_VERSION);
       request.onupgradeneeded = () => {
         const database = request.result;
         if (!database.objectStoreNames.contains(STORE_NAME)) {

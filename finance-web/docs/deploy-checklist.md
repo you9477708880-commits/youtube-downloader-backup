@@ -22,6 +22,22 @@ financial-computer
 https://financial-computer.web.app
 ```
 
+正式版只允許從本機 `main` 部署；本機驗收與功能候選留在 `codex/next`。
+`.acceptance-public` 永遠不是 Firebase Hosting 的發布來源。
+
+## 本機驗收版
+
+需要人工驗收時執行：
+
+```powershell
+npm run preview:acceptance
+```
+
+這會重新建立 `.acceptance-public` 並在 `http://127.0.0.1:4186` 提供預覽。驗收版
+會明示「本機驗收版」，強制停用 Firebase、Google 登入、雲端同步與 PWA，並使用
+`fin_v7:acceptance:*` localStorage 與獨立的衝突復原 IndexedDB。正式版資料不會被
+讀取、遷移或覆蓋。關閉瀏覽器網站資料會清除這份驗收資料。
+
 ## 部署前檢查
 
 請先確認目前 PowerShell 路徑：
@@ -46,6 +62,15 @@ firebase use
 
 ```text
 financial-computer
+```
+
+再確認目前位於正式分支、與遠端正式點一致且 finance-web 沒有 tracked 修改：
+
+```powershell
+git branch --show-current
+git rev-parse HEAD
+git rev-parse origin/main
+git status --short -- finance-web
 ```
 
 ## 語法檢查
@@ -161,12 +186,22 @@ D:\桌面\音樂下載\理財網頁其他資料\headless-report.html
 ## 部署
 
 ```powershell
-firebase deploy --only hosting
+npm run deploy:hosting:production
 ```
 
-Hosting 的 `predeploy` 會先執行：
+不要直接執行 `firebase deploy --only hosting`。受保護命令會先檢查：
+
+- 分支必須是 `main`。
+- `HEAD` 必須與 `origin/main` 相同。
+- finance-web tracked worktree 必須乾淨。
+- `.firebaserc` 必須指向 `financial-computer`。
+- `index.html` 必須是 production runtime 且允許 cloud。
+- 必須透過專用 npm 命令提供一次性的內部確認；直接 Firebase 命令沒有確認值，會被擋下。
+
+Hosting 的 `predeploy` 也會再次執行 guard，之後才執行：
 
 ```powershell
+node .\scripts\production-deploy-guard.mjs
 node .\scripts\prepare-hosting.js
 ```
 
@@ -201,6 +236,8 @@ Unable to find a valid endpoint for function `adminApi`
 每次部署前，至少確認：
 
 - 路徑是 `finance-web`。
+- 分支是 `main`，且 `HEAD == origin/main`；候選分支不得直接部署。
+- 使用 `npm run deploy:hosting:production`，不要繞過部署 guard。
 - `firebase.json` 沒有 Functions rewrite。
 - `firestore.rules` 已部署到 Firebase 專案。
 - JS 語法檢查通過。

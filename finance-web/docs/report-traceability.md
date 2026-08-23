@@ -200,6 +200,7 @@ For future transaction editing:
 
 追溯規則：
 
+- 驗收版所有報表只讀取 `fin_v7:acceptance:*` 的測試 state；它不連接 Firebase、不讀正式 localStorage 或正式衝突復原 IndexedDB，因此驗收結果不能被誤認為正式帳務紀錄。
 - 本機 snapshot 已依未綁定 `local` 與 Firebase `uid` 分區；帳號切換會替換整個 store，不沿用上一帳號畫面。
 - Firestore 以 record-level 文件保存，revision 是衝突依據；`updatedAt` 只用於稽核和顯示。
 - 不同 record 可自動共存；相同 record 的同版修改會停下來要求整筆選擇，不做欄位級黑盒合併。
@@ -215,6 +216,7 @@ For future transaction editing:
 
 Traceability rules:
 
+- Acceptance reports read only the isolated `fin_v7:acceptance:*` test state. They do not connect to Firebase or production localStorage/IndexedDB, so acceptance output cannot become a production accounting record.
 - Local snapshots are separated into the unbound local namespace and Firebase UID namespaces.
 - Firestore uses record-level documents; revision is authoritative for conflicts, while `updatedAt` is audit metadata.
 - Different records can coexist. Same-record concurrent edits require a whole-record choice and never use field-level guessing.

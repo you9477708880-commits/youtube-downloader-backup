@@ -27,6 +27,7 @@ const testFiles = [
   "tests/sync-coordinator.test.mjs",
   "tests/controller-lifecycle.test.mjs",
   "tests/storage-local.test.mjs",
+  "tests/runtime-isolation.test.mjs",
   "tests/record-codec.test.mjs",
   "tests/latest-write-queue.test.mjs",
   "tests/storage-cloud.test.mjs",

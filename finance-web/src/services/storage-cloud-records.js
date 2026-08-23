@@ -1,4 +1,5 @@
 import { APP_ID, CURRENT_SCHEMA_VERSION } from "../config/constants.js";
+import { getFinanceRuntime } from "../config/runtime.js";
 import { cloneState, createInitialState } from "../state/initial-state.js";
 import { areFinanceStatesEquivalent } from "./sync-policy.js";
 import { isValidImportShape } from "./import-export.js";
@@ -209,6 +210,8 @@ export async function createRecordCloudSync({
   firebaseModules = null,
 }) {
   try {
+    const runtime = getFinanceRuntime();
+    if (!runtime.cloudEnabled) return createDisabledCloudSync("Cloud disabled by runtime");
     const globalConfig = globalThis.__firebase_config || "{}";
     const firebaseConfig = typeof globalConfig === "string" ? JSON.parse(globalConfig) : globalConfig;
     const appId = globalThis.__app_id || APP_ID;

@@ -361,6 +361,8 @@ Inline detail editing addendum:
 
 ### 中文
 
+強制離線驗收版只是一份測試副本：必須使用獨立 localStorage／IndexedDB namespace，禁止初始化 Firebase、登入、雲端 queue 或 legacy migration。驗收版資料不得成為正式帳務來源，也不得由正式版自動讀取。
+
 本機資料使用未綁定 `local` 與 Firebase `uid` namespace 分流；登出或切換帳號必須替換整份前端 state，不得繼續顯示上一帳號資料。
 
 Firestore 同步以帳務 record 為單位。不同 record 可自動共存；同一 record 的 revision 衝突必須整筆選擇本機或雲端，不得把金額、帳戶、分類或 fund link 自動拼裝。
@@ -370,6 +372,8 @@ Firestore 同步以帳務 record 為單位。不同 record 可自動共存；同
 刪除使用 tombstone，避免離線舊裝置重新帶回已刪資料。同步轉接層不得改變 `txs` 與 `sinkingFunds.events` 的帳務事實地位。
 
 ### English
+
+The forced-offline acceptance build is only a test copy. It must use separate localStorage and IndexedDB namespaces and must not initialize Firebase, authentication, the cloud queue, or legacy migration. Acceptance data is never a production accounting source.
 
 Local data is separated into an unbound local namespace and Firebase UID namespaces. Signing out or switching accounts must replace the whole frontend state.
 

@@ -24,6 +24,7 @@ function testProductionEntryCannotRunSmokeScenarios() {
 function testHostingUsesGeneratedAllowlist() {
   const config = JSON.parse(fs.readFileSync(path.join(projectRoot, "firebase.json"), "utf8"));
   assert.equal(config.hosting.public, ".firebase-public");
+  assert.ok(config.hosting.predeploy.includes("node scripts/production-deploy-guard.mjs"));
   assert.ok(config.hosting.predeploy.includes("node scripts/prepare-hosting.js"));
   const serviceWorkerHeaders = config.hosting.headers.find((entry) => entry.source === "/sw.js")?.headers || [];
   assert.ok(serviceWorkerHeaders.some((header) => header.key === "Cache-Control" && /no-cache/.test(header.value)));
