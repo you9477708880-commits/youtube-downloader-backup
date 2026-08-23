@@ -107,6 +107,23 @@ export function buildAdvanceRepayment({ advanceId, amount, date, accountId, pers
   };
 }
 
+export function buildBalanceAdjustment({ accountId, difference, date, accountName = "帳戶" }) {
+  const normalizedDifference = toMoneyInt(difference);
+  if (!normalizedDifference) throw new Error("zero-balance-adjustment");
+  return {
+    id: createTransactionId("adjust"),
+    type: "balance_adjustment",
+    amount: Math.abs(normalizedDifference),
+    direction: normalizedDifference > 0 ? "increase" : "decrease",
+    date,
+    acc: accountId,
+    cat: "帳戶調整",
+    category: "帳戶調整",
+    subcategory: "對帳",
+    desc: `對帳調整：${accountName}`,
+  };
+}
+
 export function getPersonalExpenseAmount(tx) {
   if (tx.type === "expense") return tx.amount;
   if (tx.type === "advance") return tx.ownAmount ?? tx.amount;

@@ -12,7 +12,7 @@
     "test:emulators": "firebase emulators:exec --config firebase.emulator.json --only firestore,functions --project demo-finance-web \"node --test --test-concurrency=1 tests/firestore-rules.emulator.test.mjs tests/functions-emulator.test.mjs\"",
     "test:rules": "firebase emulators:exec --config firebase.emulator.json --only firestore --project demo-finance-web \"node --test tests/firestore-rules.emulator.test.mjs\"",
     "test:functions": "firebase emulators:exec --config firebase.emulator.json --only functions --project demo-finance-web \"node --test tests/functions-emulator.test.mjs\"",
-    "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center --port=0"
+    "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center,account-center --port=0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",

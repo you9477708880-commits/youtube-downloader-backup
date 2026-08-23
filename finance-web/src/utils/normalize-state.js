@@ -47,6 +47,9 @@ export function normalizeFinanceStateMoney(state) {
     }),
     accounts: normalizeList(state.accounts, (account) => {
       account.initialBalance = toMoneyInt(account.initialBalance);
+      if ("creditLimit" in account) account.creditLimit = Math.max(0, toMoneyInt(account.creditLimit));
+      if ("statementDay" in account) account.statementDay = Math.min(28, Math.max(0, toMoneyInt(account.statementDay)));
+      if ("paymentDueDay" in account) account.paymentDueDay = Math.min(28, Math.max(0, toMoneyInt(account.paymentDueDay)));
       return account;
     }),
     sinkingFunds: normalizeList(state.sinkingFunds, (fund) => {

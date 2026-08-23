@@ -705,6 +705,90 @@
   opacity: 0.5;
 }
 
+.account-card {
+  min-width: 0;
+  margin-bottom: 10px;
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  background: var(--sur2);
+  overflow: hidden;
+}
+
+.account-card > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.account-card > summary > span:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.account-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 13px 12px;
+}
+
+.account-metrics > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--sur);
+}
+
+.account-metrics span,
+.account-metrics strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.account-metrics span { color: var(--tx3); font-size: 11px; }
+.account-metrics strong { margin-top: 3px; font-family: var(--font-mono); font-size: 13px; }
+
+.account-cycle-note,
+.account-reconcile,
+.account-transactions,
+.account-card-actions {
+  margin: 0 13px 12px;
+}
+
+.account-cycle-note {
+  color: var(--tx2);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.account-card-actions,
+.account-reconcile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-card-actions .del-btn { margin-left: auto; }
+.account-reconcile-row input { min-width: 0; flex: 1; }
+.account-reconcile-row .sbtn { flex: 0 0 auto; }
+.account-transactions > summary { cursor: pointer; color: var(--blue); font-size: 12px; font-weight: 700; }
+
+@media (max-width: 560px) {
+  .account-metrics { grid-template-columns: 1fr; }
+  .account-card-actions,
+  .account-reconcile-row { align-items: stretch; flex-direction: column; }
+  .account-card-actions .sbtn,
+  .account-reconcile-row .sbtn { width: 100%; }
+  .account-card-actions .del-btn { align-self: flex-end; margin-left: 0; }
+}
+
 @media (max-width: 560px) {
   .recovery-card-head {
     align-items: stretch;

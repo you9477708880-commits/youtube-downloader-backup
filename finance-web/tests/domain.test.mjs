@@ -157,6 +157,12 @@ function testAccountBalances() {
   assert.equal(balances.cash, 14000);
   assert.equal(balances.bank, 18700);
   assert.equal(balances.card, -5000);
+
+  const numericLegacyBalances = calculateAccountBalances({
+    accounts: [{ id: 0, name: "舊現金", type: "asset", initialBalance: 100 }],
+    txs: [{ id: "legacy-zero", type: "expense", amount: 40, date: "2026-04-01", acc: 0 }],
+  });
+  assert.equal(numericLegacyBalances[0], 60);
 }
 
 function testAdvanceReceivable() {
@@ -1044,14 +1050,15 @@ function testLedgerFundTraceRendering() {
 }
 
 function testBalanceSheetEditButtonsRendering() {
-  const dom = { balanceSheetBody: { innerHTML: "" } };
+  const dom = { balanceSheetBody: { innerHTML: "" }, accountCenter: { innerHTML: "" } };
   const utils = {
     formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
     escapeHTML: (value) => String(value),
   };
 
   renderBalanceSheet({ state, utils, dom });
-  assert.match(dom.balanceSheetBody.innerHTML, /data-action="edit-bs"/);
+  assert.match(dom.accountCenter.innerHTML, /data-action="edit-bs"/);
+  assert.match(dom.accountCenter.innerHTML, /data-action="reconcile-account"/);
 }
 
 function testImportValidationRejectsUnsafeShape() {
@@ -1079,6 +1086,13 @@ function testImportValidationRejectsUnsafeShape() {
   };
 
   assert.equal(isValidImportShape(validImport), true);
+  assert.equal(isValidImportShape({
+    ...validImport,
+    txs: [{ id: "adj-1", type: "balance_adjustment", amount: 250, date: "2026-04-01", acc: "cash", direction: "increase", desc: "帳戶對帳調整" }],
+    accounts: [{ ...validImport.accounts[0], creditLimit: 50000, statementDay: 5, paymentDueDay: 23 }],
+  }), true);
+  assert.equal(isValidImportShape({ ...validImport, txs: [{ id: "adj-bad", type: "balance_adjustment", amount: 250, date: "2026-04-01", acc: "cash", direction: "sideways" }] }), false);
+  assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], statementDay: 31 }] }), false);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], amount: {} }] }), false);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], date: "not-a-date" }] }), false);
   assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], id: 'bad" onmouseover="x' }] }), false);
@@ -1156,7 +1170,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
     monthlyReview: { innerHTML: "" },
   };
   const cashflowDom = { cashflowBody: { innerHTML: "" } };
-  const balanceDom = { balanceSheetBody: { innerHTML: "" } };
+  const balanceDom = { balanceSheetBody: { innerHTML: "" }, accountCenter: { innerHTML: "" } };
   const wishlistDom = {
     budgetCap: { textContent: "" },
     budgetExpense: { textContent: "" },
@@ -1224,6 +1238,7 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
     overviewDom.monthlyReview.innerHTML,
     cashflowDom.cashflowBody.innerHTML,
     balanceDom.balanceSheetBody.innerHTML,
+    balanceDom.accountCenter.innerHTML,
     wishlistDom.budgetSourceList.innerHTML,
     wishlistDom.categoryBudgetList.innerHTML,
     wishlistDom.fundList.innerHTML,

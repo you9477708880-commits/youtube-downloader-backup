@@ -22,11 +22,25 @@ export function createBalanceSheetController({
     type,
     categoryWrap,
     category,
+    accountFields,
+    accountType,
+    creditFields,
+    creditLimit,
+    statementDay,
+    paymentDueDay,
     amount,
     emergency,
   } = elements;
   let editingBsId = "";
   let editingBsIsAccount = false;
+
+  const syncFields = () => {
+    const isAccount = type.value === "account";
+    categoryWrap.classList.toggle("d-none", isAccount);
+    accountFields.classList.toggle("d-none", !isAccount);
+    creditFields.classList.toggle("d-none", !isAccount || accountType.value !== "liability");
+    amount.min = isAccount ? "" : "0";
+  };
 
   const reset = () => {
     editingBsId = "";
@@ -35,17 +49,25 @@ export function createBalanceSheetController({
     type.value = "account";
     categoryWrap.classList.add("d-none");
     category.value = "asset";
+    accountType.value = "asset";
+    creditLimit.value = "";
+    statementDay.value = "";
+    paymentDueDay.value = "";
     amount.value = "";
     emergency.checked = false;
     setEditMode({ active: false });
+    syncFields();
   };
 
   const addBs = () => {
     const normalizedAmount = toMoneyInt(amount.value);
-    if (normalizedAmount < 0) {
+    if (type.value === "item" && normalizedAmount < 0) {
       toast.show("金額不能小於 0", "error");
       return;
     }
+    const normalizedCreditLimit = Math.max(0, toMoneyInt(creditLimit.value));
+    const normalizedStatementDay = Math.min(28, Math.max(0, toMoneyInt(statementDay.value)));
+    const normalizedPaymentDueDay = Math.min(28, Math.max(0, toMoneyInt(paymentDueDay.value)));
 
     const wasEditing = !!editingBsId;
     commitState((draft) => {
@@ -54,8 +76,18 @@ export function createBalanceSheetController({
           const account = draft.accounts.find((item) => String(item.id) === String(editingBsId));
           if (!account) return;
           account.name = name.value.trim();
+          account.type = accountType.value === "liability" ? "liability" : "asset";
           account.initialBalance = normalizedAmount;
           account.isEm = emergency.checked;
+          if (account.type === "liability") {
+            account.creditLimit = normalizedCreditLimit;
+            account.statementDay = normalizedStatementDay;
+            account.paymentDueDay = normalizedPaymentDueDay;
+          } else {
+            delete account.creditLimit;
+            delete account.statementDay;
+            delete account.paymentDueDay;
+          }
         } else {
           const item = draft.bsI.find((entry) => String(entry.id) === String(editingBsId));
           if (!item) return;
@@ -65,13 +97,19 @@ export function createBalanceSheetController({
           item.isEm = emergency.checked;
         }
       } else if (type.value === "account") {
-        draft.accounts.push({
+        const account = {
           id: createId("a"),
           name: name.value.trim(),
-          type: "asset",
+          type: accountType.value === "liability" ? "liability" : "asset",
           isEm: emergency.checked,
           initialBalance: normalizedAmount,
-        });
+        };
+        if (account.type === "liability") {
+          account.creditLimit = normalizedCreditLimit;
+          account.statementDay = normalizedStatementDay;
+          account.paymentDueDay = normalizedPaymentDueDay;
+        }
+        draft.accounts.push(account);
       } else {
         draft.bsI.push({
           id: createId("bs"),
@@ -105,7 +143,11 @@ export function createBalanceSheetController({
     navigate("bs");
     setEditMode({ active: true, isAccount });
     type.value = isAccount ? "account" : "item";
-    categoryWrap.classList.toggle("d-none", isAccount);
+    accountType.value = isAccount && item.type === "liability" ? "liability" : "asset";
+    creditLimit.value = isAccount ? item.creditLimit || "" : "";
+    statementDay.value = isAccount ? item.statementDay || "" : "";
+    paymentDueDay.value = isAccount ? item.paymentDueDay || "" : "";
+    syncFields();
     name.value = item.name || "";
     amount.value = isAccount ? item.initialBalance ?? "" : item.amount ?? "";
     emergency.checked = !!item.isEm;
@@ -149,6 +191,7 @@ export function createBalanceSheetController({
     cancelEditBs,
     delBs,
     toggleEm,
+    syncFields,
     reset,
   };
 }

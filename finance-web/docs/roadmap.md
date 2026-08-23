@@ -3,7 +3,7 @@
 最後更新 / Last updated: 2026-08-10
 目前主線 / Current mainline: `main`  
 最新已部署安全點 / Latest deployed safety point: `ada30a8 修正 Hosting 跨版本打包排除`
-目前部署狀態 / Current deployment status: Firestore v7 rules and Firebase Hosting are deployed to `financial-computer` at `ada30a8`. Firebase Functions remain intentionally undeployed.
+目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `e01aa1c`; Firestore v7 rules remain unchanged, and Firebase Functions remain intentionally undeployed.
 
 這份文件是後續開發的長期藍圖。最新本機、遠端、部署狀態與立即下一步以
 `docs/current-status.md` 為準。中文用來方便產品討論，英文用來讓模型與程式維護時
@@ -90,6 +90,7 @@ The current priority is not advanced investment simulation. The priority is to c
 以下項目已於 2026-08-10 完成、推送並部署：
 
 - 月度回顧原型已完成：總覽頁新增只讀摘要卡片，顯示本月收入、生活支出、大額準備提撥 / 補入、動用準備、可自由運用、帳本淨額、目前淨值與應收代墊；計算沿用既有預算與資產負債 domain，避免重複計算大額準備覆蓋支出。
+- 帳戶中心與信用卡管理本機驗收版已完成：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
 - 資料安全邊界已補強並部署：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。
 - 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。

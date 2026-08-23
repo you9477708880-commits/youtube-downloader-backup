@@ -16,11 +16,13 @@ export function getTransactionSignedAmount(tx, accountId = "") {
     if (tx.acc !== accountId) return 0;
     if (tx.type === "income" || tx.type === "advance_repayment") return tx.amount;
     if (tx.type === "expense" || tx.type === "advance") return -tx.amount;
+    if (tx.type === "balance_adjustment") return tx.direction === "increase" ? tx.amount : -tx.amount;
   }
 
   if (tx.type === "income" || tx.type === "advance_repayment") return tx.amount;
   if (tx.type === "expense") return -tx.amount;
   if (tx.type === "advance") return -getPersonalExpenseAmount(tx);
+  if (tx.type === "balance_adjustment") return tx.direction === "increase" ? tx.amount : -tx.amount;
   return 0;
 }
 
@@ -30,6 +32,7 @@ export function getTransactionTitle(tx) {
   if (tx.type === "transfer") return "轉帳";
   if (tx.type === "advance") return `代墊：${formatTransactionCategory(tx)}`;
   if (tx.type === "advance_repayment") return "代墊收款";
+  if (tx.type === "balance_adjustment") return "帳戶調整";
   return tx.cat || "交易";
 }
 
@@ -39,6 +42,7 @@ export function getTransactionSubtitle(tx, accountName = "") {
     return `${tx.person || "未指定"} 應還 ${tx.receivableAmount || 0}，自己負擔 ${tx.ownAmount || 0}${desc ? `｜${desc}` : ""}`;
   }
   if (tx.type === "advance_repayment") return `${tx.person || "未指定"} 還款${accountName ? `｜${accountName}` : ""}`;
+  if (tx.type === "balance_adjustment") return `${tx.direction === "increase" ? "增加" : "減少"}帳戶餘額${accountName ? `｜${accountName}` : ""}`;
   return desc || accountName || "";
 }
 

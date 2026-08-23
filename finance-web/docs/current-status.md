@@ -3,7 +3,7 @@
 - 最後更新：2026-08-23
 - 目前分支：`main`
 - 遠端 `origin/main`：`main`（含本次發布紀錄文件）
-- 正式站已知部署點：`7ed533f`
+- 正式站已知部署點：`e01aa1c`
 
 這份文件是專案目前的主要交接入口。需要理解長期產品方向時讀
 `roadmap.md`；準備部署時讀 `deploy-checklist.md`；修改帳務行為前則必須讀
@@ -11,9 +11,9 @@
 
 ## 目前結論
 
-衝突復原中心階段已在本機完成，尚未推送或部署。現在選擇「保留雲端」或「保留本機」時，落敗版本會存入裝置內 IndexedDB，不再自動下載大量備份檔；可由資料備份區開啟復原中心，檢視差異、選擇整筆紀錄復原、手動匯出或刪除。每個 `local`／Firebase UID scope 最多 10 份、最長 30 天，內部保存失敗才會下載緊急 JSON。
+衝突復原中心與「相同資料不誤判衝突」已於 2026-08-23 推送、通過 CI、部署 Hosting 並完成正式站唯讀檢查。現在選擇「保留雲端」或「保留本機」時，落敗版本會存入裝置內 IndexedDB，不再自動下載大量備份檔。
 
-正式站目前仍是 `7ed533f 新增 CSV 帳戶安全修復模式`；本段功能要等本機完整測試與人工驗收後另行授權推送、部署。
+帳戶中心與信用卡管理目前為本機驗收版：不新增頂層分頁，在資產負債頁提供帳戶卡片、信用卡週期與額度、交易明細及需確認的對帳調整。此功能尚未推送或部署。
 
 發布前穩定批次已於 2026-08-10 完成、推送並部署。Firestore v7 rules 與 Firebase
 Hosting 均已發布到 `financial-computer`，正式網址為
@@ -53,6 +53,13 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ## 最近驗證結果
 
+2026-08-23 正式發布與帳戶中心本機批次：
+
+- `37a7a35`、`e01aa1c` 已推送；GitHub Actions 公開狀態為 passing。
+- Firebase Hosting 已部署至 `financial-computer`；首頁與衝突復原模組可讀，smoke 原始碼維持 404。
+- Firestore Rules 與 Firebase Functions 未部署。
+- 帳戶中心完整本機驗證通過：語法與全部單元測試、發布打包 71 個檔案、Firestore／Functions Emulator 10/10、UI smoke 15/15，以及 `git diff --check`。
+
 2026-08-23 衝突復原中心本機批次執行完整 `npm test`：
 
 - 語法、單元與安全邊界測試：通過。
@@ -87,7 +94,8 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
   在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
 - Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
-- 衝突復原中心尚未推送、部署與人工驗收；復原歷史刻意維持裝置本機，不跨裝置同步。
+- 帳戶中心與信用卡管理尚待人工驗收、推送與部署。
+- 衝突復原歷史刻意維持裝置本機，不跨裝置同步。
 
 ## 已知的小型維護缺口
 

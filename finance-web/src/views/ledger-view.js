@@ -19,6 +19,7 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
     if (tx.type === "expense") return { sign: "-", color: "text-exp", value: tx.amount };
     if (tx.type === "advance") return { sign: "-", color: "text-exp", value: tx.amount };
     if (tx.type === "advance_repayment") return { sign: "+", color: "text-inc", value: tx.amount };
+    if (tx.type === "balance_adjustment") return { sign: tx.direction === "increase" ? "+" : "-", color: tx.direction === "increase" ? "text-inc" : "text-exp", value: tx.amount };
     return { sign: "", color: "text-trn", value: tx.amount };
   };
 
@@ -43,11 +44,12 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
         const transfer = tx.type === "transfer";
         const advance = tx.type === "advance";
         const repayment = tx.type === "advance_repayment";
+        const adjustment = tx.type === "balance_adjustment";
         const amount = formatTxAmount(tx);
-        const background = tx.type === "income" || repayment ? "bg-inc-light" : tx.type === "expense" || advance ? "bg-exp-light" : "bg-trn-light";
+        const background = tx.type === "income" || repayment || (adjustment && tx.direction === "increase") ? "bg-inc-light" : tx.type === "expense" || advance || adjustment ? "bg-exp-light" : "bg-trn-light";
         const accountLabel = transfer ? `${findAccountName(tx.fromAcc)} → ${findAccountName(tx.toAcc)}` : findAccountName(tx.acc);
         const categoryLabel = formatTransactionCategory(tx);
-        const title = repayment ? "代墊收款" : advance ? `代墊｜${categoryLabel}` : transfer ? "轉帳" : categoryLabel;
+        const title = adjustment ? "帳戶調整" : repayment ? "代墊收款" : advance ? `代墊｜${categoryLabel}` : transfer ? "轉帳" : categoryLabel;
         const linkedFund = tx.linkedFundId ? findFund(tx.linkedFundId) : null;
         const linkedFundName = tx.linkedFundId ? findFundName(tx.linkedFundId) : "";
         const linkedFundSpend = linkedFund ? Math.min(tx.amount || 0, getLinkedFundSpendAmount(linkedFund, tx.id)) : 0;
@@ -68,7 +70,7 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
                 : transfer
                   ? "帳戶轉移"
                   : "無備註";
-        const icon = repayment ? "💸" : advance ? "🤝" : constants.transactionIcons[tx.cat] || "🧾";
+        const icon = adjustment ? "⚖️" : repayment ? "💸" : advance ? "🤝" : constants.transactionIcons[tx.cat] || "🧾";
 
         html += `
           <div class="tx-row">

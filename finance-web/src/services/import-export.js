@@ -4,7 +4,7 @@ import { normalizeFinanceStateMoney } from "../utils/normalize-state.js";
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const SAFE_STRING_MAX_LENGTH = 2000;
 const SAFE_ID_MAX_LENGTH = 160;
-const VALID_TX_TYPES = new Set(["income", "expense", "transfer", "advance", "advance_repayment"]);
+const VALID_TX_TYPES = new Set(["income", "expense", "transfer", "advance", "advance_repayment", "balance_adjustment"]);
 const VALID_ACCOUNT_TYPES = new Set(["asset", "liability"]);
 const VALID_FUND_EVENT_TYPES = new Set(["topup", "spend"]);
 const DANGEROUS_KEYS = new Set(["__proto__", "prototype", "constructor"]);
@@ -67,6 +67,7 @@ function isValidTransaction(tx) {
   if ("ownAmount" in tx && !isMoneyLike(tx.ownAmount)) return false;
   if ("receivableAmount" in tx && !isMoneyLike(tx.receivableAmount)) return false;
   if ("spreadMonths" in tx && !Number.isSafeInteger(Number(tx.spreadMonths))) return false;
+  if (tx.type === "balance_adjustment" && (!isSafeId(tx.acc) || !["increase", "decrease"].includes(tx.direction))) return false;
   return true;
 }
 
@@ -77,6 +78,9 @@ function isValidAccount(account) {
     isSafeString(account.name, 200) &&
     VALID_ACCOUNT_TYPES.has(account.type) &&
     isMoneyLike(account.initialBalance) &&
+    (!("creditLimit" in account) || isMoneyLike(account.creditLimit)) &&
+    (!("statementDay" in account) || (Number.isSafeInteger(Number(account.statementDay)) && Number(account.statementDay) >= 0 && Number(account.statementDay) <= 28)) &&
+    (!("paymentDueDay" in account) || (Number.isSafeInteger(Number(account.paymentDueDay)) && Number(account.paymentDueDay) >= 0 && Number(account.paymentDueDay) <= 28)) &&
     (account.isEm === undefined || typeof account.isEm === "boolean")
   );
 }

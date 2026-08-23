@@ -86,6 +86,19 @@ Effects:
 - Does not increase expense.
 - Does not increase budget expense.
 
+### balance_adjustment 對帳調整
+
+對帳調整只用來讓網站計算餘額與金融機構顯示的實際餘額一致。它必須由使用者在帳戶中心輸入實際餘額並確認後建立。
+
+影響：
+
+- `direction: "increase"` 增加指定帳戶餘額；`direction: "decrease"` 減少指定帳戶餘額。
+- 不增加收入、支出、現金流或預算使用額。
+- 保留在 `txs` 中供追溯；刪除該筆調整即可撤銷效果。
+- 信用卡欠款以負餘額表示；信用卡繳款仍應使用資產帳戶轉入信用卡的 `transfer`。
+
+Account reconciliation adjustments only align the calculated balance with the financial institution's actual balance. They affect the selected account balance but are excluded from income, expenses, cash flow, and budgets. They remain traceable in `txs` and can be reversed by deleting the adjustment.
+
 ### advance 代墊
 
 代墊代表自己先支付全額，但其中一部分是別人之後要還的應收款。
@@ -143,6 +156,8 @@ accountBalance =
   + advance_repayment.amount
   + transferIn.amount
   - transferOut.amount
+  + balance_adjustment.increase
+  - balance_adjustment.decrease
 ```
 
 注意：大額準備的每月提撥不是帳戶轉帳，不應直接影響帳戶餘額。

@@ -32,6 +32,7 @@ import { createActions } from "./actions.js";
 import { createWholeStateReplacer } from "./controller-lifecycle.js";
 import { createCommitState } from "./state-commit.js";
 import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
+import { createAccountCenterController } from "./controllers/account-center-controller.js";
 import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
 import { createTransactionController } from "./controllers/transaction-controller.js";
 import { createWishlistController } from "./controllers/wishlist-controller.js";
@@ -99,6 +100,7 @@ function collectDom(doc = document) {
     transactionSearchEmpty: $("tx-search-empty", doc),
     cashflowBody: $("cf-b", doc),
     balanceSheetBody: $("bs-b", doc),
+    accountCenter: $("account-center", doc),
     budgetCap: $("bs-cap", doc),
     budgetExpense: $("bs-exp", doc),
     budgetFundContribution: $("bs-fund", doc),
@@ -135,6 +137,12 @@ function collectDom(doc = document) {
     balanceType: $("bs-t", doc),
     balanceCategoryWrap: $("bs-cat-wrap", doc),
     balanceCategory: $("bs-c", doc),
+    balanceAccountFields: $("bs-account-fields", doc),
+    balanceAccountType: $("bs-account-type", doc),
+    balanceCreditFields: $("bs-credit-fields", doc),
+    balanceCreditLimit: $("bs-credit-limit", doc),
+    balanceStatementDay: $("bs-statement-day", doc),
+    balancePaymentDueDay: $("bs-payment-due-day", doc),
     balanceEmergency: $("bs-em", doc),
     balanceAmount: $("bs-a", doc),
     catBudgetCategory: $("cb-cat", doc),
@@ -511,7 +519,7 @@ export async function bootstrapFinanceApp(doc = document) {
       dom.bsSubmitButton.textContent = active ? "儲存修改" : "新增項目";
       dom.bsCancelButton.classList.toggle("d-none", !active);
       dom.bsEditNote.classList.toggle("d-none", !active || !isAccount);
-      dom.bsEditNote.textContent = active && isAccount ? "帳戶可能已被交易引用，編輯時會保留帳戶類型與帳戶 ID。" : "";
+      dom.bsEditNote.textContent = active && isAccount ? "帳戶可能已被交易引用；編輯會保留帳戶 ID 與歷史交易。改成負債帳戶不會自行改寫既有餘額。" : "";
       dom.balanceType.disabled = !!active;
     },
     setWishEditMode({ active } = {}) {
@@ -627,6 +635,12 @@ export async function bootstrapFinanceApp(doc = document) {
       type: dom.balanceType,
       categoryWrap: dom.balanceCategoryWrap,
       category: dom.balanceCategory,
+      accountFields: dom.balanceAccountFields,
+      accountType: dom.balanceAccountType,
+      creditFields: dom.balanceCreditFields,
+      creditLimit: dom.balanceCreditLimit,
+      statementDay: dom.balanceStatementDay,
+      paymentDueDay: dom.balancePaymentDueDay,
       amount: dom.balanceAmount,
       emergency: dom.balanceEmergency,
     },
@@ -637,6 +651,15 @@ export async function bootstrapFinanceApp(doc = document) {
     renderAll,
     navigate: (tabId) => baseActions.switchTab(tabId),
     confirmDelete: (message) => window.confirm(message),
+  });
+  const accountCenterController = createAccountCenterController({
+    root: dom.root,
+    store,
+    toast,
+    commitState,
+    renderAll,
+    localDateStr,
+    confirmAdjustment: (message) => window.confirm(message),
   });
   const wishlistController = createWishlistController({
     elements: {
@@ -832,7 +855,7 @@ export async function bootstrapFinanceApp(doc = document) {
   });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, recoveryCenterController, retirementController],
+    controllers: [balanceSheetController, accountCenterController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, recoveryCenterController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -893,7 +916,8 @@ export async function bootstrapFinanceApp(doc = document) {
       restoreRecovery: recoveryCenterController.restore,
       exportRecovery: recoveryCenterController.exportEntry,
       deleteRecovery: recoveryCenterController.remove,
-      changeBalanceType: (value) => dom.balanceCategoryWrap.classList.toggle("d-none", value !== "item"),
+      changeBalanceType: balanceSheetController.syncFields,
+      reconcileAccount: accountCenterController.reconcile,
       cancelAndroMoneyImport: () => importController.cancelAndroMoneyImport(),
       syncAndroMoneyAccountChoice: (select) => importController.syncAndroMoneyAccountChoice(select),
       confirmAndroMoneyImport: () => {

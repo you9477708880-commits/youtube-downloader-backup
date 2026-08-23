@@ -2,6 +2,19 @@ import { getOpenAdvances } from "./transactions.js";
 
 export const DELETED_ACCOUNT_FALLBACK_ID = "deleted_account_fallback";
 
+export function getAccountTransactionDelta(tx, accountId) {
+  if (tx.type === "transfer") {
+    if (String(tx.fromAcc) === String(accountId)) return -tx.amount;
+    if (String(tx.toAcc) === String(accountId)) return tx.amount;
+    return 0;
+  }
+  if (String(tx.acc) !== String(accountId)) return 0;
+  if (tx.type === "income" || tx.type === "advance_repayment") return tx.amount;
+  if (tx.type === "expense" || tx.type === "advance") return -tx.amount;
+  if (tx.type === "balance_adjustment") return tx.direction === "increase" ? tx.amount : -tx.amount;
+  return 0;
+}
+
 export function calculateAccountBalances(state) {
   const balances = {};
   state.accounts.forEach((account) => {
@@ -14,13 +27,13 @@ export function calculateAccountBalances(state) {
   };
 
   state.txs.forEach((tx) => {
-    if (tx.type === "income") addToAccount(tx.acc, tx.amount);
-    if (tx.type === "expense") addToAccount(tx.acc, -tx.amount);
-    if (tx.type === "advance") addToAccount(tx.acc, -tx.amount);
-    if (tx.type === "advance_repayment") addToAccount(tx.acc, tx.amount);
     if (tx.type === "transfer") {
-      addToAccount(tx.fromAcc, -tx.amount);
-      addToAccount(tx.toAcc, tx.amount);
+      addToAccount(tx.fromAcc, getAccountTransactionDelta(tx, tx.fromAcc));
+      addToAccount(tx.toAcc, getAccountTransactionDelta(tx, tx.toAcc));
+      return;
+    }
+    if (tx.acc !== undefined && tx.acc !== null && tx.acc !== "") {
+      addToAccount(tx.acc, getAccountTransactionDelta(tx, tx.acc));
     }
   });
 

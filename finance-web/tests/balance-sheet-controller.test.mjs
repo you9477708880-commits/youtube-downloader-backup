@@ -47,7 +47,13 @@ function createHarness() {
     balanceType: { value: "account" },
     balanceCategoryWrap: { classList: createClassList(["d-none"]) },
     balanceCategory: { value: "asset" },
-    balanceAmount: { value: "" },
+    balanceAccountFields: { classList: createClassList() },
+    balanceAccountType: { value: "asset" },
+    balanceCreditFields: { classList: createClassList(["d-none"]) },
+    balanceCreditLimit: { value: "" },
+    balanceStatementDay: { value: "" },
+    balancePaymentDueDay: { value: "" },
+    balanceAmount: { value: "", min: "" },
     balanceEmergency: { checked: false },
     root: {
       getElementById: (id) => id === "form-bs"
@@ -68,6 +74,12 @@ function createHarness() {
       type: dom.balanceType,
       categoryWrap: dom.balanceCategoryWrap,
       category: dom.balanceCategory,
+      accountFields: dom.balanceAccountFields,
+      accountType: dom.balanceAccountType,
+      creditFields: dom.balanceCreditFields,
+      creditLimit: dom.balanceCreditLimit,
+      statementDay: dom.balanceStatementDay,
+      paymentDueDay: dom.balancePaymentDueDay,
       amount: dom.balanceAmount,
       emergency: dom.balanceEmergency,
     },
@@ -120,7 +132,7 @@ test("adds accounts and manual balance-sheet items with one save and render each
   assert.equal(calls.render, 2);
 });
 
-test("edits accounts without changing identity, type, or historical transactions", () => {
+test("edits account identity-safe settings without changing historical transactions", () => {
   const { store, calls, dom, controller } = createHarness();
   const originalTransactions = structuredClone(store.getState().txs);
 
@@ -144,6 +156,9 @@ test("edits accounts without changing identity, type, or historical transactions
     type: "liability",
     initialBalance: 1200,
     isEm: true,
+    creditLimit: 0,
+    statementDay: 0,
+    paymentDueDay: 0,
   });
   assert.deepEqual(store.getState().txs, originalTransactions);
   assert.equal(store.getState().bsI.length, 1);
@@ -179,6 +194,7 @@ test("validation failure and cancelled deletion leave state unchanged", () => {
   const { store, calls, dom, controller } = createHarness();
   const original = structuredClone(store.getState());
 
+  dom.balanceType.value = "item";
   dom.balanceAmount.value = "-1";
   controller.addBs();
   assert.deepEqual(store.getState(), original);
@@ -192,6 +208,33 @@ test("validation failure and cancelled deletion leave state unchanged", () => {
   assert.deepEqual(store.getState(), original);
   assert.equal(calls.save, 0);
   assert.equal(calls.render, 0);
+});
+
+test("creates and edits credit-card scheduling settings while preserving account ID", () => {
+  const { store, calls, dom, controller } = createHarness();
+  dom.balanceName.value = "玉山信用卡";
+  dom.balanceAccountType.value = "liability";
+  dom.balanceCreditLimit.value = "120000";
+  dom.balanceStatementDay.value = "5";
+  dom.balancePaymentDueDay.value = "23";
+  dom.balanceAmount.value = "-3000";
+  controller.addBs();
+
+  const card = store.getState().accounts.at(-1);
+  assert.equal(card.type, "liability");
+  assert.equal(card.initialBalance, -3000);
+  assert.equal(card.creditLimit, 120000);
+  assert.equal(card.statementDay, 5);
+  assert.equal(card.paymentDueDay, 23);
+
+  controller.beginEditBs(card.id, true);
+  assert.equal(dom.balanceAccountType.value, "liability");
+  assert.equal(dom.balanceCreditFields.classList.contains("d-none"), false);
+  dom.balanceCreditLimit.value = "150000";
+  controller.addBs();
+  assert.equal(store.getState().accounts.at(-1).id, card.id);
+  assert.equal(store.getState().accounts.at(-1).creditLimit, 150000);
+  assert.equal(calls.save, 2);
 });
 
 test("zero remains a valid amount and missing edit targets have no side effects", () => {

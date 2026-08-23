@@ -1248,3 +1248,69 @@ export async function runConflictRecoveryCenterScenario() {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
 }
+
+export function prepareAccountCenterScenario() {
+  const seededState = {
+    txs: [
+      { id: "card-charge", type: "expense", amount: 1200, date: smokeDate, desc: "信用卡消費", category: "費用", cat: "費用", subcategory: "測試", acc: "card" },
+      { id: "card-payment", type: "transfer", amount: 300, date: smokeDate, desc: "信用卡繳款", category: "轉帳", cat: "轉帳", subcategory: "繳款", fromAcc: "bank", toAcc: "card" },
+    ],
+    bsI: [],
+    wishes: [],
+    sinkingFunds: [],
+    accounts: [
+      { id: "bank", name: "主要銀行", type: "asset", isEm: false, initialBalance: 10000 },
+      { id: "card", name: "測試信用卡", type: "liability", isEm: false, initialBalance: 0, creditLimit: 50000, statementDay: 5, paymentDueDay: 23 },
+    ],
+    userCats: { income: [], expense: [] },
+    settings: { budgetCap: 20000, catBudgets: {}, leftoverMode: "manual", investingLabel: "投資", cashReserveLabel: "預備金", retLinked: true, retManualAsset: 0 },
+  };
+
+  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
+  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
+  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
+  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
+  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
+  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
+  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+}
+
+export async function runAccountCenterScenario(app) {
+  try {
+    document.querySelector('[data-action="tab"][data-target="bs"]')?.click();
+    await waitFor(() => document.querySelector('#account-center [data-reconcile-input="card"]'));
+
+    const center = document.getElementById("account-center");
+    const card = [...center.querySelectorAll("details.account-card")]
+      .find((node) => (node.textContent || "").includes("測試信用卡"));
+    if (!card || !card.textContent.includes("目前欠款") || !card.textContent.includes("可用額度") || !card.textContent.includes("下次結帳")) {
+      throw new Error("account-center-credit-card-summary-missing");
+    }
+
+    card.open = true;
+    const input = card.querySelector('[data-reconcile-input="card"]');
+    input.value = "-800";
+    const originalConfirm = window.confirm;
+    window.confirm = () => true;
+    try {
+      card.querySelector('[data-action="reconcile-account"]')?.click();
+    } finally {
+      window.confirm = originalConfirm;
+    }
+    await waitFor(() => app.store.getState().txs.some((tx) => tx.type === "balance_adjustment" && tx.acc === "card"));
+    const adjustment = app.store.getState().txs.find((tx) => tx.type === "balance_adjustment");
+    if (adjustment.amount !== 100 || adjustment.direction !== "increase") {
+      throw new Error("account-center-adjustment-mismatch");
+    }
+
+    document.getElementById("bs-account-type").value = "liability";
+    document.getElementById("bs-account-type").dispatchEvent(new Event("change", { bubbles: true }));
+    if (document.getElementById("bs-credit-fields").classList.contains("d-none")) {
+      throw new Error("account-center-credit-fields-hidden");
+    }
+
+    writeSmokeResult("pass", "account and credit-card summaries, schedule settings, and confirmed traceable reconciliation passed");
+  } catch (error) {
+    writeSmokeResult("fail", error.message || "unknown-error");
+  }
+}

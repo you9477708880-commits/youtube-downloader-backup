@@ -38,6 +38,7 @@ const DATA_ACTIONS = {
   "restore-recovery": ({ button, handlers }) => { void handlers.restoreRecovery(button.dataset.id); },
   "export-recovery": ({ button, handlers }) => { void handlers.exportRecovery(button.dataset.id); },
   "delete-recovery": ({ button, handlers }) => { void handlers.deleteRecovery(button.dataset.id); },
+  "reconcile-account": ({ button, handlers }) => handlers.reconcileAccount(button.dataset.id),
 };
 
 export function dispatchDataAction({ button, actions, ui, handlers }) {
@@ -113,6 +114,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
+  on(dom.balanceAccountType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
 
   on(dom.txCancelButton, "click", actions.cancelEditTx);
   on(dom.fundCancelButton, "click", actions.cancelEditFund);

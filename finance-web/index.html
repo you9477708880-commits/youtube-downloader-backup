@@ -387,7 +387,21 @@
               <div id="bs-cat-wrap" class="d-none"><label class="flb" for="bs-c">資產/負債</label><select id="bs-c"><option value="asset">資產</option><option value="liability">負債</option></select></div>
             </div>
 
-            <div><label class="flb" for="bs-a">初始 / 當前金額（NT$）</label><input type="number" id="bs-a" placeholder="0" min="0" required></div>
+            <div id="bs-account-fields">
+              <label class="flb" for="bs-account-type">帳戶性質</label>
+              <select id="bs-account-type">
+                <option value="asset">資產帳戶（現金／銀行）</option>
+                <option value="liability">負債帳戶（信用卡）</option>
+              </select>
+            </div>
+
+            <div id="bs-credit-fields" class="grid-3 d-none">
+              <div><label class="flb" for="bs-credit-limit">信用額度</label><input type="number" id="bs-credit-limit" min="0" step="1" placeholder="例：100000"></div>
+              <div><label class="flb" for="bs-statement-day">每月結帳日</label><input type="number" id="bs-statement-day" min="1" max="28" step="1" placeholder="1–28"></div>
+              <div><label class="flb" for="bs-payment-due-day">每月繳款日</label><input type="number" id="bs-payment-due-day" min="1" max="28" step="1" placeholder="1–28"></div>
+            </div>
+
+            <div><label class="flb" for="bs-a">初始餘額（NT$）</label><input type="number" id="bs-a" placeholder="0" required><div class="text-xs text-gray mt-1">信用卡已有欠款時可輸入負數；之後餘額由交易與對帳調整推導。</div></div>
 
             <label class="flex-row justify-start gap-2 text-gray mt-1 pointer" style="font-size:13px;">
               <input type="checkbox" id="bs-em" class="w-16px h-16px">
@@ -401,6 +415,7 @@
         </div>
       </div>
       <div class="bs-report-pane">
+        <div class="card"><div class="ct">帳戶中心 <span class="ct-s">餘額、信用卡週期與對帳</span></div><div id="account-center"></div></div>
         <div class="card"><div class="ct">資產負債表 <span class="ct-s">即時總和 (不限期間)</span></div><div id="bs-b"></div></div>
       </div>
     </div>

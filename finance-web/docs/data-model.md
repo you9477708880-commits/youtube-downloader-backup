@@ -189,6 +189,43 @@ An advance means the user paid the full amount first, but only `ownAmount` is th
 
 Advance repayment is not income. It is receivable recovery.
 
+### balance_adjustment
+
+```js
+{
+  id,
+  type: "balance_adjustment",
+  amount,
+  direction: "increase" | "decrease",
+  date,
+  acc,
+  category: "帳戶調整",
+  subcategory: "對帳",
+  desc
+}
+```
+
+`balance_adjustment` 是可追溯的帳戶餘額修正，不是收入或支出。完整 JSON 備份與 Firestore 交易 record 會保留它；AndroMoney CSV 不輸出此網站專屬類型。
+
+### accounts 信用卡選填欄位
+
+```js
+{
+  id,
+  name,
+  type: "asset" | "liability",
+  initialBalance,
+  isEm,
+  creditLimit?,
+  statementDay?,
+  paymentDueDay?
+}
+```
+
+- `creditLimit`、`statementDay`、`paymentDueDay` 是信用卡帳戶的選填設定；日期欄位限 `1` 到 `28`，`0` 或缺少代表未設定。
+- 帳戶中心的餘額、欠款、可用額度、本期刷卡與繳款皆由 `accounts + txs` 推導，不另存第二份總額。
+- 更改帳戶名稱或資產／負債類型會保留原 `id`，因此歷史交易關聯不變。
+
 ### 補充：代墊與還款關聯 / Addendum: Advance And Repayment Relationship
 
 - `advance_repayment.advanceId` 會把還款固定連回原本的代墊。

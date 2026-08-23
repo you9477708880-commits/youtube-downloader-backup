@@ -6,6 +6,7 @@ const TYPE_LABELS = {
   transfer: "轉帳",
   advance: "代墊",
   advance_repayment: "代墊還款",
+  balance_adjustment: "帳戶調整",
 };
 
 export function normalizeSearchText(value) {

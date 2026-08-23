@@ -46,7 +46,7 @@ function createHarness() {
   doc.body = body;
   doc.getElementById = (id) => forms[id] || null;
   const domKeys = [
-    "filterPreset", "filterStart", "filterEnd", "inputCategory", "balanceType",
+    "filterPreset", "filterStart", "filterEnd", "inputCategory", "balanceType", "balanceAccountType",
     "txCancelButton", "fundCancelButton", "bsCancelButton", "wishCancelButton",
     "androMoneyCancel", "androMoneyConfirm", "androMoneyAccounts", "inputAmount", "inputOwnAmount",
     "budgetCapInput", "fundTarget", "fundMonthly", "balanceAmount", "catBudgetAmount",
@@ -72,7 +72,7 @@ function createHarness() {
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
     "searchTransactions", "changeTransactionSearchPeriod", "clearTransactionSearch",
-    "openRecoveryCenter", "closeRecoveryCenter", "restoreRecovery", "exportRecovery", "deleteRecovery",
+    "openRecoveryCenter", "closeRecoveryCenter", "restoreRecovery", "exportRecovery", "deleteRecovery", "reconcileAccount",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };
@@ -101,6 +101,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("export-recovery", { id: "recovery-1" });
   dispatch("delete-recovery", { id: "recovery-1" });
   dispatch("close-recovery-center");
+  dispatch("reconcile-account", { id: "card-1" });
   assert.equal(dispatch("unknown"), false);
 
   assert.deepEqual(calls, [
@@ -121,6 +122,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["exportRecovery", "recovery-1"],
     ["deleteRecovery", "recovery-1"],
     ["closeRecoveryCenter"],
+    ["reconcileAccount", "card-1"],
   ]);
 });
 
@@ -157,6 +159,8 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.transactionSearchClear.emit("click");
   dom.balanceType.value = "item";
   dom.balanceType.emit("change");
+  dom.balanceAccountType.value = "liability";
+  dom.balanceAccountType.emit("change");
   dom.inputAmount.value = "10.8";
   dom.inputAmount.emit("change");
   dom.budgetCapInput.emit("change");
@@ -184,6 +188,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "searchTransactions",
     "changeTransactionSearchPeriod",
     "clearTransactionSearch",
+    "changeBalanceType",
     "changeBalanceType",
     "normalizeMoneyInput",
     "normalizeMoneyInput",

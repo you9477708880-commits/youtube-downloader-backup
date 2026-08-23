@@ -7,6 +7,7 @@ const TYPE_LABELS = {
   transfer: "轉帳",
   advance: "代墊",
   advance_repayment: "代墊收款",
+  balance_adjustment: "帳戶調整",
 };
 
 function requireFunction(value, name) {
@@ -258,7 +259,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
       : "";
     let html = "";
     html += field("交易類型", TYPE_LABELS[tx.type] || tx.type || "交易");
-    html += field("金額", money(tx.amount), { tone: tx.type === "income" || tx.type === "advance_repayment" ? "text-inc" : tx.type === "transfer" ? "text-trn" : "text-exp" });
+    html += field("金額", money(tx.amount), { tone: tx.type === "income" || tx.type === "advance_repayment" || (tx.type === "balance_adjustment" && tx.direction === "increase") ? "text-inc" : tx.type === "transfer" ? "text-trn" : "text-exp" });
     html += field("日期", tx.date || "未填日期");
     html += field("分類", formatTransactionCategory(tx));
     html += field("帳戶", account);
@@ -271,7 +272,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     if (tx.externalSource) html += field("資料來源", tx.externalSource === "andromoney" ? "AndroMoney 匯入" : tx.externalSource);
     html += field("完整備註", tx.desc, { multiline: true });
 
-    return show({ title: getTransactionTitle(tx), html, trigger, editable: true });
+    return show({ title: getTransactionTitle(tx), html, trigger, editable: tx.type !== "balance_adjustment" });
   };
 
   const openBudgetSource = (id, type, trigger = null) => {
