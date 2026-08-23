@@ -1260,10 +1260,21 @@ function testCloudSyncPolicyDetectsMeaningfulAndEquivalentData() {
   const differentRemote = {
     txs: [{ ...local.txs[0], amount: 1200 }],
   };
+  const reorderedRemote = {
+    settings: Object.fromEntries(Object.entries(local.settings).reverse()),
+    userCats: { expense: [], income: [] },
+    accounts: local.accounts.map((account) => Object.fromEntries(Object.entries(account).reverse())),
+    sinkingFunds: [],
+    wishes: [],
+    bsI: [],
+    txs: [Object.fromEntries(Object.entries(local.txs[0]).reverse())],
+    schemaVersion: local.schemaVersion,
+  };
 
   assert.equal(hasMeaningfulFinanceData(empty), false);
   assert.equal(hasMeaningfulFinanceData(local), true);
   assert.equal(areFinanceStatesEquivalent(local, sameRemote), true);
+  assert.equal(areFinanceStatesEquivalent(local, reorderedRemote), true);
   assert.equal(areFinanceStatesEquivalent(local, differentRemote), false);
 }
 

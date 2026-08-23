@@ -86,7 +86,7 @@ export function createRecoveryCenterController({
             <div class="recovery-record-list">${rows || '<div class="empty">沒有可還原的差異。</div>'}</div>
           </details>
           <div class="recovery-actions">
-            <button type="button" class="sbtn" data-action="restore-recovery" data-id="${safeId}"${differences.length ? "" : " disabled"}>還原選取紀錄</button>
+            <button type="button" class="sbtn" data-action="restore-recovery" data-id="${safeId}"${differences.length ? "" : " disabled"}>${differences.length ? "還原選取紀錄" : "沒有可還原紀錄"}</button>
             <button type="button" class="sbtn outline" data-action="export-recovery" data-id="${safeId}">匯出 JSON</button>
             <button type="button" class="sbtn outline" data-action="delete-recovery" data-id="${safeId}">刪除</button>
           </div>

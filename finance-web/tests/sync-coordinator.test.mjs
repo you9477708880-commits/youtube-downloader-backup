@@ -28,6 +28,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
   const notifications = [];
   const authViews = [];
   const rollbackCalls = [];
+  const promptRequests = [];
   const scheduled = [];
   const cloudCalls = { save: 0, resolve: [], signIn: 0, signOut: 0 };
   const store = {
@@ -52,7 +53,10 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
     hasMeaningfulData: (next) => Boolean(next?.txs?.length),
     areStatesEquivalent: (left, right) => JSON.stringify(left?.txs || []) === JSON.stringify(right?.txs || []),
     buildConflictMessage: (user) => `conflict:${user?.uid || "none"}`,
-    promptSyncChoice: () => choices.shift() || "cancel",
+    promptSyncChoice: (request) => {
+      promptRequests.push(clone(request));
+      return choices.shift() || "cancel";
+    },
     confirmUnboundImport: () => confirmations.shift() || false,
     preserveRollback: (next, label, metadata) => {
       rollbackCalls.push({ state: clone(next), label, metadata: clone(metadata || {}) });
@@ -93,6 +97,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
     notifications,
     authViews,
     rollbackCalls,
+    promptRequests,
     scheduled,
     flushScheduled,
     setState(next) { current = clone(next); },
@@ -158,6 +163,7 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
 
   const same = state("local");
   assert.equal(await fx.coordinator.onRemoteState(same, { source: "legacy", initial: true, migrationRequired: true }), "applied-equivalent-or-empty");
+  assert.equal(fx.promptRequests.length, 0);
   assert.equal(fx.getState().normalized, true);
   await fx.flushScheduled();
   assert.equal(fx.cloudCalls.save, 2);

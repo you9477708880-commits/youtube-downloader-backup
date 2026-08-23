@@ -700,6 +700,11 @@
   margin-top: 12px;
 }
 
+.recovery-actions .sbtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 @media (max-width: 560px) {
   .recovery-card-head {
     align-items: stretch;

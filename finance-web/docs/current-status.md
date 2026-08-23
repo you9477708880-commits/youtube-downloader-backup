@@ -60,6 +60,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - Firestore／Functions Emulator：10/10 通過。
 - UI smoke scenarios：14/14 通過，包含衝突復原中心介面與事件接線。
 - 復原專項另驗證 UID scope 隔離、10 份／30 天清理、選擇性復原、準備金母子完整性、緊急 JSON fallback，以及帳號切換時取消舊查詢。
+- 初次登入的本機／雲端比較已改為遞迴排序物件欄位後再比較，避免同一份帳務資料只因 Firestore／localStorage 序列化欄位順序不同而誤跳衝突詢問；真正不同的陣列順序與帳務值仍會被辨識。
 - 本批未修改或部署 Firestore Rules、Firebase Functions 或 Hosting。
 
 2026-08-10 發布前穩定批次執行完整 `npm test`：

@@ -21,8 +21,16 @@ function normalizeForSyncCompare(state) {
   };
 }
 
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, stableValue(value[key])]),
+  );
+}
+
 function stableJson(value) {
-  return JSON.stringify(value);
+  return JSON.stringify(stableValue(value));
 }
 
 export function hasMeaningfulFinanceData(state) {
