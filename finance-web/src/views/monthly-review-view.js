@@ -30,6 +30,44 @@ function renderBudgetUseItems(items, utils) {
     .join("");
 }
 
+function renderDelta(delta, utils) {
+  if (!delta) return "持平";
+  return `${delta > 0 ? "增加" : "減少"} ${utils.formatMoney(Math.abs(delta))}`;
+}
+
+function renderComparison(review, utils) {
+  const comparison = review.comparison;
+  if (!comparison) return "";
+  const rows = [
+    ["收入", comparison.metrics.income],
+    ["生活支出", comparison.metrics.livingExpense],
+    ["準備提撥／補入", comparison.metrics.fundPreparation],
+    ["動用準備", comparison.metrics.fundSpend],
+  ];
+  const category = comparison.largestCategoryChange;
+
+  return `
+    <details class="review-comparison">
+      <summary>與上期比較 <span class="text-xs text-gray">${utils.escapeHTML(comparison.range.start)} ~ ${utils.escapeHTML(comparison.range.end)}｜${comparison.txCount} 筆</span></summary>
+      <div class="detail-list mt-2">
+        ${rows.map(([label, metric]) => `
+          <div class="detail-row">
+            <span class="detail-main"><span class="detail-title">${utils.escapeHTML(label)}</span><span class="detail-sub">本期 ${utils.formatMoney(metric.current)}｜上期 ${utils.formatMoney(metric.previous)}</span></span>
+            <span class="detail-amt">${utils.escapeHTML(renderDelta(metric.delta, utils))}</span>
+          </div>
+        `).join("")}
+        <div class="detail-row">
+          <span class="detail-main"><span class="detail-title">支出分類變化</span><span class="detail-sub">${category
+            ? `${utils.escapeHTML(category.category)}｜本期 ${utils.formatMoney(category.current)}｜上期 ${utils.formatMoney(category.previous)}`
+            : "兩期生活支出分類沒有金額差異"}</span></span>
+          ${category ? `<span class="detail-amt">${utils.escapeHTML(renderDelta(category.delta, utils))}</span>` : ""}
+        </div>
+      </div>
+      <div class="text-xs text-gray mt-2">只比較相同天數的前一期間；金額增加或減少不代表好壞，請搭配實際生活情況判讀。</div>
+    </details>
+  `;
+}
+
 export function renderMonthlyReview({ state, filterRange, utils, dom }) {
   if (!dom.monthlyReview) return;
 
@@ -51,6 +89,7 @@ export function renderMonthlyReview({ state, filterRange, utils, dom }) {
       ${renderMetric({ label: "目前淨值", value: review.balanceSheet.netWorth, utils, tone: worthTone })}
       ${renderMetric({ label: "應收代墊", value: review.balanceSheet.receivableTotal, utils })}
     </div>
+    ${renderComparison(review, utils)}
     <div class="detail-list">
       <div class="detail-row">
         <div class="detail-main">

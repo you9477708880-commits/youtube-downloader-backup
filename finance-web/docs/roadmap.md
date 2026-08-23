@@ -87,15 +87,17 @@ The current priority is not advanced investment simulation. The priority is to c
 - 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
 - 桌機版核心頁面工作區整理第一輪已完成：總覽、記帳、預算分配、現金流、資產負債與退休頁已新增頁面級 workspace wrapper，桌機 `900px+` 會套用專屬工作區排版；手機維持原本單欄流程。已補 `desktop-core-layout` smoke scenario。
 
-以下項目已於 2026-08-10 完成、推送並部署：
+2026-08-23 新增、目前僅在本機提交或工作區，尚未推送與部署：
 
-- 月度回顧原型已完成：總覽頁新增只讀摘要卡片，顯示本月收入、生活支出、大額準備提撥 / 補入、動用準備、可自由運用、帳本淨額、目前淨值與應收代墊；計算沿用既有預算與資產負債 domain，避免重複計算大額準備覆蓋支出。
-- 帳戶中心與信用卡管理本機驗收版已完成：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
+- 月度回顧 2.0 本機驗收版：除既有摘要與來源明細外，新增預設收合的同天數前期比較，顯示收入、生活支出、準備提撥 / 補入、動用準備與最大支出分類變化。比較只讀取既有帳務來源，不新增持久化欄位、不評分，也不把增加或減少直接判成好壞。
+- 帳戶中心與信用卡管理本機驗收版：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
+
+以下其他項目已於 2026-08-10 完成、推送並部署：
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
 - 資料安全邊界已補強並部署：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。
 - 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。
 - 第三、四階段同步整理已完成並部署：localStorage 改為 `local` / Firebase `uid` 單一 snapshot 分區；舊 `fin_v6_*` 只搬到未綁定 local；Firestore v7 已啟用 meta、record-level documents、revision rules、deletion tombstones、UID outbox、整筆衝突選擇與 v6 驗證遷移。
-- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 12 個 UI smoke scenarios；smoke runner 由系統分配可用埠；GitHub Actions 使用 Node 20、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
+- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 15 個 UI smoke scenarios；smoke runner 由系統分配可用埠；GitHub Actions 使用 Node 20、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
 - 維護性 controller 拆分第一批已在本機完成：資產負債 CRUD、編輯狀態與 emergency toggle 已從 `actions.js` 搬到獨立 controller，bootstrap 保留組裝與原 actions facade；characterization tests 會驗證歷史交易不變、取消無副作用及每次成功操作只 save/render 一次。
 
 ### English
@@ -148,9 +150,12 @@ The following items are completed on `main`, pushed, and deployed to Firebase Ho
 - Large-expense fund plan-change rules now use the safe version: keep the current "editing settings recalculates the whole plan" model in the short term, explain it in UI and docs, and do not add `plan_changed` or settings-versioning yet.
 - Desktop core-page workspace cleanup phase 1 is complete: overview, ledger, budget allocation, cash flow, balance sheet, and retirement now have page-level workspace wrappers. Desktop `900px+` uses scoped workspace layouts, while mobile keeps the existing single-column flow. A `desktop-core-layout` smoke scenario is added.
 
-The following batch was completed, pushed, and deployed on 2026-08-10:
+Added on 2026-08-23 and currently local only, not pushed or deployed:
 
-- The monthly review prototype is complete: the overview page now has a read-only summary card for monthly income, living expenses, large-expense fund contribution / top-up, fund usage, free-to-use budget, ledger net, current net worth, and advance receivables. Calculations reuse existing budget and balance-sheet domain logic to avoid double-counting fund-covered expenses.
+- Monthly Review 2.0 local acceptance build keeps the traceable summary and source details, and adds a collapsed same-duration previous-period comparison for income, living expenses, fund preparation, fund usage, and the largest category change. It adds no persisted fields or judgmental scoring.
+- The Account Center and Credit Card Management local acceptance build adds expandable account details, monthly flow, credit limits and billing cycles, card charges/payments, and confirmed traceable reconciliation without a new top-level tab or duplicate totals.
+
+The following other batch was completed, pushed, and deployed on 2026-08-10:
 - The first wishlist-to-fund integration step is complete: a wishlist item can prefill the large-expense fund form with name, target amount, monthly contribution, category, and note. This only pre-fills the form; it does not directly create a fund, create a transaction, or create `topup` / `spend` events.
 - Data-safety boundaries are hardened and deployed: the production entry no longer accepts `?smoke=` to seed test data; the smoke runner injects a separate test entry only from its local server; Firebase Hosting builds an allowlisted `.firebase-public` directory that excludes docs, tests, Functions, rules, EPUB files, and smoke scenarios.
 - Cloud writes for one signed-in user now use a local serial queue: rapid edits no longer write the whole state concurrently and instead append only the latest state after the active write; remote snapshots received during a write are retained and compared with submitted local states to identify server echoes; account changes retire the old queue and wait for the new `uid`'s first snapshot before enabling saves; reconnecting does not unconditionally overwrite cloud data. This phase does not add automatic merging or change the accounting data model.
@@ -285,10 +290,10 @@ The immediate work order and current commit status are maintained in
       - 手動桌機尺寸：1366x768、1440x900、1920x1080。
       - 手動手機尺寸：375x667、390x844、430x932；若 headless / plugin 截圖與實機觀察衝突，以實機與 DOM/CSS 檢查優先。
 
-7. **月度回顧雛形**
-   - 從理財書產品設計筆記中升級為中期候選。
-   - 先做簡單、可追溯的月結視圖：收入、生活支出、大額準備、可自由運用、資產負債變化。
-   - 不先做複雜建議引擎，只提供使用者自己檢查與回顧的結構。
+7. **月度回顧**
+   - 雛形與 2.0 同期比較均已完成本機版本；維持簡單、可追溯的月結視圖。
+   - 下一步只在人工驗收確認資訊量合適後，再評估是否加入使用者自行填寫的下月行動；若需保存文字，必須先設計資料模型與同步語意。
+   - 不做複雜建議引擎，不把支出增加直接解讀為負面。
 
 8. **目標系統整合**
    - 將待購清單與大額支出準備逐步接起來。
@@ -378,10 +383,10 @@ Mid-term work:
       - Manual desktop sizes: 1366x768, 1440x900, 1920x1080.
       - Manual mobile sizes: 375x667, 390x844, 430x932. If headless/plugin screenshots conflict with real-device observation, prioritize real-device checks plus DOM/CSS inspection.
 
-8. **Monthly review prototype**
-   - Promote this from the finance-book product notes into a mid-term candidate.
-   - Start with a simple and traceable monthly close view: income, living expenses, large-expense funds, free-to-use budget, and balance-sheet changes.
-   - Do not build a complex recommendation engine first; provide a structure for user review.
+8. **Monthly review**
+   - The prototype and 2.0 previous-period comparison are complete as a local build.
+   - Consider user-authored next-month actions only after manual acceptance confirms the information density; persistence would require explicit data-model and sync semantics.
+   - Do not build a complex recommendation engine or label expense increases as inherently bad.
 
 9. **Goal-system integration**
    - Gradually connect wishlist items with large-expense funds.

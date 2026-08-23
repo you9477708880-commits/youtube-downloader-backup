@@ -15,6 +15,8 @@
 
 帳戶中心與信用卡管理目前為本機驗收版：不新增頂層分頁，在資產負債頁提供帳戶卡片、信用卡週期與額度、交易明細及需確認的對帳調整。此功能尚未推送或部署。
 
+月度回顧 2.0 亦已完成本機實作：在原有月度摘要內加入預設收合的「與上期比較」，用相同天數比較收入、生活支出、準備提撥／補入、動用準備及最大支出分類變化。它完全由既有 `txs`、預算與準備資料推導，不評分、不自動下結論，也不新增同步欄位。
+
 發布前穩定批次已於 2026-08-10 完成、推送並部署。Firestore v7 rules 與 Firebase
 Hosting 均已發布到 `financial-computer`，正式網址為
 `https://financial-computer.web.app`。Firebase Functions 依既定決策保持不部署。
@@ -23,7 +25,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 產品功能
 
-- 月度回顧原型與來源明細。
+- 月度回顧 2.0：摘要、來源明細與同天數前期比較（本機待驗收）。
 - 待購項目預填大額準備表單；目前只預填，不會自動建立 fund、交易或事件。
 
 ### 資料安全與同步
@@ -38,7 +40,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 工程品質與維護性
 
-- 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 12 個 UI
+- 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 15 個 UI
   smoke scenarios。
 - GitHub Actions 已使用 Node 20、Temurin 21 與 `demo-finance-web`。
 - 資產負債 controller 第一批已完成，並有 10 項 characterization tests。
@@ -59,6 +61,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - Firebase Hosting 已部署至 `financial-computer`；首頁與衝突復原模組可讀，smoke 原始碼維持 404。
 - Firestore Rules 與 Firebase Functions 未部署。
 - 帳戶中心完整本機驗證通過：語法與全部單元測試、發布打包 71 個檔案、Firestore／Functions Emulator 10/10、UI smoke 15/15，以及 `git diff --check`。
+- 月度回顧 2.0 完整本機驗證通過：同天數前期範圍、帳務來源不變、最大分類差異與 XSS 跳脫專項通過；全部語法與單元測試、發布打包 71 個檔案、Firestore／Functions Emulator 10/10、UI smoke 15/15 及 `git diff --check` 均通過。
 
 2026-08-23 衝突復原中心本機批次執行完整 `npm test`：
 
@@ -95,6 +98,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
   在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
 - Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
 - 帳戶中心與信用卡管理尚待人工驗收、推送與部署。
+- 月度回顧 2.0 尚待與帳戶中心一起人工驗收、推送與部署。
 - 衝突復原歷史刻意維持裝置本機，不跨裝置同步。
 
 ## 已知的小型維護缺口
@@ -104,7 +108,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 四條完整 state replacement 路徑已集中使用可測試的 controller lifecycle
   replacer，確保先 reset controller 再替換 store。
 - Smoke runner 改用系統分配的可用埠，不再依賴固定 `4185`；一鍵測試已納入現有
-  全部 12 個 UI scenarios。
+  全部 15 個 UI scenarios。
 - Node 以 ESM 重新解析部分 `.js` 時會顯示效能警告；不影響目前測試正確性。
 
 ## 建議下一步

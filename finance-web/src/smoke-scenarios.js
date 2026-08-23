@@ -1066,6 +1066,8 @@ export async function runMonthlyReviewScenario() {
       !text.includes("NT$ 50,000") ||
       !text.includes("NT$ 8,000") ||
       !text.includes("動用準備") ||
+      !text.includes("與上期比較") ||
+      !text.includes("只比較相同天數") ||
       !text.includes("主要預算使用來源") ||
       !text.includes("Smoke phone")
     ) {
@@ -1080,7 +1082,7 @@ export async function runMonthlyReviewScenario() {
     }
     document.getElementById("transaction-detail-close").click();
 
-    writeSmokeResult("pass", "monthly review renders traceable totals and opens complete budget-source details");
+    writeSmokeResult("pass", "monthly review renders traceable totals, previous-period comparison, and complete budget-source details");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

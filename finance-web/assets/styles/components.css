@@ -714,6 +714,19 @@
   overflow: hidden;
 }
 
+.review-comparison {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--bdr);
+  border-radius: var(--r);
+  background: var(--sur2);
+}
+
+.review-comparison > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .account-card > summary {
   display: flex;
   align-items: center;

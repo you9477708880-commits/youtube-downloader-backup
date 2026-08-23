@@ -27,6 +27,8 @@ This document defines the traceability standard for report numbers. Users should
 | 總覽 / Overview | 期間收入 | `txs` 中的 `income.amount` | 可由交易推導 |
 | 總覽 / Overview | 期間支出 | `expense.amount` + `advance.ownAmount` | 可由交易推導 |
 | 總覽 / Overview | 結餘 | 期間收入 - 期間支出 | 可由交易推導 |
+| 月度回顧 2.0 / Period Comparison | 收入、生活支出、準備活動 | 目前範圍與相同天數前一期間的既有 `txs`、預算與準備資料 | 只讀推導，不持久化比較結果 |
+| 月度回顧 2.0 / Category Change | 最大生活支出分類變化 | 兩期預算頁生活支出來源依主分類加總 | 排除已由準備覆蓋的部分 |
 | 記帳 / Ledger | 交易列表 | `txs` | 主要交易明細 |
 | 預算 / Budget | 本月可支配預算 | `settings.budgetCap` | 設定值 |
 | 預算 / Budget | 本月生活支出 | `txs` 中仍由當月負擔的個人支出 | 可由交易與準備覆蓋規則推導 |

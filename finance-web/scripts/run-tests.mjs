@@ -9,6 +9,7 @@ const testFiles = [
   "tests/state-commit.test.mjs",
   "tests/balance-sheet-controller.test.mjs",
   "tests/account-center.test.mjs",
+  "tests/monthly-review.test.mjs",
   "tests/wishlist-controller.test.mjs",
   "tests/category-budget-controller.test.mjs",
   "tests/retirement-controller.test.mjs",
