@@ -562,10 +562,11 @@
     <div id="andromoney-duplicates" class="flex-col gap-2 mt-3 d-none">
       <label class="flb" for="andromoney-duplicate-mode">重複交易處理</label>
       <select id="andromoney-duplicate-mode">
+        <option value="repair-accounts">只修正既有交易的帳戶對應（建議）</option>
         <option value="skip">略過已存在交易</option>
-        <option value="update">更新已存在交易</option>
+        <option value="update">用 CSV 完整更新已存在交易</option>
       </select>
-      <div class="text-xs text-gray">重新匯入同一份 CSV 時，選擇「更新」可依這次的帳戶設定修正既有交易，並保留本機交易 ID。CSV 欄位會覆蓋先前匯入內容；若交易已連到大額準備，會先解除準備事件，避免舊金額重複計算。</div>
+      <div class="text-xs text-gray">「只修正帳戶」只會修改付款、收款或轉帳帳戶，保留金額、日期、備註、分類、本機交易 ID 與大額準備連結。「完整更新」會用 CSV 欄位覆蓋既有內容；若交易已連到大額準備，會先解除準備事件。</div>
     </div>
     <div id="andromoney-preview" class="detail-list mt-3"></div>
     <div class="grid-2 mt-3">

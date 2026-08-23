@@ -154,13 +154,15 @@ Note: planned monthly fund contributions are not account transfers and should no
 - AndroMoney 帳戶名稱會先以正規化後的完整名稱比對既有帳戶，不做模糊猜測。
 - 找不到相同名稱時，匯入確認畫面預設建立起始餘額為 `0` 的資產帳戶；使用者可改成負債帳戶，例如信用卡。
 - 新帳戶與新增或更新的交易必須在同一次 `commitState()` 中保存，避免交易引用尚未建立的帳戶。
-- 重新匯入相同 CSV 並選擇更新時，系統可建立缺少帳戶並重新指定既有外部交易的帳戶，同時保留本機交易 ID。
+- 重新匯入相同 CSV 時，預設使用「只修正帳戶」：只修改 `acc` / `fromAcc` / `toAcc`，並保留本機交易 ID、金額、日期、備註、分類與大額準備連結。
+- CSV 與既有交易的類型不同時，不自動修正該筆帳戶；完整覆蓋仍必須由使用者明確選擇「完整更新」。
 - 信用卡消費仍是支出；信用卡繳款應記成銀行轉入信用卡的轉帳，不可再算一次支出。
 
 - AndroMoney account names are matched against normalized full account names; fuzzy guessing is not used.
 - If no exact normalized match exists, the confirmation UI defaults to creating an asset account with an initial balance of `0`; the user may change it to a liability account such as a credit card.
 - New accounts and added or updated transactions must be persisted in the same `commitState()` call so transactions never reference an account that was not created.
-- Reimporting the same CSV in update mode may create missing accounts and remap existing external transactions while preserving their local transaction IDs.
+- Reimporting the same CSV defaults to account-only repair: change only `acc` / `fromAcc` / `toAcc` while preserving local transaction IDs, amounts, dates, notes, categories, and fund links.
+- If the CSV transaction type differs from the existing type, account repair leaves that record unchanged; full replacement still requires the user to explicitly choose full update.
 - Credit-card purchases remain expenses. Credit-card payments must be transfers from a bank account to the card account and must not be counted as expenses again.
 
 ## 4. 應收款公式 / Receivable Formula

@@ -48,6 +48,36 @@ function findDuplicateExternalTransactions(existingTransactions, importedTransac
   return importedTransactions.filter((transaction) => existingKeys.has(externalTransactionKey(transaction)));
 }
 
+function repairTransactionAccount(existingTransaction, importedTransaction) {
+  if (!existingTransaction || existingTransaction.type !== importedTransaction?.type) return null;
+  if (importedTransaction.type === "transfer") {
+    if (!importedTransaction.fromAcc || !importedTransaction.toAcc) return null;
+    if (
+      String(existingTransaction.fromAcc) === String(importedTransaction.fromAcc) &&
+      String(existingTransaction.toAcc) === String(importedTransaction.toAcc)
+    ) return null;
+    return {
+      ...existingTransaction,
+      fromAcc: importedTransaction.fromAcc,
+      toAcc: importedTransaction.toAcc,
+    };
+  }
+  if (!["income", "expense"].includes(importedTransaction.type) || !importedTransaction.acc) return null;
+  if (String(existingTransaction.acc) === String(importedTransaction.acc)) return null;
+  return { ...existingTransaction, acc: importedTransaction.acc };
+}
+
+function hasValidImportedAccountMapping(transaction) {
+  if (transaction?.type === "transfer") {
+    return Boolean(
+      transaction.fromAcc &&
+      transaction.toAcc &&
+      String(transaction.fromAcc) !== String(transaction.toAcc),
+    );
+  }
+  return ["income", "expense"].includes(transaction?.type) && Boolean(transaction.acc);
+}
+
 export function createImportController({
   elements,
   store,
@@ -86,7 +116,7 @@ export function createImportController({
     androMoneyPreview.innerHTML = "";
     androMoneySummary.textContent = "";
     androMoneyDuplicates.classList.add("d-none");
-    androMoneyDuplicateMode.value = "skip";
+    androMoneyDuplicateMode.value = "repair-accounts";
   };
 
   const showAndroMoneyImportDialog = (parsed) => {
@@ -102,7 +132,7 @@ export function createImportController({
       (newAccountCount ? ` 將建立 ${newAccountCount} 個缺少的帳戶。` : "") +
       (duplicates.length ? ` 其中 ${duplicates.length} 筆看起來已匯入過。` : "");
     androMoneyDuplicates.classList.toggle("d-none", duplicates.length === 0);
-    androMoneyDuplicateMode.value = "skip";
+    androMoneyDuplicateMode.value = duplicates.length ? "repair-accounts" : "skip";
     androMoneyAccounts.innerHTML = parsed.accountNames.length
       ? parsed.accountNames
           .map(
@@ -256,6 +286,16 @@ export function createImportController({
     const initialParse = parseAndroMoneyCsv(pendingAndroMoneyText);
     const { accountMap, newAccounts: plannedAccounts } = buildAccountImportPlan(initialParse.accountNames);
     const parsed = parseAndroMoneyCsv(pendingAndroMoneyText, { accountMap });
+    const invalidAccountMappingCount = parsed.transactions.filter(
+      (transaction) => !hasValidImportedAccountMapping(transaction),
+    ).length;
+    if (invalidAccountMappingCount) {
+      toast.show(
+        `有 ${invalidAccountMappingCount} 筆交易的帳戶對應無效；每筆交易都需要有效帳戶，且轉帳的轉出與轉入帳戶不可相同，請調整後再確認`,
+        "error",
+      );
+      return;
+    }
     const existingTransactions = store.getState().txs;
     const duplicateMode = androMoneyDuplicateMode.value || "skip";
     const duplicateCount = findDuplicateExternalTransactions(existingTransactions, parsed.transactions).length;
@@ -270,16 +310,34 @@ export function createImportController({
           })
           .filter(Boolean)
       : [];
+    const repairTransactions = duplicateMode === "repair-accounts"
+      ? parsed.transactions
+          .map((transaction) => {
+            const existingTransaction = findExternalTransaction(existingTransactions, transaction);
+            const repaired = repairTransactionAccount(existingTransaction, transaction);
+            return repaired ? { ...repaired, id: existingTransaction.id } : null;
+          })
+          .filter(Boolean)
+      : [];
+    const repairConflictCount = duplicateMode === "repair-accounts"
+      ? parsed.transactions.filter((transaction) => {
+          const existingTransaction = findExternalTransaction(existingTransactions, transaction);
+          return existingTransaction && existingTransaction.type !== transaction.type;
+        }).length
+      : 0;
     const referencedAccountIds = new Set(
-      [...newTransactions, ...updateTransactions]
+      [...newTransactions, ...updateTransactions, ...repairTransactions]
         .flatMap((transaction) => [transaction.acc, transaction.fromAcc, transaction.toAcc])
         .filter(Boolean)
         .map(String),
     );
     const newAccounts = plannedAccounts.filter((account) => referencedAccountIds.has(String(account.id)));
 
-    if (!newTransactions.length && !updateTransactions.length) {
-      toast.show("沒有新的 AndroMoney 交易可匯入");
+    if (!newTransactions.length && !updateTransactions.length && !repairTransactions.length) {
+      const message = duplicateMode === "repair-accounts"
+        ? `帳戶對應已是最新${repairConflictCount ? `；另有 ${repairConflictCount} 筆交易類型不同，未自動修改` : ""}`
+        : "沒有新的 AndroMoney 交易可匯入";
+      toast.show(message);
       reset();
       return;
     }
@@ -295,7 +353,10 @@ export function createImportController({
       draft.txs = [
         ...newTransactions,
         ...draft.txs.map(
-          (transaction) => updateTransactions.find((item) => String(item.id) === String(transaction.id)) || transaction,
+          (transaction) =>
+            updateTransactions.find((item) => String(item.id) === String(transaction.id)) ||
+            repairTransactions.find((item) => String(item.id) === String(transaction.id)) ||
+            transaction,
         ),
       ];
     }, {
@@ -307,7 +368,7 @@ export function createImportController({
 
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
     const cloudSaved = await waitForCloudSave();
-    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}`;
+    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${repairTransactions.length ? `，修正 ${repairTransactions.length} 筆帳戶` : ""}${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}${repairConflictCount ? `，${repairConflictCount} 筆類型不同未修改` : ""}`;
     toast.show(cloudSaved ? `${result}，已同步雲端` : `${result}，已保存於本機，尚未同步雲端`);
   };
 

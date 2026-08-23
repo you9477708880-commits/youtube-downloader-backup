@@ -503,7 +503,9 @@ export async function runAndroMoneyImportScenario(app) {
       throw new Error("andromoney-account-auto-mapping-mismatch");
     }
     newCardType.value = "liability";
-    document.getElementById("andromoney-duplicate-mode").value = "update";
+    if (document.getElementById("andromoney-duplicate-mode").value !== "repair-accounts") {
+      throw new Error("andromoney-account-repair-not-default");
+    }
     document.getElementById("andromoney-confirm").click();
     await waitFor(() => app.store.getState().txs.length === 3);
 
@@ -515,11 +517,11 @@ export async function runAndroMoneyImportScenario(app) {
     const passed =
       expense?.type === "expense" &&
       expense?.id === "local-existing-6542" &&
-      expense?.amount === 209 &&
+      expense?.amount === 99 &&
       expense?.category === "餐飲食品" &&
-      expense?.subcategory === "午餐" &&
+      expense?.subcategory === "早餐" &&
       expense?.acc === "bank" &&
-      !expense?.linkedFundId &&
+      expense?.linkedFundId === "sf-smoke-csv" &&
       expense?.externalSource === "andromoney" &&
       income?.type === "income" &&
       income?.acc === importedBank?.id &&
@@ -530,7 +532,7 @@ export async function runAndroMoneyImportScenario(app) {
       importedCard?.initialBalance === 0 &&
       cardExpense?.type === "expense" &&
       cardExpense?.acc === importedCard?.id &&
-      !fund?.events?.some((event) => String(event.linkedTxId) === "local-existing-6542") &&
+      fund?.events?.some((event) => String(event.linkedTxId) === "local-existing-6542") &&
       document.getElementById("andromoney-modal").classList.contains("d-none") &&
       appContent.scrollWidth <= appContent.clientWidth + 1;
 
@@ -584,7 +586,7 @@ export async function runAndroMoneyImportScenario(app) {
       throw new Error("andromoney-detail-modal-not-closed");
     }
 
-    writeSmokeResult("pass", "AndroMoney import matched existing accounts, created asset and liability accounts, repaired duplicates, and preserved inline detail editing");
+    writeSmokeResult("pass", "AndroMoney account repair preserved local transaction fields and fund links while creating asset and liability accounts");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
