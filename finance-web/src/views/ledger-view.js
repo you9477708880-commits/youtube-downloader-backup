@@ -73,11 +73,10 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
         html += `
           <div class="tx-row">
             <div class="tx-ico ${background}">${icon}</div>
-            <div class="tx-main">
-              <div class="tx-title">${utils.escapeHTML(title)}</div>
-              <div class="tx-sub">${sub}</div>
-              ${linkedFundName ? `<button type="button" class="sbtn outline compact mt-1" data-action="open-fund" data-id="${utils.escapeHTML(tx.linkedFundId)}">查看對應準備</button>` : ""}
-            </div>
+            <button type="button" class="tx-main tx-open" data-action="view-tx" data-id="${txId}" aria-haspopup="dialog" aria-label="查看這筆交易的完整明細">
+              <span class="tx-title">${utils.escapeHTML(title)}</span>
+              <span class="tx-sub">${sub}</span>
+            </button>
             <div class="tx-meta">
               <div class="flex-col align-end gap-1">
                 <div class="tx-amt ${amount.color}">${amount.sign}${utils.formatMoney(amount.value)}</div>
@@ -88,12 +87,15 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
                 showDelete
                   ? `
                     <div class="flex-row gap-1">
+                      ${linkedFundName ? `<button type="button" class="sbtn outline compact" data-action="open-fund" data-id="${utils.escapeHTML(tx.linkedFundId)}">查看準備</button>` : ""}
                       ${["income", "expense", "transfer", "advance"].includes(tx.type) ? `<button type="button" class="sbtn outline compact" data-action="edit-tx" data-id="${txId}">編輯</button>` : ""}
                       ${repayment ? `<button type="button" class="sbtn outline compact" data-action="edit-repayment" data-id="${txId}">編輯</button>` : ""}
                       <button type="button" class="del-btn text-lg p-1" aria-label="刪除" data-action="del-tx" data-id="${txId}">×</button>
                     </div>
                   `
-                  : ""
+                  : linkedFundName
+                    ? `<button type="button" class="sbtn outline compact" data-action="open-fund" data-id="${utils.escapeHTML(tx.linkedFundId)}">查看準備</button>`
+                    : ""
               }
             </div>
           </div>

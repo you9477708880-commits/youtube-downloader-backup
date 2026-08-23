@@ -22,6 +22,9 @@ const DATA_ACTIONS = {
   "edit-fund": ({ button, actions }) => actions.beginEditFund(button.dataset.id),
   "topup-fund": ({ button, actions }) => actions.topupFund(button.dataset.id),
   "open-fund": ({ button, actions }) => actions.openFund(button.dataset.id),
+  "view-tx": ({ button, actions }) => actions.openTransactionDetail(button.dataset.id, button),
+  "view-budget-source": ({ button, actions }) => actions.openBudgetSourceDetail(button.dataset.id, button.dataset.sourceType, button),
+  "close-transaction-detail": ({ actions }) => actions.closeTransactionDetail(),
   "filter-goals": ({ button, handlers }) => handlers.filterGoalCenter(button.dataset.filter),
   "export-data": ({ handlers }) => handlers.exportData(),
   "trigger-import": ({ handlers }) => handlers.triggerImport(),
@@ -51,6 +54,15 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(doc.body, "click", (event) => {
     const button = event.target?.closest?.("[data-action]");
     if (button) dispatchDataAction({ button, actions, ui, handlers });
+  });
+
+  on(doc, "keydown", (event) => {
+    if (event.key === "Escape") actions.closeTransactionDetail();
+    if (event.key === "Tab") actions.trapTransactionDetailFocus(event);
+  });
+
+  on(dom.transactionDetailModal, "click", (event) => {
+    if (event.target === dom.transactionDetailModal) actions.closeTransactionDetail();
   });
 
   const bindForm = (id, callback) => {

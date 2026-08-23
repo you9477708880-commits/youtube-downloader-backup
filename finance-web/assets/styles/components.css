@@ -243,6 +243,21 @@
 }
 
 .tx-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tx-open {
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  border-radius: 8px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+.tx-open:hover,
+.tx-open:focus-visible {
+  background: var(--sur2);
+  outline: 2px solid rgba(0, 121, 107, 0.25);
+  outline-offset: 1px;
+}
 .tx-title { font-size: 14px; font-weight: 500; color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-sub { font-size: 12px; color: var(--tx3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-width: 0; }
@@ -336,7 +351,27 @@
   border-bottom: none;
 }
 
+.detail-open {
+  width: 100%;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.detail-open:hover,
+.detail-open:focus-visible {
+  background: var(--sur2);
+  outline: 2px solid rgba(0, 121, 107, 0.25);
+  outline-offset: -2px;
+}
+
 .detail-main {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
 }
@@ -654,6 +689,54 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.transaction-detail-panel {
+  width: min(100%, 560px);
+}
+
+.transaction-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.transaction-detail-grid {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.transaction-detail-field {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.32fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bdr);
+}
+
+.transaction-detail-field:last-child {
+  border-bottom: 0;
+}
+
+.transaction-detail-field dt {
+  color: var(--tx3);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.transaction-detail-field dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--tx);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.transaction-detail-note {
+  white-space: pre-wrap;
+  line-height: 1.65;
 }
 
 .goal-center-title { font-size: 20px; font-weight: 800; }

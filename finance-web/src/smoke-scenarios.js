@@ -465,7 +465,7 @@ export function prepareAndroMoneyImportScenario() {
 
 export async function runAndroMoneyImportScenario(app) {
   try {
-    const longDiaryNote = "汽車保養與生活紀錄".repeat(60);
+    const longDiaryNote = `汽車保養第一行\\n汽車保養第二行 ${"汽車保養與生活紀錄".repeat(60)}`;
     const csv = [
       '"Google Documents","理財幫手AndroMoney","20260518"',
       '"Id","幣別","金額","分類","子分類","日期","付款(轉出)","收款(轉入)","備註","Periodic","專案","商家(公司)","uid","時間"',
@@ -518,7 +518,31 @@ export async function runAndroMoneyImportScenario(app) {
       throw new Error("andromoney-import-state-mismatch");
     }
 
-    writeSmokeResult("pass", "AndroMoney import preserved long notes without horizontal overflow");
+    const searchQuery = document.getElementById("tx-search-query");
+    const searchPreset = document.getElementById("tx-search-preset");
+    searchQuery.value = "汽車保養";
+    searchQuery.dispatchEvent(new Event("input", { bubbles: true }));
+    searchPreset.value = "all";
+    searchPreset.dispatchEvent(new Event("change", { bubbles: true }));
+    await waitFor(() => [...document.querySelectorAll('#a-tx [data-action="view-tx"]')]
+      .some((node) => node.dataset.id === String(income.id)));
+    const detailTrigger = [...document.querySelectorAll('#a-tx [data-action="view-tx"]')]
+      .find((node) => node.dataset.id === String(income.id));
+    if (!detailTrigger) throw new Error("andromoney-detail-trigger-missing");
+    detailTrigger?.click();
+    if (document.getElementById("transaction-detail-modal").classList.contains("d-none")) {
+      throw new Error("andromoney-detail-modal-not-open");
+    }
+    const detailText = document.getElementById("transaction-detail-body").textContent || "";
+    if (!detailText.includes("汽車保養第一行") || !detailText.includes("汽車保養第二行")) {
+      throw new Error("andromoney-full-detail-missing");
+    }
+    document.getElementById("transaction-detail-close").click();
+    if (!document.getElementById("transaction-detail-modal").classList.contains("d-none")) {
+      throw new Error("andromoney-detail-modal-not-closed");
+    }
+
+    writeSmokeResult("pass", "AndroMoney import preserved long notes, avoided overflow, and opened the complete detail card");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
@@ -1004,7 +1028,15 @@ export async function runMonthlyReviewScenario() {
       throw new Error(`monthly-review-content-missing: ${text}`);
     }
 
-    writeSmokeResult("pass", "monthly review renders income, fund-adjusted living expense, and fund usage");
+    const sourceTrigger = document.querySelector('#monthly-review [data-action="view-budget-source"]');
+    sourceTrigger?.click();
+    await waitFor(() => !document.getElementById("transaction-detail-modal").classList.contains("d-none"));
+    if (!(document.getElementById("transaction-detail-body").textContent || "").includes("Smoke phone")) {
+      throw new Error("monthly-review-source-detail-missing");
+    }
+    document.getElementById("transaction-detail-close").click();
+
+    writeSmokeResult("pass", "monthly review renders traceable totals and opens complete budget-source details");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

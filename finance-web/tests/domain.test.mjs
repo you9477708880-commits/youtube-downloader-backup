@@ -1010,6 +1010,7 @@ function testLedgerFundTraceRendering() {
   assert.match(dom.aTx.innerHTML, /準備支付 NT\$ 20,000 ｜ 本月不另外扣款/);
   assert.match(dom.aTx.innerHTML, /準備支付 NT\$ 12,000 ｜ 本月支出 NT\$ 18,000/);
   assert.match(dom.aTx.innerHTML, /data-action="edit-tx"/);
+  assert.match(dom.aTx.innerHTML, /data-action="view-tx"/);
 }
 
 function testBalanceSheetEditButtonsRendering() {
@@ -1203,6 +1204,8 @@ function testUserControlledStringsAreEscapedInRenderedHtml() {
   assert.doesNotMatch(html, /onerror=alert\(1\)>/i);
   assert.match(html, /&lt;img/);
   assert.match(overviewDom.monthlyReview.innerHTML, /主要預算使用來源/);
+  assert.match(overviewDom.monthlyReview.innerHTML, /data-action="view-tx"/);
+  assert.match(overviewDom.monthlyReview.innerHTML, /data-action="view-budget-source"/);
 }
 
 function testCloudSyncPolicyDetectsMeaningfulAndEquivalentData() {

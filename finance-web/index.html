@@ -497,6 +497,17 @@
 
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+<div id="transaction-detail-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="transaction-detail-title">
+  <div class="modal-panel transaction-detail-panel">
+    <div class="transaction-detail-header">
+      <div class="modal-title" id="transaction-detail-title">交易明細</div>
+      <button type="button" class="del-btn text-lg p-1" data-action="close-transaction-detail" aria-label="關閉交易明細">×</button>
+    </div>
+    <div id="transaction-detail-body" class="mt-3"></div>
+    <button type="button" id="transaction-detail-close" class="sbtn outline w-100 mt-3" data-action="close-transaction-detail">關閉</button>
+  </div>
+</div>
+
 <div id="sync-choice-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="sync-choice-title">
   <div class="modal-panel">
     <div class="modal-title" id="sync-choice-title">選擇要保留的資料</div>

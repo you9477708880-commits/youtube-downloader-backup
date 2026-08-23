@@ -18,13 +18,13 @@ function renderBudgetUseItems(items, utils) {
   return items
     .map(
       (item) => `
-        <div class="detail-row">
-          <div class="detail-main">
-            <div class="detail-title">${utils.escapeHTML(item.title || item.typeLabel)}</div>
-            <div class="detail-sub">${utils.escapeHTML(item.typeLabel)} ｜ ${utils.escapeHTML(item.date || "")}${item.subtitle ? ` ｜ ${utils.escapeHTML(item.subtitle)}` : ""}</div>
-          </div>
-          <div class="detail-amt">${utils.formatMoney(item.amount)}</div>
-        </div>
+        <button type="button" class="detail-row detail-open" data-action="${item.type === "living-expense" ? "view-tx" : "view-budget-source"}" data-id="${utils.escapeHTML(item.id)}" data-source-type="${utils.escapeHTML(item.type)}" aria-haspopup="dialog" aria-label="查看完整明細">
+          <span class="detail-main">
+            <span class="detail-title">${utils.escapeHTML(item.title || item.typeLabel)}</span>
+            <span class="detail-sub">${utils.escapeHTML(item.typeLabel)} ｜ ${utils.escapeHTML(item.date || "")}${item.subtitle ? ` ｜ ${utils.escapeHTML(item.subtitle)}` : ""}</span>
+          </span>
+          <span class="detail-amt">${utils.formatMoney(item.amount)}</span>
+        </button>
       `,
     )
     .join("");

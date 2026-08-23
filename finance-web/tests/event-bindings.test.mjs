@@ -42,7 +42,9 @@ function createHarness() {
       return [id, form];
     }),
   );
-  const doc = { body, getElementById: (id) => forms[id] || null };
+  const doc = new FakeTarget();
+  doc.body = body;
+  doc.getElementById = (id) => forms[id] || null;
   const domKeys = [
     "filterPreset", "filterStart", "filterEnd", "inputCategory", "balanceType",
     "txCancelButton", "fundCancelButton", "bsCancelButton", "wishCancelButton",
@@ -52,7 +54,7 @@ function createHarness() {
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
-    "transactionSearchEnd", "transactionSearchClear",
+    "transactionSearchEnd", "transactionSearchClear", "transactionDetailModal",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
   const record = (name) => (...args) => calls.push([name, ...args]);
@@ -86,6 +88,9 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("toggle-tbl");
   dispatch("export-data");
   dispatch("filter-goals", { filter: "considering" });
+  dispatch("view-tx", { id: "tx-detail" });
+  dispatch("view-budget-source", { id: "plan-fund", sourceType: "fund-plan" });
+  dispatch("close-transaction-detail");
   assert.equal(dispatch("unknown"), false);
 
   assert.deepEqual(calls, [
@@ -95,6 +100,9 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["toggleRetirementTable"],
     ["exportData"],
     ["filterGoalCenter", "considering"],
+    ["openTransactionDetail", "tx-detail", { dataset: { action: "view-tx", id: "tx-detail" } }],
+    ["openBudgetSourceDetail", "plan-fund", "fund-plan", { dataset: { action: "view-budget-source", id: "plan-fund", sourceType: "fund-plan" } }],
+    ["closeTransactionDetail"],
   ]);
 });
 
@@ -138,6 +146,9 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.androMoneyConfirm.emit("click");
   dom.authButton.emit("click");
   dom.cloudStatus.emit("click");
+  dom.transactionDetailModal.emit("click", { target: dom.transactionDetailModal });
+  harness.doc.emit("keydown", { key: "Escape" });
+  harness.doc.emit("keydown", { key: "Tab" });
   dom.currentAge.emit("input");
   dom.retireAsset.emit("input");
   dom.fileImport.emit("change");
@@ -159,6 +170,9 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "confirmAndroMoneyImport",
     "runAuthAction",
     "retryCloudSync",
+    "closeTransactionDetail",
+    "closeTransactionDetail",
+    "trapTransactionDetailFocus",
     "updateRetirementAge",
     "updateRetirementInput",
     "importJsonFile",

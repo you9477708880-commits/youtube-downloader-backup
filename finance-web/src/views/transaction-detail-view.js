@@ -58,15 +58,15 @@ export function renderTransactionDetailList({ txs, utils, getAccountName, accoun
               : getAccountName(tx.acc);
           const subtitle = getTransactionSubtitle(tx, accountLabel);
           return `
-            <div class="detail-row">
-              <div class="detail-main">
-                <div class="detail-title">${utils.escapeHTML(getTransactionTitle(tx))}</div>
-                <div class="detail-sub">${utils.escapeHTML(tx.date || "")}${subtitle ? `｜${utils.escapeHTML(subtitle)}` : ""}</div>
-              </div>
-              <div class="detail-amt ${signedAmount >= 0 ? "text-inc" : "text-exp"}">
+            <button type="button" class="detail-row detail-open" data-action="view-tx" data-id="${utils.escapeHTML(tx.id)}" aria-haspopup="dialog" aria-label="查看完整交易明細">
+              <span class="detail-main">
+                <span class="detail-title">${utils.escapeHTML(getTransactionTitle(tx))}</span>
+                <span class="detail-sub">${utils.escapeHTML(tx.date || "")}${subtitle ? `｜${utils.escapeHTML(subtitle)}` : ""}</span>
+              </span>
+              <span class="detail-amt ${signedAmount >= 0 ? "text-inc" : "text-exp"}">
                 ${signedAmount >= 0 ? "+" : "-"}${utils.formatMoney(Math.abs(signedAmount))}
-              </div>
-            </div>
+              </span>
+            </button>
           `;
         })
         .join("")}

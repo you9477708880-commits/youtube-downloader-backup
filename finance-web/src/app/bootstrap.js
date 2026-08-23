@@ -39,6 +39,7 @@ import { createImportController } from "./controllers/import-controller.js";
 import { createCategoryBudgetController } from "./controllers/category-budget-controller.js";
 import { createRetirementController } from "./controllers/retirement-controller.js";
 import { createTransactionSearchController } from "./controllers/transaction-search-controller.js";
+import { createTransactionDetailController } from "./controllers/transaction-detail-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
 
@@ -187,6 +188,10 @@ function collectDom(doc = document) {
     choiceCancel: $("choice-cancel", doc),
     syncChoiceModal: $("sync-choice-modal", doc),
     syncChoiceSummary: $("sync-choice-summary", doc),
+    transactionDetailModal: $("transaction-detail-modal", doc),
+    transactionDetailTitle: $("transaction-detail-title", doc),
+    transactionDetailBody: $("transaction-detail-body", doc),
+    transactionDetailClose: $("transaction-detail-close", doc),
   };
 }
 
@@ -734,6 +739,17 @@ export async function bootstrapFinanceApp(doc = document) {
       dom,
     }),
   });
+  const transactionDetailController = createTransactionDetailController({
+    elements: {
+      modal: dom.transactionDetailModal,
+      title: dom.transactionDetailTitle,
+      body: dom.transactionDetailBody,
+      close: dom.transactionDetailClose,
+    },
+    store,
+    formatMoney,
+    escapeHTML,
+  });
   const importController = createImportController({
     elements: {
       androMoneyModal: dom.androMoneyModal,
@@ -793,7 +809,7 @@ export async function bootstrapFinanceApp(doc = document) {
   });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, importController, retirementController],
+    controllers: [balanceSheetController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -828,6 +844,10 @@ export async function bootstrapFinanceApp(doc = document) {
     repayAdvance: transactionController.repayAdvance,
     editAdvanceRepayment: transactionController.editAdvanceRepayment,
     presetRet: retirementController.presetRet,
+    openTransactionDetail: transactionDetailController.openTransaction,
+    openBudgetSourceDetail: transactionDetailController.openBudgetSource,
+    closeTransactionDetail: transactionDetailController.close,
+    trapTransactionDetailFocus: transactionDetailController.trapFocus,
   };
 
   const bindEvents = () => bindAppEvents({
