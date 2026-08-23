@@ -739,6 +739,69 @@
   line-height: 1.65;
 }
 
+.transaction-detail-footer,
+.transaction-detail-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.transaction-detail-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.transaction-detail-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.transaction-detail-control {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--tx3);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.transaction-detail-control input,
+.transaction-detail-control select,
+.transaction-detail-control textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--tx);
+}
+
+.transaction-detail-control textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.transaction-detail-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--sur2);
+  color: var(--tx2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .transaction-detail-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-detail-footer,
+  .transaction-detail-edit-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 .goal-center-title { font-size: 20px; font-weight: 800; }
 .goal-center-intro,
 .goal-center-meta { color: var(--tx2); font-size: 12px; line-height: 1.6; }

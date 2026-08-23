@@ -90,6 +90,9 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("filter-goals", { filter: "considering" });
   dispatch("view-tx", { id: "tx-detail" });
   dispatch("view-budget-source", { id: "plan-fund", sourceType: "fund-plan" });
+  dispatch("edit-transaction-detail");
+  dispatch("save-transaction-detail");
+  dispatch("cancel-transaction-detail-edit");
   dispatch("close-transaction-detail");
   assert.equal(dispatch("unknown"), false);
 
@@ -102,6 +105,9 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["filterGoalCenter", "considering"],
     ["openTransactionDetail", "tx-detail", { dataset: { action: "view-tx", id: "tx-detail" } }],
     ["openBudgetSourceDetail", "plan-fund", "fund-plan", { dataset: { action: "view-budget-source", id: "plan-fund", sourceType: "fund-plan" } }],
+    ["editTransactionDetail"],
+    ["saveTransactionDetail"],
+    ["cancelTransactionDetailEdit"],
     ["closeTransactionDetail"],
   ]);
 });
@@ -147,6 +153,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.authButton.emit("click");
   dom.cloudStatus.emit("click");
   dom.transactionDetailModal.emit("click", { target: dom.transactionDetailModal });
+  dom.transactionDetailModal.emit("change", { target: { id: "transaction-detail-type" } });
   harness.doc.emit("keydown", { key: "Escape" });
   harness.doc.emit("keydown", { key: "Tab" });
   dom.currentAge.emit("input");
@@ -171,6 +178,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "runAuthAction",
     "retryCloudSync",
     "closeTransactionDetail",
+    "syncTransactionDetailType",
     "closeTransactionDetail",
     "trapTransactionDetailFocus",
     "updateRetirementAge",

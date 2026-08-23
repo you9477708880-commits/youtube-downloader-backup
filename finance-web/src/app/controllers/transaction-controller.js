@@ -346,6 +346,179 @@ export function createTransactionController({
     toast.show("已取消編輯");
   };
 
+  const updateTransactionFromDetail = async (id, input) => {
+    const state = store.getState();
+    const original = state.txs.find((item) => sameId(item.id, id));
+    if (!original) {
+      toast.show("找不到這筆交易", "error");
+      return false;
+    }
+
+    const allowedTypes = ["income", "expense", "transfer", "advance"];
+    const nextType = String(input?.type || original.type);
+    const normalizedAmount = toMoneyInt(input?.amount);
+    const nextDate = String(input?.date || "");
+    if (normalizedAmount <= 0) {
+      toast.show("金額必須大於 0", "error");
+      return false;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+      toast.show("日期格式不正確", "error");
+      return false;
+    }
+
+    if (original.type === "advance_repayment") {
+      if (nextType !== "advance_repayment") {
+        toast.show("代墊收款不能改成其他交易類型", "error");
+        return false;
+      }
+      const advance = state.txs.find((item) => item.type === "advance" && sameId(item.id, original.advanceId));
+      if (!advance) {
+        toast.show("找不到這筆收款對應的代墊", "error");
+        return false;
+      }
+      const accountExists = state.accounts.some((item) => sameId(item.id, input?.accountId));
+      const keepsDeletedAccount = sameId(input?.accountId, original.acc);
+      if (!accountExists && !keepsDeletedAccount) {
+        toast.show("請選擇有效帳戶", "error");
+        return false;
+      }
+      const maxAmount = Math.max(0, (advance.receivableAmount || 0) - getAdvanceRepaidAmount(state.txs, advance.id, original.id));
+      if (normalizedAmount > maxAmount) {
+        toast.show(`收回金額不能超過 ${maxAmount}`, "error");
+        return false;
+      }
+      const clearsActiveMainEditor = editingTxId && sameId(editingTxId, original.id);
+      commitState((draft) => {
+        const target = draft.txs.find((item) => sameId(item.id, original.id));
+        if (!target) return;
+        target.amount = normalizedAmount;
+        target.date = nextDate;
+        target.acc = input.accountId;
+        target.desc = String(input?.desc || "").trim();
+      }, {
+        updateUi: () => {
+          if (clearsActiveMainEditor) {
+            reset();
+            syncTxType();
+            renderTransactionCategorySelect();
+            populateFundOptions();
+          }
+          renderAll();
+        },
+      });
+      toast.show("已更新代墊收款");
+      return true;
+    }
+
+    if (!allowedTypes.includes(nextType)) {
+      toast.show("不支援這種交易類型", "error");
+      return false;
+    }
+
+    const repaidAmount = original.type === "advance" ? getAdvanceRepaidAmount(state.txs, original.id) : 0;
+    if (original.type === "advance" && nextType !== "advance" && repaidAmount > 0) {
+      toast.show("這筆代墊已有收款紀錄，不能改成其他類型", "error");
+      return false;
+    }
+
+    const accountExists = (accountId) => state.accounts.some((item) => sameId(item.id, accountId));
+    if (nextType === "transfer") {
+      const keepsDeletedFrom = original.type === "transfer" && sameId(input?.fromAcc, original.fromAcc);
+      const keepsDeletedTo = original.type === "transfer" && sameId(input?.toAcc, original.toAcc);
+      if ((!accountExists(input?.fromAcc) && !keepsDeletedFrom) || (!accountExists(input?.toAcc) && !keepsDeletedTo)) {
+        toast.show("請選擇有效的轉出與轉入帳戶", "error");
+        return false;
+      }
+      if (sameId(input.fromAcc, input.toAcc)) {
+        toast.show("轉出與轉入帳戶不能相同", "error");
+        return false;
+      }
+    } else {
+      const keepsDeletedAccount = original.type === nextType && sameId(input?.accountId, original.acc);
+      if (!accountExists(input?.accountId) && !keepsDeletedAccount) {
+        toast.show("請選擇有效帳戶", "error");
+        return false;
+      }
+    }
+
+    const normalizedOwnAmount = toMoneyInt(input?.ownAmount);
+    if (nextType === "advance") {
+      if (!String(input?.person || "").trim()) {
+        toast.show("代墊對象不能空白", "error");
+        return false;
+      }
+      if (normalizedOwnAmount < 0 || normalizedOwnAmount >= normalizedAmount) {
+        toast.show("自己負擔金額必須小於總金額", "error");
+        return false;
+      }
+      if (normalizedAmount - normalizedOwnAmount < repaidAmount) {
+        toast.show(`修改後應收款不能低於已收回的 ${repaidAmount}`, "error");
+        return false;
+      }
+    }
+
+    const next = buildTransaction({
+      txType: nextType,
+      amount: normalizedAmount,
+      desc: input?.desc,
+      date: nextDate,
+      category: input?.category,
+      subcategory: String(input?.subcategory || "").trim() || DEFAULT_SUBCATEGORY,
+      accountId: input?.accountId,
+      fromAcc: input?.fromAcc,
+      toAcc: input?.toAcc,
+      ownAmount: normalizedOwnAmount,
+      person: input?.person || "",
+      budgetMode: "normal",
+      linkedFundId: "",
+    });
+    next.id = original.id;
+    ["externalSource", "externalId", "externalUid", "externalTime"].forEach((key) => {
+      if (original[key] !== undefined) next[key] = original[key];
+    });
+    if (original.type === "expense" && next.type === "expense" && original.budgetMode === "spread") {
+      ["budgetMode", "spreadMonths", "spreadStartMonth", "spreadLabel"].forEach((key) => {
+        if (original[key] !== undefined) next[key] = original[key];
+      });
+    }
+
+    const keepsFundLink = original.type === "expense"
+      && next.type === "expense"
+      && original.linkedFundId
+      && original.amount === next.amount
+      && original.date === next.date;
+    if (keepsFundLink) next.linkedFundId = original.linkedFundId;
+
+    const clearsActiveMainEditor = editingTxId && sameId(editingTxId, original.id);
+    commitState((draft) => {
+      draft.txs = draft.txs.map((item) => (sameId(item.id, original.id) ? next : item));
+      if (keepsFundLink) {
+        draft.sinkingFunds.forEach((item) => {
+          (item.events || []).forEach((event) => {
+            if (event.type === "spend" && sameId(event.linkedTxId, original.id)) event.note = next.desc || next.cat;
+          });
+        });
+      } else {
+        draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, original.id);
+      }
+    }, {
+      updateUi: () => {
+        if (clearsActiveMainEditor) {
+          reset();
+          syncTxType();
+          renderTransactionCategorySelect();
+          populateFundOptions();
+        }
+        renderAll();
+      },
+    });
+
+    if (original.linkedFundId && !keepsFundLink) toast.show("已更新交易，原本的大額準備指定已移除");
+    else toast.show("已更新交易");
+    return true;
+  };
+
   const delTx = (id) => {
     if (!confirmDelete("確定要刪除這筆交易嗎？")) return;
     commitState((draft) => {
@@ -454,6 +627,7 @@ export function createTransactionController({
     delTx,
     repayAdvance,
     editAdvanceRepayment,
+    updateTransactionFromDetail,
     reset,
   };
 }

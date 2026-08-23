@@ -537,12 +537,34 @@ export async function runAndroMoneyImportScenario(app) {
     if (!detailText.includes("汽車保養第一行") || !detailText.includes("汽車保養第二行")) {
       throw new Error("andromoney-full-detail-missing");
     }
+
+    document.getElementById("transaction-detail-edit").click();
+    await waitFor(() => Boolean(document.getElementById("transaction-detail-form")));
+    const detailType = document.getElementById("transaction-detail-type");
+    detailType.value = "expense";
+    detailType.dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("transaction-detail-account").value = "cash";
+    document.getElementById("transaction-detail-category").value = "交通";
+    document.getElementById("transaction-detail-subcategory").value = "汽車保養";
+    document.getElementById("transaction-detail-description").value = `${longDiaryNote}（已從卡片修改）`;
+    document.querySelector('[data-action="save-transaction-detail"]').click();
+    await waitFor(() => {
+      const updated = app.store.getState().txs.find((tx) => String(tx.id) === String(income.id));
+      return updated?.type === "expense" && updated?.acc === "cash" && updated?.desc.endsWith("（已從卡片修改）");
+    });
+    const updated = app.store.getState().txs.find((tx) => String(tx.id) === String(income.id));
+    if (updated?.externalSource !== "andromoney" || updated?.externalId !== income.externalId) {
+      throw new Error("andromoney-detail-edit-lost-provenance");
+    }
+    if (!(document.getElementById("transaction-detail-body").textContent || "").includes("已從卡片修改")) {
+      throw new Error("andromoney-detail-edit-view-not-refreshed");
+    }
     document.getElementById("transaction-detail-close").click();
     if (!document.getElementById("transaction-detail-modal").classList.contains("d-none")) {
       throw new Error("andromoney-detail-modal-not-closed");
     }
 
-    writeSmokeResult("pass", "AndroMoney import preserved long notes, avoided overflow, and opened the complete detail card");
+    writeSmokeResult("pass", "AndroMoney import preserved long notes and inline detail editing safely changed type, account, and note");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

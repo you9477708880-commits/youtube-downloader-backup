@@ -504,7 +504,10 @@
       <button type="button" class="del-btn text-lg p-1" data-action="close-transaction-detail" aria-label="關閉交易明細">×</button>
     </div>
     <div id="transaction-detail-body" class="mt-3"></div>
-    <button type="button" id="transaction-detail-close" class="sbtn outline w-100 mt-3" data-action="close-transaction-detail">關閉</button>
+    <div class="transaction-detail-footer mt-3">
+      <button type="button" id="transaction-detail-edit" class="sbtn d-none" data-action="edit-transaction-detail">編輯這筆交易</button>
+      <button type="button" id="transaction-detail-close" class="sbtn outline" data-action="close-transaction-detail">關閉</button>
+    </div>
   </div>
 </div>
 

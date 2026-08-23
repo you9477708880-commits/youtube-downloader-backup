@@ -298,6 +298,22 @@ For transaction editing:
 - Let the user decide again whether to use a fund, how much to use, and where any difference should come from.
 - If the transaction is edited to no longer use a fund, remove previous related fund events.
 
+卡片內編輯補充：
+
+- 備註、分類、子分類或付款帳戶改變，但金額、日期與支出類型不變時，既有大額準備連結可以保留。
+- 已連結準備的支出若改變金額、日期或交易類型，必須解除準備連結並移除相關事件。
+- 收入、支出、轉帳與代墊可互相更正，但必須重新驗證各類型需要的帳戶與代墊欄位。
+- 已有收款紀錄的代墊不得改成其他類型，以免留下無來源的收款。
+- 代墊收款只能修改金額、日期、入帳帳戶與備註，並保留原本的 `advanceId`。
+
+Inline detail editing addendum:
+
+- A fund link may be preserved when only the note, category, subcategory, or payment account changes and the amount, date, and expense type stay unchanged.
+- Changing the amount, date, or type of a fund-linked expense must remove its fund link and related events.
+- Income, expense, transfer, and advance records may be corrected between types only after validating the fields required by the target type.
+- An advance with repayment records cannot change to another type because that would orphan its repayments.
+- An advance repayment may edit only its amount, date, receiving account, and note while preserving its `advanceId`.
+
 ### 補充：代墊與還款編輯 / Addendum: Advance And Repayment Editing
 
 - 若代墊已經有還款紀錄，重新編輯後的應收金額不得低於已還款總額。

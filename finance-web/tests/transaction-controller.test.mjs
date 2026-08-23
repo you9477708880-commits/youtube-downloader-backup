@@ -570,3 +570,127 @@ test("reset clears stale transaction edit identity before a whole-state replacem
   assert.equal(txs[1].desc, "切換後資料");
   assert.equal(calls.save, 1);
 });
+
+test("detail edit preserves an unchanged fund link and external provenance", async (t) => {
+  const linkedTx = {
+    id: "tx-detail", type: "expense", amount: 600, desc: "舊備註", date: "2026-08-15",
+    cat: "餐飲", category: "餐飲", subcategory: "午餐", acc: "cash", linkedFundId: "fund-1",
+    externalSource: "andromoney", externalId: "csv-1",
+  };
+  const { actions, store } = createHarness(t, {
+    txs: [linkedTx],
+    sinkingFunds: [fund({ events: [{ id: "spend-1", type: "spend", amount: 600, date: "2026-08-15", note: "舊備註", linkedTxId: "tx-detail" }] })],
+  });
+
+  const saved = await actions.updateTransactionFromDetail("tx-detail", {
+    type: "expense", amount: "600", date: "2026-08-15", category: "餐飲", subcategory: "晚餐",
+    accountId: "bank", desc: "卡片內修改",
+  });
+
+  const state = store.getState();
+  assert.equal(saved, true);
+  assert.equal(state.txs[0].linkedFundId, "fund-1");
+  assert.equal(state.txs[0].externalSource, "andromoney");
+  assert.equal(state.txs[0].externalId, "csv-1");
+  assert.equal(state.txs[0].acc, "bank");
+  assert.equal(state.sinkingFunds[0].events[0].note, "卡片內修改");
+});
+
+test("detail edit can change type and removes obsolete fund events", async (t) => {
+  const { actions, store, calls } = createHarness(t, {
+    txs: [{ id: "tx-linked", type: "expense", amount: 600, desc: "午餐", date: "2026-08-15", cat: "餐飲", category: "餐飲", subcategory: "午餐", acc: "cash", linkedFundId: "fund-1" }],
+    sinkingFunds: [fund({ events: [{ id: "spend-1", type: "spend", amount: 600, date: "2026-08-15", linkedTxId: "tx-linked" }] })],
+  });
+
+  const saved = await actions.updateTransactionFromDetail("tx-linked", {
+    type: "transfer", amount: "600", date: "2026-08-16", fromAcc: "cash", toAcc: "bank", desc: "改成轉帳",
+  });
+
+  const tx = store.getState().txs[0];
+  assert.equal(saved, true);
+  assert.deepEqual({ type: tx.type, fromAcc: tx.fromAcc, toAcc: tx.toAcc, acc: tx.acc, linkedFundId: tx.linkedFundId }, {
+    type: "transfer", fromAcc: "cash", toAcc: "bank", acc: undefined, linkedFundId: undefined,
+  });
+  assert.deepEqual(store.getState().sinkingFunds[0].events, []);
+  assert.match(calls.toasts.at(-1)[0], /準備指定已移除/);
+});
+
+test("detail edit blocks changing an advance that already has repayments", async (t) => {
+  const { actions, store, calls } = createHarness(t, { txs: advanceRows() });
+  const before = structuredClone(store.getState());
+  const saved = await actions.updateTransactionFromDetail("adv-1", {
+    type: "expense", amount: "5000", date: "2026-08-01", category: "餐飲", subcategory: "聚餐", accountId: "cash", desc: "不應儲存",
+  });
+
+  assert.equal(saved, false);
+  assert.deepEqual(store.getState(), before);
+  assert.match(calls.toasts.at(-1)[0], /已有收款紀錄/);
+});
+
+test("detail edit updates repayment fields but keeps its advance relationship", async (t) => {
+  const { actions, store } = createHarness(t, { txs: advanceRows() });
+  const saved = await actions.updateTransactionFromDetail("repay-1", {
+    type: "advance_repayment", amount: "1200", date: "2026-08-07", accountId: "bank", desc: "現場收回",
+  });
+
+  const repayment = store.getState().txs.find((tx) => tx.id === "repay-1");
+  assert.equal(saved, true);
+  assert.deepEqual(
+    { amount: repayment.amount, date: repayment.date, acc: repayment.acc, desc: repayment.desc, advanceId: repayment.advanceId, type: repayment.type },
+    { amount: 1200, date: "2026-08-07", acc: "bank", desc: "現場收回", advanceId: "adv-1", type: "advance_repayment" },
+  );
+});
+
+test("detail edit preserves deleted account references when only content changes", async (t) => {
+  const { actions, store } = createHarness(t, {
+    accounts: [{ id: "bank", name: "銀行", type: "asset", initialBalance: 0 }],
+    txs: [{ id: "tx-deleted-account", type: "expense", amount: 300, date: "2026-08-10", category: "餐飲", subcategory: "午餐", cat: "餐飲", acc: "deleted-cash", desc: "原備註" }],
+  });
+
+  const saved = await actions.updateTransactionFromDetail("tx-deleted-account", {
+    type: "expense", amount: "300", date: "2026-08-10", category: "餐飲", subcategory: "午餐",
+    accountId: "deleted-cash", desc: "只改備註",
+  });
+
+  assert.equal(saved, true);
+  assert.equal(store.getState().txs[0].acc, "deleted-cash");
+  assert.equal(store.getState().txs[0].desc, "只改備註");
+});
+
+test("detail edit preserves legacy spread fields while the record remains an expense", async (t) => {
+  const { actions, store } = createHarness(t, {
+    txs: [{
+      id: "tx-spread", type: "expense", amount: 1200, date: "2026-08-10", category: "費用", subcategory: "保險", cat: "費用", acc: "cash", desc: "舊保費",
+      budgetMode: "spread", spreadMonths: 12, spreadStartMonth: "2026-08", spreadLabel: "年度保費",
+    }],
+  });
+
+  const saved = await actions.updateTransactionFromDetail("tx-spread", {
+    type: "expense", amount: "1200", date: "2026-08-10", category: "費用", subcategory: "保險", accountId: "bank", desc: "新保費備註",
+  });
+
+  const tx = store.getState().txs[0];
+  assert.equal(saved, true);
+  assert.deepEqual(
+    { budgetMode: tx.budgetMode, spreadMonths: tx.spreadMonths, spreadStartMonth: tx.spreadStartMonth, spreadLabel: tx.spreadLabel },
+    { budgetMode: "spread", spreadMonths: 12, spreadStartMonth: "2026-08", spreadLabel: "年度保費" },
+  );
+});
+
+test("detail edit clears a stale main-form editor for the same transaction", async (t) => {
+  const original = { id: "tx-both", type: "expense", amount: 500, date: "2026-08-10", category: "餐飲", subcategory: "午餐", cat: "餐飲", acc: "cash", desc: "舊值" };
+  const { actions, calls, dom, store } = createHarness(t, { txs: [original] });
+  actions.beginEditTx("tx-both");
+
+  const saved = await actions.updateTransactionFromDetail("tx-both", {
+    type: "expense", amount: "500", date: "2026-08-10", category: "餐飲", subcategory: "午餐", accountId: "cash", desc: "卡片新值",
+  });
+
+  assert.equal(saved, true);
+  assert.equal(dom.inputAmount.value, "");
+  assert.deepEqual(calls.editModes.at(-1), { active: false });
+  fillTransaction(dom, { amount: "900", desc: "另一筆新交易" });
+  await actions.addTx();
+  assert.equal(store.getState().txs.length, 2);
+  assert.equal(store.getState().txs.find((tx) => tx.id === "tx-both").desc, "卡片新值");
+});

@@ -24,6 +24,9 @@ const DATA_ACTIONS = {
   "open-fund": ({ button, actions }) => actions.openFund(button.dataset.id),
   "view-tx": ({ button, actions }) => actions.openTransactionDetail(button.dataset.id, button),
   "view-budget-source": ({ button, actions }) => actions.openBudgetSourceDetail(button.dataset.id, button.dataset.sourceType, button),
+  "edit-transaction-detail": ({ actions }) => actions.editTransactionDetail(),
+  "cancel-transaction-detail-edit": ({ actions }) => actions.cancelTransactionDetailEdit(),
+  "save-transaction-detail": ({ actions }) => { void actions.saveTransactionDetail(); },
   "close-transaction-detail": ({ actions }) => actions.closeTransactionDetail(),
   "filter-goals": ({ button, handlers }) => handlers.filterGoalCenter(button.dataset.filter),
   "export-data": ({ handlers }) => handlers.exportData(),
@@ -63,6 +66,10 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
 
   on(dom.transactionDetailModal, "click", (event) => {
     if (event.target === dom.transactionDetailModal) actions.closeTransactionDetail();
+  });
+
+  on(dom.transactionDetailModal, "change", (event) => {
+    if (event.target?.id === "transaction-detail-type") actions.syncTransactionDetailType();
   });
 
   const bindForm = (id, callback) => {

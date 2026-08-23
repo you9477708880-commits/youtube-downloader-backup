@@ -191,6 +191,7 @@ function collectDom(doc = document) {
     transactionDetailModal: $("transaction-detail-modal", doc),
     transactionDetailTitle: $("transaction-detail-title", doc),
     transactionDetailBody: $("transaction-detail-body", doc),
+    transactionDetailEdit: $("transaction-detail-edit", doc),
     transactionDetailClose: $("transaction-detail-close", doc),
   };
 }
@@ -744,11 +745,13 @@ export async function bootstrapFinanceApp(doc = document) {
       modal: dom.transactionDetailModal,
       title: dom.transactionDetailTitle,
       body: dom.transactionDetailBody,
+      edit: dom.transactionDetailEdit,
       close: dom.transactionDetailClose,
     },
     store,
     formatMoney,
     escapeHTML,
+    updateTransaction: (id, input) => transactionController.updateTransactionFromDetail(id, input),
   });
   const importController = createImportController({
     elements: {
@@ -846,6 +849,10 @@ export async function bootstrapFinanceApp(doc = document) {
     presetRet: retirementController.presetRet,
     openTransactionDetail: transactionDetailController.openTransaction,
     openBudgetSourceDetail: transactionDetailController.openBudgetSource,
+    editTransactionDetail: transactionDetailController.startEdit,
+    cancelTransactionDetailEdit: transactionDetailController.cancelEdit,
+    saveTransactionDetail: transactionDetailController.saveEdit,
+    syncTransactionDetailType: transactionDetailController.syncEditorType,
     closeTransactionDetail: transactionDetailController.close,
     trapTransactionDetailFocus: transactionDetailController.trapFocus,
   };

@@ -7,6 +7,7 @@ function createClassList(initial = ["d-none"]) {
   return {
     add: (...items) => items.forEach((item) => values.add(item)),
     remove: (...items) => items.forEach((item) => values.delete(item)),
+    toggle: (item, force) => force ? values.add(item) : values.delete(item),
     contains: (item) => values.has(item),
   };
 }
@@ -22,6 +23,7 @@ function setup() {
   };
   const title = { textContent: "" };
   const body = { innerHTML: "" };
+  const edit = { classList: createClassList(), focused: false, focus() { this.focused = true; } };
   const close = { focused: false, focus() { this.focused = true; } };
   const trigger = { focused: false, focus() { this.focused = true; } };
   const state = {
@@ -51,12 +53,13 @@ function setup() {
     }],
   };
   const controller = createTransactionDetailController({
-    elements: { modal, title, body, close },
+    elements: { modal, title, body, edit, close },
     store: { getState: () => state },
     formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
     escapeHTML: (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
+    updateTransaction: async () => true,
   });
-  return { controller, modal, title, body, close, trigger, doc, first, last };
+  return { controller, modal, title, body, edit, close, trigger, doc, first, last, state };
 }
 
 test("opens a complete escaped transaction detail and restores focus when closed", () => {
@@ -69,6 +72,7 @@ test("opens a complete escaped transaction detail and restores focus when closed
   assert.match(fx.body.innerHTML, /第一行\n第二行 &lt;script&gt;/);
   assert.doesNotMatch(fx.body.innerHTML, /<script>/);
   assert.equal(fx.close.focused, true);
+  assert.equal(fx.edit.classList.contains("d-none"), false);
   assert.equal(fx.controller.close(), true);
   assert.equal(fx.modal.classList.contains("d-none"), true);
   assert.equal(fx.trigger.focused, true);
@@ -80,6 +84,7 @@ test("opens fund plan and top-up source details without changing state", () => {
   assert.equal(fx.title.textContent, "大額準備提撥明細");
   assert.match(fx.body.innerHTML, /每月提撥/);
   assert.match(fx.body.innerHTML, /NT\$ 2,000/);
+  assert.equal(fx.edit.classList.contains("d-none"), true);
   fx.controller.close();
 
   assert.equal(fx.controller.openBudgetSource("topup-1", "fund-topup"), true);
@@ -102,4 +107,64 @@ test("keeps keyboard focus inside the open detail dialog", () => {
   assert.equal(fx.doc.activeElement, fx.last);
   fx.controller.close();
   assert.equal(fx.controller.trapFocus({ key: "Tab" }), false);
+});
+
+test("switches a transaction detail into an inline editor and can cancel", () => {
+  const fx = setup();
+  fx.controller.openTransaction("tx-1", fx.trigger);
+  assert.equal(fx.controller.startEdit(), true);
+  assert.match(fx.body.innerHTML, /transaction-detail-form/);
+  assert.match(fx.body.innerHTML, /完整備註/);
+  assert.equal(fx.title.textContent, "編輯交易");
+  assert.equal(fx.edit.classList.contains("d-none"), true);
+  assert.equal(fx.controller.cancelEdit(), true);
+  assert.equal(fx.title.textContent, "支出：餐飲食品 \/ 午餐");
+  assert.equal(fx.edit.classList.contains("d-none"), false);
+});
+
+test("editor exposes a selected fallback for a deleted account", () => {
+  const fx = setup();
+  fx.state.accounts = [];
+  fx.controller.openTransaction("tx-1");
+  fx.controller.startEdit();
+  assert.match(fx.body.innerHTML, /value="cash" selected>已刪除帳戶（原紀錄）<\/option>/);
+});
+
+test("saving keeps the original transaction-row focus target", async () => {
+  const fx = setup();
+  fx.controller.openTransaction("tx-1", fx.trigger);
+  fx.controller.startEdit();
+  const values = {
+    "#transaction-detail-type": "expense",
+    "#transaction-detail-amount": "440",
+    "#transaction-detail-date": "2026-08-01",
+    "#transaction-detail-category": "餐飲食品",
+    "#transaction-detail-subcategory": "午餐",
+    "#transaction-detail-account": "cash",
+    "#transaction-detail-from-account": "cash",
+    "#transaction-detail-to-account": "cash",
+    "#transaction-detail-person": "",
+    "#transaction-detail-own-amount": "",
+    "#transaction-detail-description": "修改後",
+  };
+  fx.body.querySelector = (selector) => selector === "#transaction-detail-form"
+    ? { checkValidity: () => true }
+    : selector in values ? { value: values[selector] } : null;
+
+  assert.equal(await fx.controller.saveEdit(), true);
+  fx.trigger.focused = false;
+  fx.controller.close();
+  assert.equal(fx.trigger.focused, true);
+});
+
+test("advance editor shows the amount already repaid", () => {
+  const fx = setup();
+  fx.state.txs = [
+    { id: "advance-1", type: "advance", amount: 1000, ownAmount: 200, receivableAmount: 800, person: "朋友", date: "2026-08-01", category: "餐飲", subcategory: "聚餐", acc: "cash", desc: "代墊" },
+    { id: "repay-1", type: "advance_repayment", advanceId: "advance-1", amount: 300, date: "2026-08-02", acc: "cash" },
+  ];
+  fx.controller.openTransaction("advance-1");
+  fx.controller.startEdit();
+  assert.match(fx.body.innerHTML, /目前已收回 NT\$ 300/);
+  assert.match(fx.body.innerHTML, /不能改成其他交易類型/);
 });
