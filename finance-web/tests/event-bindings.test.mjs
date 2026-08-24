@@ -50,7 +50,7 @@ function createHarness() {
     "txCancelButton", "fundCancelButton", "bsCancelButton", "wishCancelButton",
     "androMoneyCancel", "androMoneyConfirm", "androMoneyAccounts", "inputAmount", "inputOwnAmount",
     "budgetCapInput", "fundTarget", "fundMonthly", "balanceAmount", "catBudgetAmount",
-    "wishPrice", "retireLinked", "authButton", "cloudStatus", "currentAge", "retirementAge", "deathAge",
+    "wishPrice", "retireLinked", "retireGuardrailPanel", "authButton", "cloudStatus", "currentAge", "retirementAge", "deathAge",
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
@@ -67,7 +67,7 @@ function createHarness() {
   const handlerNames = [
     "exportData", "triggerImport", "exportAndroMoney", "triggerAndroMoneyImport",
     "changeBalanceType", "cancelAndroMoneyImport", "confirmAndroMoneyImport", "syncAndroMoneyAccountChoice",
-    "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "runAuthAction", "retryCloudSync",
+    "normalizeMoneyInput", "updateBudgetCap", "updateRetirementLinked", "updateRetirementGuardrail", "runAuthAction", "retryCloudSync",
     "updateRetirementAge", "updateRetirementInput", "importJsonFile", "importAndroMoneyFile",
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
@@ -177,6 +177,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   harness.doc.emit("keydown", { key: "Tab" });
   dom.currentAge.emit("input");
   dom.retireAsset.emit("input");
+  dom.retireGuardrailPanel.emit("input");
   dom.fileImport.emit("change");
   dom.fileAndroMoneyImport.emit("change");
   win.emit("online");
@@ -206,6 +207,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "trapTransactionDetailFocus",
     "updateRetirementAge",
     "updateRetirementInput",
+    "updateRetirementGuardrail",
     "importJsonFile",
     "importAndroMoneyFile",
     "updateConnectivity",

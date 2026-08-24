@@ -983,10 +983,19 @@ export async function runDesktopCoreLayoutScenario() {
     if (!retirementScenarioText.includes("延後 3 年退休") || !retirementScenarioText.includes("每月提領減少 10%")) {
       throw new Error("retirement-scenarios-missing");
     }
+    const guardrailPanel = document.getElementById("rg-panel");
+    if (!(guardrailPanel?.textContent || "").includes("護欄年度檢查")) {
+      throw new Error("retirement-guardrail-panel-missing");
+    }
+    await waitFor(() => (document.getElementById("rg-output")?.textContent || "").includes("本次提領來源順序"));
+    const guardrailText = document.getElementById("rg-output")?.textContent || "";
+    if (!guardrailText.includes("目前提領率") || !guardrailText.includes("投資組合內現金")) {
+      throw new Error("retirement-guardrail-output-missing");
+    }
     document.querySelector('[data-action="toggle-tbl"]')?.click();
     await waitFor(() => !document.getElementById("tbl-w").classList.contains("d-none"));
 
-    writeSmokeResult("pass", "desktop workspaces render, retirement scenarios appear, and retirement table toggles");
+    writeSmokeResult("pass", "desktop workspaces render, retirement scenarios and guardrail source planning appear, and retirement table toggles");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

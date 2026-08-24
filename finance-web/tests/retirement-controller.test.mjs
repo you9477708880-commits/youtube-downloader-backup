@@ -154,10 +154,11 @@ test("projection-only inputs and ages render without committing or changing stat
   controller.updateAge();
   controller.updateAge();
   controller.updateAge();
+  controller.updateGuardrail();
 
   assert.deepEqual(store.getState(), original);
   assert.equal(calls.commit, 0);
-  assert.equal(calls.render, cases.length + 3);
+  assert.equal(calls.render, cases.length + 4);
 });
 
 test("preset changes only projection controls and renders once", () => {

@@ -490,7 +490,10 @@ Remaining limits:
 
 - 自訂報酬率、通膨、提領、壽命的推估是主邏輯。
 - 4% 法則只是額外參考。
-- 不先擴張成完整投資模擬器。
+- 護欄輸入、目前／目標股票債券現金配置、報酬率與緊急預備金目標年數都只存在畫面記憶體；重新載入即回到範例值，不加入 state、JSON、localStorage 或 Firestore。
+- `emergencyFund` 由既有標記為緊急預備金的帳戶與手動項目推導，仍排除在 `retirementReadyAsset` 之外；只有使用者勾選允許時，年度來源試算才可把它列為股票之前的備援來源。
+- 護欄決策與 `withdrawal source plan` 都是衍生結果，不保存，也不自動建立提領交易。
+- 僅加入透明的年度規則與來源順序，不擴張成蒙地卡羅、稅務或自動再平衡交易平台。
 - 推估結果不是帳務事實，不應寫回交易或資產負債。
 
 ### English
@@ -499,5 +502,8 @@ The retirement page should remain a personal estimator in the short term:
 
 - Custom return rate, inflation, withdrawal, and lifespan assumptions are the main logic.
 - The 4% rule is only an additional reference.
-- Do not expand it into a full investment simulation tool yet.
+- Guardrail inputs, current/target stock-bond-cash allocations, return inputs, and the emergency-reserve year target are UI-memory only. They are absent from state, JSON, localStorage, and Firestore.
+- `emergencyFund` is derived from existing emergency-marked accounts and manual items and remains excluded from `retirementReadyAsset`. It enters the annual source plan only through explicit opt-in.
+- Guardrail decisions and withdrawal source plans are derived, non-persisted results and never create withdrawal transactions automatically.
+- The feature remains a transparent annual-rule estimator rather than a Monte Carlo, tax, or automated rebalancing platform.
 - Projection results are not accounting facts and should not write back to transactions or the balance sheet.

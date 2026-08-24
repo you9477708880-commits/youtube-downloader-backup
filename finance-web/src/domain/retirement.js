@@ -109,6 +109,7 @@ export function calculateRetirementProjection({ state, currentAge, retirementAge
 
   return {
     retirementReadyAsset,
+    emergencyFund,
     principal,
     table,
     retirementRow,

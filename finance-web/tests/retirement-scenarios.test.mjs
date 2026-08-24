@@ -50,8 +50,8 @@ test("retirement scenarios change one condition at a time without mutating input
   assert.deepEqual(inputs, before.inputs);
 });
 
-test("retirement scenario rendering stays collapsed and explains its limits", () => {
-  const node = (value = "") => ({ value, textContent: "", innerHTML: "", className: "" });
+test("retirement scenario and guardrail rendering stay projection-only and explain their limits", () => {
+  const node = (value = "") => ({ value, textContent: "", innerHTML: "", className: "", checked: false });
   const dom = {
     currentAge: node("30"), retirementAge: node("65"), deathAge: node("90"),
     retireAsset: node("500000"), retireMonthly: node("10000"),
@@ -60,6 +60,13 @@ test("retirement scenario rendering stays collapsed and explains its limits", ()
     retireLinkedValue: node(), retireAssetValue: node(), retireAssetAtRetire: node(),
     retireAchieve: node(), retirePaid: node(), retireGain: node(), retireSuggestion: node(),
     retireScenarios: node(), retireTable: node(),
+    retireGuardrailPortfolio: node("20000000"), retireGuardrailWithdrawal: node("1060000"),
+    retireGuardrailInitialRate: node("5.3"), retireGuardrailPortfolioReturn: node("-10"),
+    retireGuardrailCurrentStock: node("60"), retireGuardrailCurrentBond: node("30"), retireGuardrailCurrentCash: node("10"),
+    retireGuardrailTargetStock: node("60"), retireGuardrailTargetBond: node("30"), retireGuardrailTargetCash: node("10"),
+    retireGuardrailStockReturn: node("-20"), retireGuardrailBondReturn: node("-5"),
+    retireGuardrailUseEmergency: node(), retireGuardrailReserveTargetYears: node("1.5"),
+    retireGuardrailEmergencyLabel: node(), retireGuardrailOutput: node(),
   };
   const utils = {
     formatMoney: (value) => `NT$ ${Math.round(Number(value)).toLocaleString("en-US")}`,
@@ -72,4 +79,9 @@ test("retirement scenario rendering stays collapsed and explains its limits", ()
   assert.match(dom.retireScenarios.innerHTML, /延後 3 年退休/);
   assert.match(dom.retireScenarios.innerHTML, /每月提領減少 10%/);
   assert.match(dom.retireScenarios.innerHTML, /不是投資建議、承諾或保證/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /目前提領率/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /本次提領來源順序/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /使用投資組合內現金/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /不會修改帳戶、建立交易或保證資金安全/);
+  assert.match(dom.retireGuardrailEmergencyLabel.textContent, /目前可辨識緊急預備金/);
 });

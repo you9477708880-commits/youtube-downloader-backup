@@ -1,6 +1,6 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-08-23
+最後更新 / Last updated: 2026-08-24
 正式穩定分支 / Production stable branch: `main` at `e01aa1c`
 本機候選分支 / Local candidate branch: `codex/next`
 最新已部署安全點 / Latest deployed safety point: `e01aa1c 避免相同資料誤判同步衝突`
@@ -95,6 +95,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 帳戶中心與信用卡管理本機驗收版：沿用資產負債頁的帳戶資料，提供展開式帳戶卡片、本月流入／流出、信用卡額度與結帳週期、刷卡／繳款摘要，以及需確認的可追溯對帳調整；不新增頂層分頁、不重複儲存報表總額。
 - 財務導航摘要 A 本機候選：收在月度回顧的預設折疊區，只整理收入、生活支出、資產、負債四個既有數字與兩個不保存答案的自評問題；不新增六要素分數或財務階段判定。
 - 退休情境比較 A 本機候選：比較目前設定、延後三年退休及每月提領降低 10%，每次只改一個條件；顯示退休時資產、最低需求估算及耗盡時間，維持個人估算器而非投資平台定位。
+- 退休護欄與提領來源本機候選：依 Guyton-Klinger 年度決策規則顯示提領率護欄、通膨凍結、10% 增減與年齡停用條件；使用者需輸入目前／目標股票債券現金配置，來源順序會優先使用上漲超配資產、現金及債券，緊急預備金需明確允許，最後才賣股票。所有輸入與結果均不保存、不建立交易。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
@@ -160,6 +161,7 @@ Added on 2026-08-23 and currently local only, not pushed or deployed:
 - The Account Center and Credit Card Management local acceptance build adds expandable account details, monthly flow, credit limits and billing cycles, card charges/payments, and confirmed traceable reconciliation without a new top-level tab or duplicate totals.
 - Financial Navigation Summary A is a local-only collapsed monthly-review candidate. It reuses four existing figures—income, living expense, assets, and liabilities—and adds two non-persisted reflection questions without scoring or stage classification.
 - Retirement Scenario Comparison A is a local-only estimator candidate. It compares the current setup, retiring three years later, and withdrawing 10% less per month by changing one condition at a time; it does not persist scenarios or make guarantees.
+- Retirement Guardrail and Withdrawal Sources is a local-only candidate based on the Guyton-Klinger annual decision rules. It accepts current/target stock-bond-cash allocation, keeps emergency reserve opt-in, places stock last after a negative equity year when other sources suffice, and persists neither inputs nor results.
 
 The following other batch was completed, pushed, and deployed on 2026-08-10:
 - The first wishlist-to-fund integration step is complete: a wishlist item can prefill the large-expense fund form with name, target amount, monthly contribution, category, and note. This only pre-fills the form; it does not directly create a fund, create a transaction, or create `topup` / `spend` events.
@@ -181,6 +183,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 - 退休頁目前定位為個人估算器，不是完整投資模擬器。
 - 4% 法則只是參考提示，不是主要退休警告邏輯。
 - 退休情境比較只做透明的單一變因敏感度試算，不保存情境、不自動調整設定，也不代表投資建議或保證。
+- 護欄的 5.3% 僅是研究範例；實際使用必須輸入個人起始提領率與配置。緊急預備金預設不動用，來源試算不會建立真實交易。
 - 本機資料已分成未登入 `local` 與 Firebase `uid` namespace；舊 `fin_v6_*`
   只遷移到未綁定 local，不會自動歸入 Google 帳號。
 
@@ -196,6 +199,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 - The retirement page is currently a personal estimator, not a full investment simulation tool.
 - The 4% rule is only a reference hint, not the main retirement warning logic.
 - Retirement scenario comparison is a transparent one-variable sensitivity check. It does not persist scenarios, change settings automatically, or represent investment advice or a guarantee.
+- The 5.3% guardrail value is a research example, not a universal recommendation. Emergency reserve is opt-in, and source planning never creates actual transactions.
 - Local data is separated into the signed-out `local` namespace and Firebase `uid`
   namespaces. Legacy `fin_v6_*` data migrates only to unbound local storage.
 

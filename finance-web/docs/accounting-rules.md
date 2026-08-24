@@ -392,6 +392,12 @@ Deletions use tombstones so stale offline devices cannot silently restore remove
 - 自訂報酬率、通膨、退休年齡、壽命、每月提領是主邏輯。
 - 4% 法則只是額外參考。
 - 不把 4% 法則當成主要警告依據。
+- 護欄年度檢查使用使用者輸入的投資組合市值、起始提領率、上年度提領與報酬率試算，不把 5.3% 視為所有人的固定答案。
+- 提領率高於起始提領率的 120% 時，在預期壽命前 15 年以前把下年度提領降低 10%；低於 80% 時提高 10%。
+- 上年度組合報酬為負且目前提領率高於起始提領率時，跳過通膨調整；並非所有負報酬年份都自動凍結。
+- 提領來源依簡化順序試算：上漲且超配的股票、上漲且超配的債券、投資組合現金、其餘債券、經使用者明確允許的緊急預備金、最後才是其餘股票。
+- 緊急預備金預設不動用；1–2 年等目標只是使用者可調整的非持久化規劃值。
+- 護欄與來源順序只產生試算，不建立交易、不改帳戶餘額，也不寫回資產負債表。
 - 推估結果不寫回交易、帳戶或資產負債表。
 
 ### English
@@ -401,6 +407,12 @@ The retirement page remains a personal estimator:
 - Custom return rate, inflation, retirement age, lifespan, and monthly withdrawal are the main logic.
 - The 4% rule is only an additional reference.
 - Do not use the 4% rule as the main warning logic.
+- The annual guardrail check uses user-entered portfolio value, initial withdrawal rate, prior withdrawal, and prior returns. The 5.3% example is not a universal default recommendation.
+- Above 120% of the initial rate, next year's withdrawal is reduced by 10% while the capital-preservation rule is active; below 80%, it is increased by 10%.
+- A negative-return year skips inflation only when the current withdrawal rate is also above the initial rate.
+- The simplified source order is positive-return overweight equities, positive-return overweight bonds, portfolio cash, remaining bonds, explicitly authorized emergency reserve, then remaining equities.
+- Emergency reserve is opt-in. A one-to-two-year target is a non-persisted planning input.
+- Guardrail and source-order outputs do not create transactions, change balances, or write back to the balance sheet.
 - Projection results should not write back to transactions, accounts, or the balance sheet.
 
 ## 11. 維護檢查點 / Maintenance Checklist

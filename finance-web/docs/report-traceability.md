@@ -49,6 +49,8 @@ This document defines the traceability standard for report numbers. Users should
 | 現金流 / Cash Flow | 營運支出 | `expense.amount` + `advance.ownAmount` | 可由交易推導 |
 | 退休 / Retirement | 退休推估 | 使用者輸入 + 資產資料 + 模型參數 | 推估，不是帳務事實 |
 | 退休 / Retirement | 4% 法則參考 | 每月提領 × 300 | 經驗法則提示 |
+| 退休 / Guardrail | 明年提領額 | 目前組合、上年度提領、起始提領率、通膨與上年度報酬 | 非持久化年度規則試算 |
+| 退休 / Withdrawal Sources | 提領來源順序 | 使用者輸入的目前／目標配置、資產報酬、既有緊急預備金 | 非持久化來源規劃，不建立交易 |
 
 ## 3. 預算頁追溯 / Budget Traceability
 
@@ -237,12 +239,18 @@ Traceability rules:
 - 目前資產可來自資產負債表連動，或使用者手動輸入。
 - 報酬率、通膨、退休年齡、壽命、提領金額由使用者輸入。
 - 4% 法則參考來自 `每月提領 × 300`。
+- 護欄的投資組合市值、起始提領率、上年度提領／報酬、目前與目標配置由使用者在折疊區輸入，不保存。
+- 緊急預備金金額沿用既有 `accounts`／`bsI` 的 `isEm` 標記推導；是否納入本次來源試算由使用者明確勾選。
 
 規則：
 
 - 推估結果不應寫回 `txs`。
 - 推估結果不應寫回 `accounts` 或 `bsI`。
 - 4% 法則不是主要警告邏輯，只是經驗法則提示。
+- 護欄輸出應列出目前、上下界提領率、明年提領額與觸發規則。
+- 來源列出的金額合計應等於明年提領額，或明確顯示尚未支應的差額。
+- 股票負報酬時，只有在現金、債券與已授權的緊急預備金都不足後，來源試算才列出賣出股票。
+- 來源試算不修改 `txs`、`accounts`、`bsI` 或資產配置。
 
 ### English
 
@@ -253,12 +261,18 @@ Sources:
 - Current assets may come from linked balance-sheet data or manual user input.
 - Return rate, inflation, retirement age, lifespan, and withdrawal amount come from user input.
 - The 4% rule reference comes from `monthly withdrawal × 300`.
+- Guardrail portfolio value, initial rate, prior withdrawal/returns, and current/target allocations are non-persisted user inputs.
+- Emergency reserve comes from existing `isEm`-marked accounts/items and enters the source plan only after explicit opt-in.
 
 Rules:
 
 - Projection results should not write back to `txs`.
 - Projection results should not write back to `accounts` or `bsI`.
 - The 4% rule is not the main warning logic. It is only a rule-of-thumb reference.
+- Guardrail output traces the current/lower/upper rates, next withdrawal, and triggered rule.
+- Withdrawal-source amounts must sum to the next withdrawal or expose an unfunded remainder.
+- After a negative equity year, stock appears only after cash, bonds, and any explicitly authorized emergency reserve are insufficient.
+- The source plan never changes transactions, accounts, manual items, or actual allocation.
 
 ## 9. 維護檢查點 / Maintenance Checklist
 

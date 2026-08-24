@@ -83,6 +83,7 @@ export function createRetirementController({
   };
 
   const updateAge = () => renderAll();
+  const updateGuardrail = () => renderAll();
 
   const updateInput = (inputKey, event) => {
     const [output, formatter] = inputDefinitions[inputKey];
@@ -118,6 +119,7 @@ export function createRetirementController({
     updateLinked,
     updateAge,
     updateInput,
+    updateGuardrail,
     presetRet,
     toggleTable,
     reset,
