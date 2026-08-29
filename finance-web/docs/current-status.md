@@ -11,6 +11,12 @@
 
 ## 目前結論
 
+`codex/next` 已於 2026-08-29 完成候選功能整併與正式上線前的自動化驗證。候選發布範圍包含帳戶中心／信用卡、月度回顧 2.0、財務導航、退休情境與護欄提領來源、生活紀錄提醒、裝置資料清理前端流程，以及 PWA／同步衝突保護。管理 Functions 雖已完成 v7 本機實作與 Emulator 測試，仍明確排除在本次發布範圍之外；Firestore Rules 沒有變更，也不需要部署。
+
+完整 `npm test` 已通過：正式打包 82 個檔案、正式與驗收包啟動、驗收隔離、Auth／Firestore／Functions Emulators 20/20，以及 UI smoke 15/15。另以強制離線驗收版實際檢查桌機與 390px 手機畫面；總覽、記帳／搜尋／生活提醒、帳戶中心、退休護欄、衝突復原中心空狀態與裝置清理第一段提示均無水平溢位，且未執行真正清除。
+
+目前只剩一次整併後人工驗收。驗收請使用 `docs/release-candidate-acceptance-2026-08-29.md`；通過後才合併 `main`、推送、等 GitHub CI，再以受保護命令部署 Hosting。現階段尚未合併、推送或部署。
+
 正式版與本機驗收版已完成程式層隔離。`main` 固定停在目前正式站安全點
 `e01aa1c`；尚未發布的帳戶中心、月度回顧 2.0、財務導航、退休情境與後續候選
 集中在 `codex/next`。本機驗收版由 `.acceptance-public` 專用打包產生，強制停用
@@ -81,6 +87,14 @@ Hosting 均已發布到 `financial-computer`，正式網址為
   events 保留、刪除解除交易連結、topup、wishlist prefill 與 open behavior。
 
 ## 最近驗證結果
+
+2026-08-29 候選功能整併與正式上線準備：
+
+- `npm test` 全數通過：語法與全部 unit、正式打包 82 個檔案、正式版 smoke、驗收隔離 2/2、驗收版 smoke、Emulators 20/20、UI smoke 15/15。
+- 瀏覽器以 `http://127.0.0.1:4186` 的強制離線驗收包檢查核心入口；驗收標示、登入停用、復原中心零紀錄說明與裝置清理「不刪雲端」提示均正確。
+- 390 × 844 手機寬度檢查總覽、記帳、資產負債與退休頁，`documentElement.scrollWidth` 均等於 viewport，沒有水平跑版。
+- 沒有修改功能程式、資料模型、Firestore Rules 或依賴；沒有碰觸正式資料，也沒有執行最後一步裝置清理。
+- 既有警告只剩 Functions dependency 版本、Emulator host Node 版本及 `.js` ESM 重新解析效能提示，不影響本次測試結果；依既定限制不在此批升級依賴。
 
 2026-08-29 額度更新前完整本機批次：
 
@@ -179,7 +193,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 1. 統一人工驗收
 
-- 之後由 Codex 執行 `npm run preview:acceptance`，再一次驗收帳戶中心、月度回顧同期比較、財務導航、退休情境、護欄提領來源與生活紀錄提醒。
+- 之後由 Codex 執行 `npm run preview:acceptance`，依 `docs/release-candidate-acceptance-2026-08-29.md` 一次驗收整批候選；完整細項仍保留在 `docs/manual-acceptance-checklist.md`。
 - 裝置清理在驗收版只測 acceptance namespace；正式 UID 的登出與 Firestore 離線快取清除需另用可丟棄測試帳號驗證，執行前先匯出 JSON，且不可拿唯一正式資料直接測。
 - 驗收版不提供 Google 登入或雲端同步；可匯入正式 JSON 的副本測試，但驗收資料只存在獨立本機 namespace。
 - 財務導航重點檢查資訊是否重複、手機捲動距離是否可接受；退休情境重點確認文字容易理解且不會被誤認為保證。

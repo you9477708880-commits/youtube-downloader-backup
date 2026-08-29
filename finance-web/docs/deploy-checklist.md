@@ -112,7 +112,7 @@ npm run test:emulators
 
 Emulator 測試固定使用 `demo-finance-web`，不得改成正式 Firebase project ID。Firestore 規則測試需驗證未登入、錯誤 UID、legacy fence、migration ID、revision、tombstone 與實體 delete；Functions 最小測試需驗證 HTTP function 能啟動且未授權要求被拒絕。
 
-Functions Emulator 使用獨立的 `firebase.emulator.json`。正式 `firebase.json` 尚未宣告 Functions source 或 Hosting `/api/**` rewrite，因為管理 API 的 summary/delete 仍只支援 v6；完成 v7 recursive delete 與已驗證的管理員 Auth Emulator 測試前，不得部署管理 Functions。
+Functions Emulator 使用獨立的 `firebase.emulator.json`。管理 API 已在本機支援 v7 summary、preparing fallback、tombstone 排除與單一 UID recursive delete，且管理員 Auth／自刪阻擋／UID 隔離均有 Emulator 測試；但正式 `firebase.json` 仍不宣告 Functions source 或 Hosting `/api/**` rewrite。Functions 仍不屬於目前 Hosting 候選發布範圍，沒有另行核准部署、管理員白名單與上線復原方案前不得部署。
 
 ## 資安檢查
 

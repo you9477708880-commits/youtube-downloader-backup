@@ -214,8 +214,9 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 
 立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
-1. **先統一驗收本機候選，再決定發布範圍**
-   - 使用強制離線 acceptance bundle 驗收帳戶中心、月度回顧／導航、退休候選及生活紀錄提醒。
+1. **完成整併後的一次人工驗收，再發布 Hosting 候選**
+   - 2026-08-29 已完成完整 `npm test`、Emulators 20/20、UI smoke 15/15 與桌機／390px 手機瀏覽器整合檢查。
+   - 使用強制離線 acceptance bundle，依 `release-candidate-acceptance-2026-08-29.md` 一次驗收帳戶中心、月度回顧／導航、退休候選、生活紀錄提醒與安全提示。
    - 裝置清理只在 acceptance namespace 或可丟棄測試帳號驗證，不以唯一正式資料測試。
    - Functions 先保留本機 Emulator 證據；除非另行授權部署、設定管理員白名單與 `/api/**` rewrite，否則不發布。
    - Tombstone GC 與管理刪除停寫 fence 保留為下一個資料安全設計題目。
@@ -225,11 +226,11 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 The immediate work order and current commit status are maintained in
 `docs/current-status.md`. The current recommendation is:
 
-1. **Resume controller extraction after the deployed release safety point**
-   - The wishlist controller and its characterization tests are complete.
-   - The sinking-fund controller is the next candidate and should receive characterization tests first.
-   - Do not add formal wishlist/fund bidirectional linking before anti-double-counting
-     rules are defined.
+1. **Run one integrated acceptance pass before publishing the Hosting candidate**
+   - The full automated suite, 20/20 Emulator cases, 15/15 UI smoke scenarios, and desktop/mobile browser integration checks passed on 2026-08-29.
+   - Use the forced-offline acceptance bundle and `release-candidate-acceptance-2026-08-29.md` for the remaining human review.
+   - Test device clearing only in the acceptance namespace or a disposable account, never against the only production copy.
+   - Keep management Functions local unless deployment, administrator allowlisting, and a production recovery plan are separately authorized.
 
 ## 5. 中期重構 / Mid-Term Refactors
 
