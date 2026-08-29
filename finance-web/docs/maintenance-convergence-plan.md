@@ -1,6 +1,6 @@
 # 維護收斂計畫
 
-最後更新：2026-08-29
+最後更新：2026-08-30
 
 ## 結論
 
@@ -12,9 +12,9 @@
 
 | 優先 | 檔案 | 目前規模 | 風險 | 處理原則 |
 | --- | --- | ---: | --- | --- |
-| P1 | `src/app/bootstrap.js` | 約 910 行、45 個 import、約 231 個 DOM 引用 | 初始化、render 與 controller 組裝集中，新增功能容易增加耦合 | 先抽「UI render coordinator」，再抽 controller composition；bootstrap 最後只保留 runtime、store、sync 與 feature 組裝 |
+| 已完成 | `src/app/bootstrap.js` | 920 → 約 307 行 | 原本初始化、render 與 controller 組裝集中 | 已抽出 `ui-coordinator`、`render-coordinator` 與 `controller-composition`；bootstrap 只保留 runtime、store、sync、事件與啟動組裝 |
 | P2 | `src/services/storage-cloud-records.js` | 約 793 行、17 個具名 function | migration、revision、outbox、conflict 與 Firebase adapter 同檔；錯誤可能影響資料安全 | 先補 migration／conflict characterization tests，再拆 `record-sync-protocol` 與 `firestore-record-adapter`；不得改語意後才補測試 |
-| P2 | `src/app/controllers/transaction-controller.js` | 約 641 行 | 表單、驗證、交易建構、準備金連結、代墊與還款集中 | 先把純交易輸入正規化／驗證抽到 domain service，再分普通交易、代墊還款與 fund-link commands |
+| 已完成 | `src/app/controllers/transaction-controller.js` | 641 → 約 413 行 | 原本表單、驗證、交易建構、準備金連結、代墊與還款集中 | 純驗證、fund allocation、detail edit、刪除 cascade 與 repayment command 已移入約 299 行的 `domain/transaction-commands.js`；controller 保留表單與互動編排 |
 | P3 | `src/smoke-scenarios.js` | 約 1305 行 | 測試情境越多越難定位，但不直接影響正式 runtime | 按產品區拆 scenario modules，runner 契約保持不變 |
 
 ## 新功能維護閘門
@@ -31,14 +31,14 @@
 
 ## 建議執行順序
 
-### 批次一：bootstrap 組裝收斂
+### 批次一：bootstrap 組裝收斂（2026-08-30 完成）
 
 - 鎖定目前 15 個 smoke scenarios 與 controller lifecycle tests。
 - 抽出 render coordinator，集中 `renderAll`、各頁局部 render 與 UI-only refresh。
 - 抽出 controller composition，讓元素對照與依賴注入離開 bootstrap。
 - 完成標準：功能不變、`npm test` 全過、bootstrap 明顯縮小且不新增全域狀態。
 
-### 批次二：交易 controller 純邏輯抽離
+### 批次二：交易 controller 純邏輯抽離（2026-08-30 完成）
 
 - 先補普通交易、transfer、advance、repayment、fund shortfall 與 detail edit 的輸入 characterization matrix。
 - 抽出純函式 command builders；controller 只讀表單、呼叫 command、commit 與顯示結果。
@@ -55,6 +55,16 @@
 - 分拆 smoke scenario 檔，但維持一鍵 `npm test`。
 - `current-status.md` 只保留現在真相；歷史證據移入 archive 或 Git 歷史，避免交接文件反覆自相矛盾。
 - 每次發布同步更新 `current-status.md`、`roadmap.md`、`deploy-checklist.md`。
+
+## 第一、二批完成證據
+
+- `bootstrap.js` 從 920 行降至約 307 行；新增約 259 行 UI coordinator、79 行 render coordinator 與 404 行 controller composition，各檔責任單一且沒有新增全域狀態。
+- `transaction-controller.js` 從 641 行降至約 413 行；帳務 command 可在沒有 DOM、Firebase 或 localStorage 的情況下直接測試。
+- 新增 render coordinator 3 項單元測試與 transaction commands 4 項單元測試；原本 20 項 transaction controller characterization tests 保持通過。
+- 交易準備金不足、交易解除準備、代墊修改、還款修改、交易搜尋、帳戶中心與 AndroMoney 匯入的聚焦 browser smoke 已通過。
+- 未改 state schema、record codec、Firestore Rules、Functions、帳務公式、同步格式或 UI layout。
+
+目前下一個結構性工作是批次三 record sync 邊界拆分；它必須單獨授權與驗證，不和新功能、migration 或部署同批進行。
 
 ## 這次生活週期提醒的邊界
 

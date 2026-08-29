@@ -1,12 +1,19 @@
-import { calculateBudgetData } from "../../domain/budget.js";
 import {
-  buildAdvanceRepayment,
-  buildTransaction,
   getAdvanceOutstanding,
   getAdvanceRepaidAmount,
   getOpenAdvances,
 } from "../../domain/transactions.js";
-import { getFundAvailableBeforeExpense, withoutFundEventsLinkedToTransaction } from "../../domain/sinking-funds.js";
+import {
+  applyDeleteTransaction,
+  applyDetailTransaction,
+  applyMainTransaction,
+  planFundAllocation,
+  prepareAdvanceRepaymentEdit,
+  prepareDetailTransaction,
+  prepareMainTransaction,
+  prepareNewAdvanceRepayment,
+  sameTransactionId,
+} from "../../domain/transaction-commands.js";
 import { DEFAULT_SUBCATEGORY } from "../../config/constants.js";
 import { localDateStr, toMoneyInt } from "../../utils/format.js";
 
@@ -17,19 +24,6 @@ function createClientId(prefix) {
 
 function createFundEventId() {
   return createClientId("fe");
-}
-
-function buildMonthRange(date) {
-  const month = String(date || "").slice(0, 7);
-  if (!/^\d{4}-\d{2}$/.test(month)) return null;
-  const [yearText, monthText] = month.split("-");
-  const year = Number(yearText);
-  const monthIndex = Number(monthText);
-  const endDay = new Date(year, monthIndex, 0).getDate();
-  return {
-    start: `${month}-01`,
-    end: `${month}-${String(endDay).padStart(2, "0")}`,
-  };
 }
 
 export function createTransactionController({
@@ -68,7 +62,7 @@ export function createTransactionController({
   let editingTxId = null;
   let editingOriginalLinkedFundId = "";
 
-  const sameId = (left, right) => String(left) === String(right);
+  const sameId = sameTransactionId;
 
   const reset = () => {
     editingTxId = null;
@@ -81,15 +75,6 @@ export function createTransactionController({
     description.value = "";
     setEditMode({ active: false });
   };
-
-  const getEditableBaseState = (state) =>
-    editingTxId
-      ? {
-          ...state,
-          txs: state.txs.filter((tx) => !sameId(tx.id, editingTxId)),
-          sinkingFunds: withoutFundEventsLinkedToTransaction(state.sinkingFunds, editingTxId),
-        }
-      : state;
 
   const setTxType = (type) => {
     if (editingTxId) return;
@@ -128,139 +113,50 @@ export function createTransactionController({
   };
 
   const addTx = async () => {
-    const normalizedAmount = toMoneyInt(amount.value);
-    if (normalizedAmount <= 0) {
-      toast.show("金額必須大於 0", "error");
-      return;
-    }
-
     const state = store.getState();
-    const editingTx = editingTxId ? state.txs.find((item) => sameId(item.id, editingTxId)) : null;
-    const baseState = getEditableBaseState(state);
-    const linkedFundId = state.txType === "expense" ? fund?.value || "" : "";
-    const linkedFund = linkedFundId ? baseState.sinkingFunds.find((item) => item.id === linkedFundId) : null;
-    if (linkedFundId && !linkedFund) {
-      toast.show("找不到對應的大額準備項目", "error");
-      return;
-    }
-
-    const tx = buildTransaction({
-      txType: state.txType,
-      amount: normalizedAmount,
-      desc: description.value,
-      date: date.value,
-      category: category.value,
-      subcategory: subcategory?.value.trim() || DEFAULT_SUBCATEGORY,
-      accountId: account.value,
-      fromAcc: fromAccount.value,
-      toAcc: toAccount.value,
-      ownAmount: toMoneyInt(ownAmount?.value),
-      person: advancePerson?.value || "",
-      budgetMode: "normal",
-      linkedFundId,
+    const prepared = prepareMainTransaction({
+      state,
+      editingTxId,
+      input: {
+        amount: amount.value,
+        desc: description.value,
+        date: date.value,
+        category: category.value,
+        subcategory: subcategory?.value,
+        accountId: account.value,
+        fromAcc: fromAccount.value,
+        toAcc: toAccount.value,
+        ownAmount: ownAmount?.value,
+        person: advancePerson?.value,
+        linkedFundId: fund?.value,
+      },
     });
-    if (editingTx) tx.id = editingTx.id;
-
-    if (tx.type === "transfer" && tx.fromAcc === tx.toAcc) {
-      toast.show("轉出與轉入帳戶不能相同", "error");
+    if (!prepared.ok) {
+      toast.show(prepared.message, "error");
       return;
     }
 
-    if (tx.type === "advance") {
-      if (tx.ownAmount > tx.amount) {
-        toast.show("自己負擔金額不能大於總金額", "error");
-        return;
-      }
-      if (tx.receivableAmount <= 0) {
-        toast.show("代墊至少要有一部分是別人應還的金額", "error");
-        return;
-      }
-      const alreadyRepaid = editingTx ? getAdvanceRepaidAmount(state.txs, editingTx.id) : 0;
-      if (tx.receivableAmount < alreadyRepaid) {
-        toast.show(`修改後應收款只有 ${tx.receivableAmount}，不能低於已收回的 ${alreadyRepaid}。`, "error");
-        return;
-      }
+    let allocation = planFundAllocation(prepared);
+    if (allocation.needsChoice) {
+      const choice = await askFundShortfallChoice(allocation.request);
+      allocation = planFundAllocation({ ...prepared, choice });
+    }
+    if (!allocation.ok) {
+      if (!allocation.cancelled) toast.show(allocation.message, "error");
+      return;
     }
 
-    let topupAmount = 0;
-    let fundSpendAmount = tx.type === "expense" && linkedFund ? tx.amount : 0;
-    let effectiveLinkedFundId = linkedFundId;
-    if (tx.type === "expense" && linkedFund) {
-      const availableFromFund = getFundAvailableBeforeExpense(linkedFund, tx.date, tx.id);
-      if (availableFromFund < tx.amount) {
-        const shortfall = tx.amount - availableFromFund;
-        const monthRange = buildMonthRange(tx.date);
-        const budget = monthRange ? calculateBudgetData(baseState, monthRange) : null;
-        const availableFreedom = budget?.freeToUse || 0;
-        const choice = await askFundShortfallChoice({
-          fundName: linkedFund.name,
-          availableFromFund,
-          amount: tx.amount,
-          shortfall,
-          availableFreedom,
-        });
-
-        if (!choice) return;
-
-        if (choice === "topup") {
-          if (availableFreedom < shortfall) {
-            toast.show(`本月可自由運用只有 ${availableFreedom}，不足以補差額 ${shortfall}。`, "error");
-            return;
-          }
-          topupAmount = shortfall;
-          fundSpendAmount = tx.amount;
-        } else if (choice === "partial") {
-          fundSpendAmount = Math.min(availableFromFund, tx.amount);
-          if (fundSpendAmount <= 0) {
-            delete tx.linkedFundId;
-            effectiveLinkedFundId = "";
-          }
-        } else if (choice === "unlink") {
-          delete tx.linkedFundId;
-          effectiveLinkedFundId = "";
-          fundSpendAmount = 0;
-        }
-      }
-    }
-
+    const command = { ...prepared, ...allocation, tx: allocation.tx };
     commitState((draft) => {
-      if (editingTx) {
-        draft.txs = draft.txs.map((item) => (sameId(item.id, editingTx.id) ? tx : item));
-        draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, editingTx.id);
-      } else {
-        draft.txs.unshift(tx);
-      }
-
-      if (tx.type === "expense" && effectiveLinkedFundId && fundSpendAmount > 0) {
-        const targetFund = draft.sinkingFunds.find((item) => item.id === effectiveLinkedFundId);
-        if (targetFund) {
-          if (!Array.isArray(targetFund.events)) targetFund.events = [];
-          if (topupAmount > 0) {
-            targetFund.events.push({
-              id: createFundEventId(),
-              type: "topup",
-              amount: topupAmount,
-              date: tx.date,
-              note: "用本月可自由運用補足差額",
-              linkedTxId: tx.id,
-            });
-          }
-          targetFund.events.push({
-            id: createFundEventId(),
-            type: "spend",
-            amount: fundSpendAmount,
-            date: tx.date,
-            note: tx.desc || tx.cat,
-            linkedTxId: tx.id,
-          });
-        }
-      }
+      applyMainTransaction(draft, command, createFundEventId);
     }, {
       updateUi: () => {
         reset();
         renderAll();
       },
     });
+
+    const { editingTx, effectiveLinkedFundId, topupAmount, fundSpendAmount, tx } = command;
     if (editingTx && !effectiveLinkedFundId && editingOriginalLinkedFundId) {
       toast.show("已更新交易，原本的大額準備指定已移除");
     } else if (editingTx && effectiveLinkedFundId && topupAmount > 0) {
@@ -282,7 +178,6 @@ export function createTransactionController({
     }
     navigate("ov");
   };
-
   const beginEditTx = (id) => {
     const state = store.getState();
     const tx = state.txs.find((item) => sameId(item.id, id));
@@ -354,154 +249,14 @@ export function createTransactionController({
       return false;
     }
 
-    const allowedTypes = ["income", "expense", "transfer", "advance"];
-    const nextType = String(input?.type || original.type);
-    const normalizedAmount = toMoneyInt(input?.amount);
-    const nextDate = String(input?.date || "");
-    if (normalizedAmount <= 0) {
-      toast.show("金額必須大於 0", "error");
+    const command = prepareDetailTransaction({ state, original, input });
+    if (!command.ok) {
+      toast.show(command.message, "error");
       return false;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
-      toast.show("日期格式不正確", "error");
-      return false;
-    }
-
-    if (original.type === "advance_repayment") {
-      if (nextType !== "advance_repayment") {
-        toast.show("代墊收款不能改成其他交易類型", "error");
-        return false;
-      }
-      const advance = state.txs.find((item) => item.type === "advance" && sameId(item.id, original.advanceId));
-      if (!advance) {
-        toast.show("找不到這筆收款對應的代墊", "error");
-        return false;
-      }
-      const accountExists = state.accounts.some((item) => sameId(item.id, input?.accountId));
-      const keepsDeletedAccount = sameId(input?.accountId, original.acc);
-      if (!accountExists && !keepsDeletedAccount) {
-        toast.show("請選擇有效帳戶", "error");
-        return false;
-      }
-      const maxAmount = Math.max(0, (advance.receivableAmount || 0) - getAdvanceRepaidAmount(state.txs, advance.id, original.id));
-      if (normalizedAmount > maxAmount) {
-        toast.show(`收回金額不能超過 ${maxAmount}`, "error");
-        return false;
-      }
-      const clearsActiveMainEditor = editingTxId && sameId(editingTxId, original.id);
-      commitState((draft) => {
-        const target = draft.txs.find((item) => sameId(item.id, original.id));
-        if (!target) return;
-        target.amount = normalizedAmount;
-        target.date = nextDate;
-        target.acc = input.accountId;
-        target.desc = String(input?.desc || "").trim();
-      }, {
-        updateUi: () => {
-          if (clearsActiveMainEditor) {
-            reset();
-            syncTxType();
-            renderTransactionCategorySelect();
-            populateFundOptions();
-          }
-          renderAll();
-        },
-      });
-      toast.show("已更新代墊收款");
-      return true;
-    }
-
-    if (!allowedTypes.includes(nextType)) {
-      toast.show("不支援這種交易類型", "error");
-      return false;
-    }
-
-    const repaidAmount = original.type === "advance" ? getAdvanceRepaidAmount(state.txs, original.id) : 0;
-    if (original.type === "advance" && nextType !== "advance" && repaidAmount > 0) {
-      toast.show("這筆代墊已有收款紀錄，不能改成其他類型", "error");
-      return false;
-    }
-
-    const accountExists = (accountId) => state.accounts.some((item) => sameId(item.id, accountId));
-    if (nextType === "transfer") {
-      const keepsDeletedFrom = original.type === "transfer" && sameId(input?.fromAcc, original.fromAcc);
-      const keepsDeletedTo = original.type === "transfer" && sameId(input?.toAcc, original.toAcc);
-      if ((!accountExists(input?.fromAcc) && !keepsDeletedFrom) || (!accountExists(input?.toAcc) && !keepsDeletedTo)) {
-        toast.show("請選擇有效的轉出與轉入帳戶", "error");
-        return false;
-      }
-      if (sameId(input.fromAcc, input.toAcc)) {
-        toast.show("轉出與轉入帳戶不能相同", "error");
-        return false;
-      }
-    } else {
-      const keepsDeletedAccount = original.type === nextType && sameId(input?.accountId, original.acc);
-      if (!accountExists(input?.accountId) && !keepsDeletedAccount) {
-        toast.show("請選擇有效帳戶", "error");
-        return false;
-      }
-    }
-
-    const normalizedOwnAmount = toMoneyInt(input?.ownAmount);
-    if (nextType === "advance") {
-      if (!String(input?.person || "").trim()) {
-        toast.show("代墊對象不能空白", "error");
-        return false;
-      }
-      if (normalizedOwnAmount < 0 || normalizedOwnAmount >= normalizedAmount) {
-        toast.show("自己負擔金額必須小於總金額", "error");
-        return false;
-      }
-      if (normalizedAmount - normalizedOwnAmount < repaidAmount) {
-        toast.show(`修改後應收款不能低於已收回的 ${repaidAmount}`, "error");
-        return false;
-      }
-    }
-
-    const next = buildTransaction({
-      txType: nextType,
-      amount: normalizedAmount,
-      desc: input?.desc,
-      date: nextDate,
-      category: input?.category,
-      subcategory: String(input?.subcategory || "").trim() || DEFAULT_SUBCATEGORY,
-      accountId: input?.accountId,
-      fromAcc: input?.fromAcc,
-      toAcc: input?.toAcc,
-      ownAmount: normalizedOwnAmount,
-      person: input?.person || "",
-      budgetMode: "normal",
-      linkedFundId: "",
-    });
-    next.id = original.id;
-    ["externalSource", "externalId", "externalUid", "externalTime"].forEach((key) => {
-      if (original[key] !== undefined) next[key] = original[key];
-    });
-    if (original.type === "expense" && next.type === "expense" && original.budgetMode === "spread") {
-      ["budgetMode", "spreadMonths", "spreadStartMonth", "spreadLabel"].forEach((key) => {
-        if (original[key] !== undefined) next[key] = original[key];
-      });
-    }
-
-    const keepsFundLink = original.type === "expense"
-      && next.type === "expense"
-      && original.linkedFundId
-      && original.amount === next.amount
-      && original.date === next.date;
-    if (keepsFundLink) next.linkedFundId = original.linkedFundId;
-
     const clearsActiveMainEditor = editingTxId && sameId(editingTxId, original.id);
     commitState((draft) => {
-      draft.txs = draft.txs.map((item) => (sameId(item.id, original.id) ? next : item));
-      if (keepsFundLink) {
-        draft.sinkingFunds.forEach((item) => {
-          (item.events || []).forEach((event) => {
-            if (event.type === "spend" && sameId(event.linkedTxId, original.id)) event.note = next.desc || next.cat;
-          });
-        });
-      } else {
-        draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, original.id);
-      }
+      applyDetailTransaction(draft, command);
     }, {
       updateUi: () => {
         if (clearsActiveMainEditor) {
@@ -514,11 +269,15 @@ export function createTransactionController({
       },
     });
 
-    if (original.linkedFundId && !keepsFundLink) toast.show("已更新交易，原本的大額準備指定已移除");
-    else toast.show("已更新交易");
+    if (command.mode === "repayment") {
+      toast.show("已更新代墊收款");
+    } else if (original.linkedFundId && !command.keepsFundLink) {
+      toast.show("已更新交易，原本的大額準備指定已移除");
+    } else {
+      toast.show("已更新交易");
+    }
     return true;
   };
-
   const delTx = (id) => {
     const target = store.getState().txs.find((tx) => sameId(tx.id, id));
     if (!target) {
@@ -530,8 +289,7 @@ export function createTransactionController({
       : "確定要刪除這筆交易嗎？";
     if (!confirmDelete(message)) return false;
     commitState((draft) => {
-      draft.txs = draft.txs.filter((tx) => !sameId(tx.id, id) && !(target?.type === "advance" && tx.type === "advance_repayment" && sameId(tx.advanceId, id)));
-      draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, id);
+      applyDeleteTransaction(draft, target);
     }, { updateUi: renderAll });
     toast.show(target.type === "balance_adjustment" ? "已刪除帳戶調整，帳戶餘額已重新計算" : "已刪除交易");
     return true;
@@ -562,16 +320,20 @@ export function createTransactionController({
       return;
     }
 
-    const repayment = buildAdvanceRepayment({
+    const command = prepareNewAdvanceRepayment({
+      state,
       advanceId: advance.id,
       amount: repaymentAmount,
       date: localDateStr(now()),
       accountId: repaymentAccount.id,
-      person: advance.person,
     });
+    if (!command.ok) {
+      toast.show(command.message, "error");
+      return;
+    }
 
     commitState((draft) => {
-      draft.txs.unshift(repayment);
+      draft.txs.unshift(command.repayment);
     }, { updateUi: renderAll });
     toast.show("已登記收款");
   };
@@ -616,12 +378,22 @@ export function createTransactionController({
       return;
     }
 
+    const command = prepareAdvanceRepaymentEdit({
+      state,
+      repaymentId: id,
+      amount: repaymentAmount,
+      date: rawDate,
+      accountId: repaymentAccount.id,
+    });
+    if (!command.ok) {
+      toast.show(command.message, "error");
+      return;
+    }
+
     commitState((draft) => {
       const target = draft.txs.find((tx) => sameId(tx.id, id));
       if (!target) return;
-      target.amount = repaymentAmount;
-      target.date = rawDate;
-      target.acc = repaymentAccount.id;
+      Object.assign(target, command.changes);
     }, { updateUi: renderAll });
     toast.show("已更新代墊收款");
   };

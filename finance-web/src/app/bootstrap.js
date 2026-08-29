@@ -1,4 +1,4 @@
-import { CATEGORY_SUBCATEGORY_SUGGESTIONS, CONSTANTS, DEFAULT_SUBCATEGORY } from "../config/constants.js";
+import { CONSTANTS } from "../config/constants.js";
 import { getFinanceRuntime } from "../config/runtime.js";
 import { cloneState, createInitialState } from "../state/initial-state.js";
 import { createStore } from "../state/store.js";
@@ -13,42 +13,20 @@ import {
 import { createConflictRecoveryStore, createRecoveryPreserver } from "../services/conflict-recovery.js";
 import { setupPWA } from "../services/pwa.js";
 import { createRecordCloudSync } from "../services/storage-cloud-records.js";
-import { createDeviceDataClearService } from "../services/device-data-clear.js";
 import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
-import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
-import { exportData, importData } from "../services/import-export.js";
-import { backupFilename, downloadTextFile, readFileAsText } from "../services/browser-files.js";
+import { exportData } from "../services/import-export.js";
+import { backupFilename } from "../services/browser-files.js";
 import { createToastManager } from "../ui/toast.js";
 import { collectDom } from "./dom-elements.js";
-import { setActiveTab } from "../ui/tabs.js";
 import { localDateStr, formatMoney, escapeHTML, toMoneyInt } from "../utils/format.js";
 import { normalizeFinanceStateMoney } from "../utils/normalize-state.js";
-import { renderOverview } from "../views/overview-view.js";
-import { renderLedger } from "../views/ledger-view.js";
-import { renderCashFlow } from "../views/cashflow-view.js";
-import { renderBalanceSheet } from "../views/balance-sheet-view.js";
-import { renderMonthlyReview } from "../views/monthly-review-view.js";
-import { renderWishlist } from "../views/wishlist-view.js";
 import { renderGoalCenter } from "../views/goal-center-view.js";
-import { renderRetirement } from "../views/retirement-view.js";
-import { createActions } from "./actions.js";
-import { createWholeStateReplacer } from "./controller-lifecycle.js";
 import { createCommitState } from "./state-commit.js";
-import { createBalanceSheetController } from "./controllers/balance-sheet-controller.js";
-import { createAccountCenterController } from "./controllers/account-center-controller.js";
-import { createSinkingFundController } from "./controllers/sinking-fund-controller.js";
-import { createTransactionController } from "./controllers/transaction-controller.js";
-import { createWishlistController } from "./controllers/wishlist-controller.js";
-import { createImportController } from "./controllers/import-controller.js";
-import { createCategoryBudgetController } from "./controllers/category-budget-controller.js";
-import { createRetirementController } from "./controllers/retirement-controller.js";
-import { createTransactionSearchController } from "./controllers/transaction-search-controller.js";
-import { createLifeRecordReminderController } from "./controllers/life-record-reminder-controller.js";
-import { createTransactionDetailController } from "./controllers/transaction-detail-controller.js";
-import { createRecoveryCenterController } from "./controllers/recovery-center-controller.js";
-import { createDeviceDataController } from "./controllers/device-data-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
+import { createControllerComposition } from "./controller-composition.js";
+import { createRenderCoordinator } from "./render-coordinator.js";
+import { createUiCoordinator } from "./ui-coordinator.js";
 
 function createFallbackCloudSync() {
   return {
@@ -91,312 +69,25 @@ export async function bootstrapFinanceApp(doc = document) {
     onWarn: (message, error) => console.warn(message, error),
   });
 
-  let retirementController = null;
-  let transactionSearchController = null;
-  let lifeRecordReminderController = null;
-
-  const ui = {
+  const uiCoordinator = createUiCoordinator({
+    runtime,
+    dom,
+    store,
     toast,
-    setActiveTab: (tabId) => setActiveTab(tabId, doc),
-    updateCloudStatus(status, meta) {
-      if (runtime.isAcceptance) {
-        dom.cloudStatus.textContent = "🧪 驗收資料";
-        dom.cloudStatus.className = "cloud-st off";
-        dom.cloudStatus.dataset.state = "local";
-        dom.cloudStatus.disabled = true;
-        dom.cloudStatus.title = "本機驗收版使用獨立資料區，不連接正式雲端";
-        dom.cloudStatus.setAttribute("aria-label", dom.cloudStatus.title);
-        return;
-      }
-      const currentUser = syncCoordinator?.getCurrentUser();
-      const hasCloudUser = currentUser && !currentUser.isAnonymous;
-      const setRetryState = (enabled, title) => {
-        dom.cloudStatus.disabled = !enabled;
-        dom.cloudStatus.title = title;
-        dom.cloudStatus.setAttribute("aria-label", title);
-      };
-      if (status === "syncing") {
-        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 正在備份" : "💾 僅本機";
-        dom.cloudStatus.className = "cloud-st";
-        dom.cloudStatus.dataset.state = hasCloudUser ? "syncing" : "local";
-        setRetryState(false, hasCloudUser ? "資料正在備份到雲端" : "目前只保存於這台裝置");
-        return;
-      }
-
-      if (status === "online") {
-        dom.cloudStatus.textContent = hasCloudUser ? (meta?.fromCache ? "☁️ 已連線（快取）" : "☁️ 已備份") : "💾 僅本機";
-        dom.cloudStatus.className = hasCloudUser ? "cloud-st" : "cloud-st off";
-        dom.cloudStatus.dataset.state = hasCloudUser ? (meta?.fromCache ? "cache" : "cloud") : "local";
-        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "立即再次備份到雲端" : "目前只保存於這台裝置");
-        return;
-      }
-
-      if (status === "offline") {
-        dom.cloudStatus.textContent = hasCloudUser ? "☁️ 離線｜重試" : "💾 僅本機";
-        dom.cloudStatus.className = "cloud-st off";
-        dom.cloudStatus.dataset.state = "offline";
-        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "重新嘗試備份到雲端" : "目前只保存於這台裝置");
-        return;
-      }
-
-      if (status === "error") {
-        dom.cloudStatus.textContent = "⚠️ 備份失敗｜重試";
-        dom.cloudStatus.className = "cloud-st off";
-        dom.cloudStatus.dataset.state = "warning";
-        setRetryState(Boolean(hasCloudUser), hasCloudUser ? "備份尚未完成；按此立即重試" : "請先登入 Google 才能備份到雲端");
-        return;
-      }
-
-      if (status === "conflict") {
-        dom.cloudStatus.textContent = "⚠️ 待選擇資料";
-        dom.cloudStatus.className = "cloud-st off";
-        dom.cloudStatus.dataset.state = "conflict";
-        setRetryState(false, "請先在同步視窗選擇保留雲端或本機資料");
-        return;
-      }
-
-      dom.cloudStatus.textContent = "💾 僅本機";
-      dom.cloudStatus.className = "cloud-st off";
-      dom.cloudStatus.dataset.state = "local";
-      setRetryState(false, "目前只保存於這台裝置");
-    },
-    renderAuthState(user, cloudEnabled, errorMessage = "", action = null) {
-      if (runtime.isAcceptance) {
-        dom.authButton.disabled = true;
-        dom.authButton.className = "auth-btn";
-        dom.authButton.textContent = "驗收版不提供登入";
-        dom.headerTag.textContent = "驗收版｜僅本機";
-        dom.headerTag.dataset.state = "local";
-        dom.headerTag.title = "資料只保存在獨立驗收區，不會讀寫正式 Firebase。";
-        return;
-      }
-      if (!cloudEnabled) {
-        dom.authButton.disabled = true;
-        dom.authButton.className = "auth-btn";
-        dom.authButton.textContent = "Firebase 未啟用";
-        dom.headerTag.textContent = "本機模式";
-        dom.headerTag.dataset.state = "local";
-        dom.headerTag.title = errorMessage || "目前僅使用本機資料。本機會保留這台裝置最近一次使用的內容。";
-        return;
-      }
-
-      dom.authButton.disabled = action !== null;
-
-      if (action === "signing-in") {
-        dom.authButton.className = "auth-btn google";
-        dom.authButton.textContent = "登入中...";
-        dom.headerTag.textContent = "正在連接雲端";
-        dom.headerTag.dataset.state = "pending";
-        return;
-      }
-
-      if (action === "signing-out") {
-        dom.authButton.className = "auth-btn logout";
-        dom.authButton.textContent = "登出中...";
-        dom.headerTag.textContent = "切回本機模式";
-        dom.headerTag.dataset.state = "pending";
-        return;
-      }
-
-      if (!user || user.isAnonymous) {
-        dom.authButton.className = "auth-btn google";
-        dom.authButton.textContent = "Google 登入";
-        dom.headerTag.textContent = "本機模式";
-        dom.headerTag.dataset.state = "anon";
-        dom.headerTag.title = "目前顯示這台裝置的未綁定本機資料。Google 帳號資料會依 UID 分開保存，登出後不會繼續顯示帳號內的財務內容。";
-        return;
-      }
-
-      dom.authButton.className = "auth-btn logout";
-      dom.authButton.textContent = "登出";
-      dom.headerTag.textContent = `使用者：${user.displayName || user.email || "Google 使用者"}`;
-      dom.headerTag.dataset.state = "cloud";
-      dom.headerTag.title = `${user.displayName || user.email || "Google 使用者"}｜這台裝置的本機資料會跟著最近一次同步或登入的內容更新。`;
-    },
-    syncFromSettings() {
-      const state = store.getState();
-      dom.budgetCapInput.value = state.settings.budgetCap;
-      retirementController?.syncFromSettings();
-    },
-    askFundShortfallChoice({ fundName, availableFromFund, amount, shortfall, availableFreedom }) {
-      return new Promise((resolve) => {
-        dom.choiceSummary.textContent =
-          `「${fundName}」目前可用 ${formatMoney(availableFromFund)}，這筆支出是 ${formatMoney(amount)}，還差 ${formatMoney(shortfall)}。` +
-          ` 本月可自由運用目前是 ${formatMoney(availableFreedom)}。`;
-
-        const close = (choice) => {
-          dom.choiceModal.classList.add("d-none");
-          dom.choiceModal.querySelectorAll("[data-choice]").forEach((button) => {
-            button.removeEventListener("click", onChoice);
-          });
-          dom.choiceCancel.removeEventListener("click", onCancel);
-          resolve(choice);
-        };
-        const onChoice = (event) => close(event.currentTarget.dataset.choice);
-        const onCancel = () => close("");
-
-        dom.choiceModal.querySelectorAll("[data-choice]").forEach((button) => {
-          button.addEventListener("click", onChoice);
-        });
-        dom.choiceCancel.addEventListener("click", onCancel);
-        dom.choiceModal.classList.remove("d-none");
-
-        const defaultChoice = availableFreedom >= shortfall ? "topup" : "partial";
-        dom.choiceModal.querySelector(`[data-choice="${defaultChoice}"]`)?.focus();
-      });
-    },
-    askSyncChoice(message) {
-      return new Promise((resolve) => {
-        dom.syncChoiceSummary.textContent = message;
-
-        const close = (choice) => {
-          dom.syncChoiceModal.classList.add("d-none");
-          dom.syncChoiceModal.querySelectorAll("[data-sync-choice]").forEach((button) => {
-            button.removeEventListener("click", onChoice);
-          });
-          resolve(choice);
-        };
-        const onChoice = (event) => close(event.currentTarget.dataset.syncChoice);
-
-        dom.syncChoiceModal.querySelectorAll("[data-sync-choice]").forEach((button) => {
-          button.addEventListener("click", onChoice);
-        });
-        dom.syncChoiceModal.classList.remove("d-none");
-        dom.syncChoiceModal.querySelector('[data-sync-choice="cancel"]')?.focus();
-      });
-    },
-    populateCategoryBudgetOptions() {
-      const state = store.getState();
-      const categories = [...CONSTANTS.expenseCategories, ...state.userCats.expense];
-      dom.catBudgetCategory.innerHTML = categories.map((category) => `<option>${escapeHTML(category)}</option>`).join("");
-      dom.fundCategory.innerHTML = categories.map((category) => `<option>${escapeHTML(category)}</option>`).join("");
-    },
-    populateFundOptions() {
-      dom.inputFund.innerHTML = ['<option value="">不指定</option>']
-        .concat(store.getState().sinkingFunds.map((fund) => `<option value="${escapeHTML(fund.id)}">${escapeHTML(fund.name)}</option>`))
-        .join("");
-    },
-    renderTransactionCategorySelect({ resetSubcategory = false } = {}) {
-      const state = store.getState();
-      if (state.txType === "transfer") return;
-      const categoryType = state.txType === "income" ? "income" : "expense";
-      const base = categoryType === "income" ? CONSTANTS.incomeCategories : CONSTANTS.expenseCategories;
-      const categories = [...base, ...state.userCats[categoryType]];
-      const previousCategory = dom.inputCategory.value;
-      dom.inputCategory.innerHTML = categories.map((category) => `<option>${escapeHTML(category)}</option>`).join("");
-      if (categories.includes(previousCategory)) dom.inputCategory.value = previousCategory;
-      this.populateTransactionSubcategoryOptions({ reset: resetSubcategory });
-    },
-    populateTransactionSubcategoryOptions({ reset = false } = {}) {
-      if (!dom.inputSubcategoryOptions) return;
-      const state = store.getState();
-      const categoryType = state.txType === "income" ? "income" : "expense";
-      const category = dom.inputCategory.value;
-      const suggestionSet = new Set([DEFAULT_SUBCATEGORY]);
-      (CATEGORY_SUBCATEGORY_SUGGESTIONS[categoryType]?.[category] || []).forEach((item) => suggestionSet.add(item));
-      state.txs
-        .filter((tx) => (tx.category || tx.cat) === category && tx.subcategory)
-        .forEach((tx) => suggestionSet.add(tx.subcategory));
-      dom.inputSubcategoryOptions.innerHTML = [...suggestionSet].map((item) => `<option value="${escapeHTML(item)}"></option>`).join("");
-      if (reset && dom.inputSubcategory) dom.inputSubcategory.value = DEFAULT_SUBCATEGORY;
-    },
-    syncTxType() {
-      const { txType } = store.getState();
-      dom.incomeButton.className = `tb${txType === "income" ? " on-inc" : ""}`;
-      dom.expenseButton.className = `tb${txType === "expense" ? " on-exp" : ""}`;
-      dom.transferButton.className = `tb${txType === "transfer" ? " on-trn" : ""}`;
-      dom.advanceButton.className = `tb${txType === "advance" ? " on-trn" : ""}`;
-
-      if (txType === "transfer") {
-        dom.incomeExpenseAccountWrap.classList.add("d-none");
-        dom.categoryWrap.classList.add("d-none");
-        dom.fundWrap.classList.add("d-none");
-        dom.advanceWrap.classList.add("d-none");
-        dom.transferWrap.classList.remove("d-none");
-      } else {
-        dom.incomeExpenseAccountWrap.classList.remove("d-none");
-        dom.categoryWrap.classList.remove("d-none");
-        dom.fundWrap.classList.toggle("d-none", txType !== "expense");
-        dom.advanceWrap.classList.toggle("d-none", txType !== "advance");
-        dom.transferWrap.classList.add("d-none");
-      }
-    },
-    setTransactionEditMode({ active, linkedFundName = "", advanceRepaidAmount = 0 } = {}) {
-      dom.txFormTitle.textContent = active ? "編輯交易" : "新增交易";
-      dom.txSubmitButton.textContent = active ? "儲存修改" : "儲存記錄";
-      dom.txCancelButton.classList.toggle("d-none", !active);
-      const notes = [];
-      if (linkedFundName) {
-        notes.push(`這筆交易原本對應「${linkedFundName}」。儲存修改時會先移除舊的準備事件，請重新決定是否指定準備。`);
-      }
-      if (advanceRepaidAmount > 0) {
-        notes.push(`這筆代墊已收回 ${formatMoney(advanceRepaidAmount)}；修改後的應收款不能低於已收金額。`);
-      }
-      dom.txEditNote.classList.toggle("d-none", !active || !notes.length);
-      dom.txEditNote.textContent = notes.join(" ");
-      [dom.incomeButton, dom.expenseButton, dom.transferButton, dom.advanceButton].forEach((button) => {
-        button.disabled = !!active;
-      });
-    },
-    setFundEditMode({ active } = {}) {
-      dom.fundFormTitle.textContent = active ? "2. 編輯大額支出準備" : "2. 大額支出準備";
-      dom.fundSubmitButton.textContent = active ? "儲存修改" : "新增準備項目";
-      dom.fundCancelButton.classList.toggle("d-none", !active);
-      dom.fundEditNote.classList.toggle("d-none", !active);
-      dom.fundEditNote.textContent = active
-        ? "修改每月提撥、起始月份或目標月份後，系統會用新設定直接重算過去與未來的規劃提撥；既有補入 / 動用事件不會被改寫。"
-        : "";
-    },
-    setBalanceSheetEditMode({ active, isAccount = false } = {}) {
-      dom.bsFormTitle.textContent = active ? (isAccount ? "編輯帳戶" : "編輯資產 / 負債") : "新增帳戶 / 資產負債";
-      dom.bsSubmitButton.textContent = active ? "儲存修改" : "新增項目";
-      dom.bsCancelButton.classList.toggle("d-none", !active);
-      dom.bsEditNote.classList.toggle("d-none", !active || !isAccount);
-      dom.bsEditNote.textContent = active && isAccount ? "帳戶可能已被交易引用；編輯會保留帳戶 ID 與歷史交易。改成負債帳戶不會自行改寫既有餘額。" : "";
-      dom.balanceType.disabled = !!active;
-    },
-    setWishEditMode({ active } = {}) {
-      dom.wishFormTitle.textContent = active ? "4. 編輯待購項目" : "4. 待購清單（花費可自由運用）";
-      dom.wishSubmitButton.textContent = active ? "儲存修改" : "加入清單";
-      dom.wishCancelButton.classList.toggle("d-none", !active);
-      dom.wishEditNote.classList.toggle("d-none", !active);
-      dom.wishEditNote.textContent = active ? "編輯只會更新這個待購項目，不會改變目前排序。" : "";
-    },
-  };
-
-  const renderBudgetOnly = () => {
-    const state = store.getState();
-    const filterRange = getFilterRangeValue();
-    renderGoalCenter({ state, filterRange, utils, dom });
-    renderWishlist({ state, filterRange, constants: CONSTANTS, utils, dom });
-  };
-
-  const renderAll = () => {
-    const state = store.getState();
-    const filteredTxs = getFiltered();
-    const filterRange = getFilterRangeValue();
-    renderOverview({ state, filteredTxs, constants: CONSTANTS, utils, dom });
-    renderMonthlyReview({ state, filterRange, utils, dom });
-    if (transactionSearchController) transactionSearchController.render();
-    else renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
-    lifeRecordReminderController?.render();
-    renderCashFlow({ state, filteredTxs, utils, dom });
-    renderBalanceSheet({ state, utils, dom });
-    renderGoalCenter({ state, filterRange, utils, dom });
-    renderWishlist({ state, filterRange, constants: CONSTANTS, utils, dom });
-    renderRetirement({ state, utils, dom });
-  };
-
-  const refreshWholeStateUi = () => {
-    dom.goalCenter.dataset.filter = "all";
-    ui.syncFromSettings();
-    ui.renderTransactionCategorySelect();
-    ui.populateCategoryBudgetOptions();
-    ui.populateFundOptions();
-    ui.syncTxType();
-    renderAll();
-  };
-
+    doc,
+    constants: CONSTANTS,
+  });
+  const { ui } = uiCoordinator;
+  const renderCoordinator = createRenderCoordinator({
+    store,
+    dom,
+    constants: CONSTANTS,
+    utils,
+    ui,
+    getFilterRange: getFilterRangeValue,
+    getFilteredTransactions: getFiltered,
+  });
+  const { renderAll } = renderCoordinator;
   const syncNotificationMessages = {
     "unbound-local-state-imported": "已將登入前的本機資料匯入目前帳號。",
     "cloud-sync-paused-by-user": "已取消覆蓋；本次登入的雲端同步已暫停，資料仍保留在此裝置。",
@@ -428,12 +119,13 @@ export async function bootstrapFinanceApp(doc = document) {
     ),
     confirmUnboundImport: () => window.confirm("登入帳號目前沒有資料。是否把登入前儲存在這台裝置的資料複製到此帳號？"),
     preserveRollback,
-    refreshStateUi: refreshWholeStateUi,
+    refreshStateUi: renderCoordinator.refreshWholeStateUi,
     onStatus: (status, meta) => ui.updateCloudStatus(status, meta),
     onNotify: (message, type) => toast.show(syncNotificationMessages[message] || message, type),
     onWarn: (message, error) => console.warn(message, error),
     onAuthViewChange: ({ user, action, cloudEnabled, error }) => ui.renderAuthState(user, cloudEnabled, error, action),
   });
+  uiCoordinator.bindSyncCoordinator(syncCoordinator);
   syncCoordinator.attachCloudSync(cloudSync);
 
   const persistCommittedLocalState = (state) => syncCoordinator.persistCommittedLocalState(state);
@@ -450,345 +142,40 @@ export async function bootstrapFinanceApp(doc = document) {
     enqueueCloud: enqueueCloudState,
   });
 
-  const context = {
+  const composition = createControllerComposition({
     dom,
     store,
     ui,
+    toast,
+    commitState,
+    renderCoordinator,
     constants: CONSTANTS,
-    commitState,
-    renderAll,
-    renderWishlist: renderBudgetOnly,
-  };
-
-  let replaceWholeState = null;
-  const baseActions = createActions(context);
-  const balanceSheetController = createBalanceSheetController({
-    elements: {
-      root: dom.root,
-      name: dom.balanceName,
-      type: dom.balanceType,
-      categoryWrap: dom.balanceCategoryWrap,
-      category: dom.balanceCategory,
-      accountFields: dom.balanceAccountFields,
-      accountType: dom.balanceAccountType,
-      creditFields: dom.balanceCreditFields,
-      creditLimit: dom.balanceCreditLimit,
-      statementDay: dom.balanceStatementDay,
-      paymentDueDay: dom.balancePaymentDueDay,
-      amount: dom.balanceAmount,
-      emergency: dom.balanceEmergency,
-    },
-    store,
-    toast,
-    setEditMode: (value) => ui.setBalanceSheetEditMode(value),
-    commitState,
-    renderAll,
-    navigate: (tabId) => baseActions.switchTab(tabId),
-    confirmDelete: (message) => window.confirm(message),
+    utils,
+    syncCoordinator,
+    conflictRecoveryStore,
+    getCloudSync: () => cloudSync,
+    saveState,
+    enqueueCloudState,
+    getFilteredTransactions: getFiltered,
+    win: window,
   });
-  const accountCenterController = createAccountCenterController({
-    root: dom.root,
-    store,
-    toast,
-    commitState,
-    renderAll,
-    localDateStr,
-    confirmAdjustment: (message) => window.confirm(message),
-  });
-  const wishlistController = createWishlistController({
-    elements: {
-      root: dom.root,
-      name: dom.wishName,
-      price: dom.wishPrice,
-      category: dom.wishCategory,
-    },
-    store,
-    toast,
-    setEditMode: (value) => ui.setWishEditMode(value),
-    commitState,
-    renderWishlist: renderBudgetOnly,
-    navigate: (tabId) => baseActions.switchTab(tabId),
-  });
-  const categoryBudgetController = createCategoryBudgetController({
-    elements: {
-      category: dom.catBudgetCategory,
-      amount: dom.catBudgetAmount,
-      budgetCap: dom.budgetCapInput,
-      fundCategory: dom.fundCategory,
-    },
-    store,
-    toast,
-    commitState,
-    renderBudget: renderBudgetOnly,
-    populateOptions: () => ui.populateCategoryBudgetOptions(),
-    constants: CONSTANTS,
-    promptInput: (message) => window.prompt(message),
-    confirmCleanup: (message) => window.confirm(message),
-  });
-  const sinkingFundController = createSinkingFundController({
-    elements: {
-      root: dom.root,
-      name: dom.fundName,
-      category: dom.fundCategory,
-      target: dom.fundTarget,
-      monthly: dom.fundMonthly,
-      start: dom.fundStart,
-      targetMonth: dom.fundTargetMonth,
-      note: dom.fundNote,
-      carry: dom.fundCarry,
-    },
-    store,
-    toast,
-    setEditMode: (value) => ui.setFundEditMode(value),
-    commitState,
-    renderWishlist: renderBudgetOnly,
-    navigate: (tabId) => baseActions.switchTab(tabId),
-    populateFundOptions: () => ui.populateFundOptions(),
-    confirmAction: (message) => window.confirm(message),
-    promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
-  });
-  const transactionController = createTransactionController({
-    elements: {
-      root: dom.root,
-      amount: dom.inputAmount,
-      ownAmount: dom.inputOwnAmount,
-      advancePerson: dom.inputAdvancePerson,
-      fund: dom.inputFund,
-      subcategory: dom.inputSubcategory,
-      description: dom.inputDesc,
-      date: dom.inputDate,
-      category: dom.inputCategory,
-      account: dom.inputAccount,
-      fromAccount: dom.inputFromAccount,
-      toAccount: dom.inputToAccount,
-    },
-    store,
-    toast,
-    setEditMode: (value) => ui.setTransactionEditMode(value),
-    commitState,
-    renderAll,
-    navigate: (tabId) => baseActions.switchTab(tabId),
-    syncTxType: () => ui.syncTxType(),
-    renderTransactionCategorySelect: (options) => ui.renderTransactionCategorySelect(options),
-    populateTransactionSubcategoryOptions: (options) => ui.populateTransactionSubcategoryOptions(options),
-    populateFundOptions: () => ui.populateFundOptions(),
-    populateCategoryBudgetOptions: () => ui.populateCategoryBudgetOptions(),
-    askFundShortfallChoice: (details) => ui.askFundShortfallChoice(details),
-    constants: CONSTANTS,
-    confirmDelete: (message) => window.confirm(message),
-    promptInput: (message, defaultValue) => window.prompt(message, defaultValue),
-  });
-  transactionSearchController = createTransactionSearchController({
-    elements: {
-      query: dom.transactionSearchQuery,
-      preset: dom.transactionSearchPreset,
-      start: dom.transactionSearchStart,
-      end: dom.transactionSearchEnd,
-      clear: dom.transactionSearchClear,
-      customRange: dom.transactionSearchCustom,
-      status: dom.transactionSearchStatus,
-      summary: dom.transactionSearchSummary,
-      empty: dom.transactionSearchEmpty,
-    },
-    store,
-    getReportTransactions: getFiltered,
-    renderTransactions: (transactions) => renderLedger({
-      state: store.getState(),
-      filteredTxs: transactions,
-      constants: CONSTANTS,
-      utils,
-      dom,
-    }),
-  });
-  lifeRecordReminderController = createLifeRecordReminderController({
-    elements: {
-      panel: dom.lifeReminderPanel,
-      heading: dom.lifeReminderHeading,
-      query: dom.transactionSearchQuery,
-      name: dom.lifeReminderName,
-      interval: dom.lifeReminderInterval,
-      dueSoon: dom.lifeReminderDueSoon,
-      save: dom.lifeReminderSave,
-      cancel: dom.lifeReminderCancel,
-      list: dom.lifeRoutineList,
-    },
-    store,
-    commitState,
-    toast,
-    renderSearch: () => transactionSearchController.render(),
-  });
-  const transactionDetailController = createTransactionDetailController({
-    elements: {
-      modal: dom.transactionDetailModal,
-      title: dom.transactionDetailTitle,
-      body: dom.transactionDetailBody,
-      delete: dom.transactionDetailDelete,
-      edit: dom.transactionDetailEdit,
-      close: dom.transactionDetailClose,
-    },
-    store,
-    formatMoney,
-    escapeHTML,
-    updateTransaction: (id, input) => transactionController.updateTransactionFromDetail(id, input),
-    deleteTransaction: (id) => transactionController.delTx(id),
-  });
-  const importController = createImportController({
-    elements: {
-      androMoneyModal: dom.androMoneyModal,
-      androMoneySummary: dom.androMoneySummary,
-      androMoneyAccounts: dom.androMoneyAccounts,
-      androMoneyDuplicates: dom.androMoneyDuplicates,
-      androMoneyDuplicateMode: dom.androMoneyDuplicateMode,
-      androMoneyPreview: dom.androMoneyPreview,
-      androMoneyConfirm: dom.androMoneyConfirm,
-    },
-    store,
-    toast,
-    replaceWholeState: (state) => replaceWholeState(state),
-    persistWholeState: saveState,
-    refreshWholeStateUi,
-    commitState,
-    waitForCloudSave: enqueueCloudState,
-    refreshTransactionUi: renderAll,
-    readBackupFile: importData,
-    exportBackupFile: exportData,
-    readTextFile: readFileAsText,
-    parseAndroMoneyCsv,
-    buildAndroMoneyCsv,
-    downloadTextFile,
-    formatMoney,
-    escapeHTML,
-  });
-  const recoveryCenterController = createRecoveryCenterController({
-    elements: {
-      modal: dom.recoveryCenterModal,
-      summary: dom.recoveryCenterSummary,
-      list: dom.recoveryCenterList,
-      empty: dom.recoveryCenterEmpty,
-      close: dom.recoveryCenterClose,
-    },
-    store,
-    recoveryStore: conflictRecoveryStore,
-    getScope: () => syncCoordinator.getLocalScope(),
-    commitState,
-    refreshWholeStateUi,
-    exportBackupFile: exportData,
-    toast,
-    escapeHTML,
-  });
-  const deviceDataController = createDeviceDataController({
-    elements: {
-      modal: dom.deviceClearModal,
-      title: dom.deviceClearTitle,
-      summary: dom.deviceClearSummary,
-      notice: dom.deviceClearNotice,
-      unsyncedWrap: dom.deviceClearUnsyncedWrap,
-      unsyncedAck: dom.deviceClearUnsyncedAck,
-      confirm: dom.deviceClearConfirm,
-      cancel: dom.deviceClearCancel,
-      backup: dom.deviceClearBackup,
-    },
-    createService: () => createDeviceDataClearService({
-      recoveryStore: conflictRecoveryStore,
-      cloudSync,
-    }),
-    getTarget: () => {
-      const scope = syncCoordinator.getLocalScope();
-      if (!scope) throw new Error("device-clear-scope-unavailable");
-      const currentUser = syncCoordinator.getCurrentUser();
-      const uid = scope.startsWith("uid:") && currentUser && !currentUser.isAnonymous
-        ? String(currentUser.uid || "")
-        : "";
-      return { scope: uid ? `uid:${uid}` : LOCAL_STORAGE_SCOPE, uid };
-    },
-    exportBackup: () => importController.exportBackup(),
-    toast,
-    reload: () => window.location.reload(),
-  });
-  retirementController = createRetirementController({
-    elements: {
-      linked: dom.retireLinked,
-      manualWrap: dom.retireManualWrap,
-      currentAge: dom.currentAge,
-      retirementAge: dom.retirementAge,
-      deathAge: dom.deathAge,
-      asset: dom.retireAsset,
-      monthly: dom.retireMonthly,
-      principalReturn: dom.retirePrincipalReturn,
-      contributionReturn: dom.retireContributionReturn,
-      inflation: dom.retireInflation,
-      withdraw: dom.retireWithdraw,
-      target: dom.retireTarget,
-      assetValue: dom.retireAssetValue,
-      monthlyValue: dom.retireMonthlyValue,
-      principalReturnValue: dom.retirePrincipalReturnValue,
-      contributionReturnValue: dom.retireContributionReturnValue,
-      inflationValue: dom.retireInflationValue,
-      withdrawValue: dom.retireWithdrawValue,
-      targetValue: dom.retireTargetValue,
-      tableWrap: dom.tableWrap,
-      tableToggleLabel: dom.tableToggleLabel,
-    },
-    store,
-    commitState,
-    renderAll,
-    formatMoney,
-    toMoneyInt,
-  });
-  replaceWholeState = createWholeStateReplacer({
-    store,
-    controllers: [balanceSheetController, accountCenterController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, lifeRecordReminderController, transactionDetailController, importController, recoveryCenterController, retirementController],
-  });
-  syncCoordinator.bindWholeStateReplacer(replaceWholeState);
-  const actions = {
-    ...baseActions,
-    addBs: balanceSheetController.addBs,
-    beginEditBs: balanceSheetController.beginEditBs,
-    cancelEditBs: balanceSheetController.cancelEditBs,
-    delBs: balanceSheetController.delBs,
-    toggleEm: balanceSheetController.toggleEm,
-    addWish: wishlistController.addWish,
-    beginEditWish: wishlistController.beginEditWish,
-    cancelEditWish: wishlistController.cancelEditWish,
-    delWish: wishlistController.delWish,
-    mvWish: wishlistController.mvWish,
-    addFundCategory: categoryBudgetController.addFundCategory,
-    setCatBudget: categoryBudgetController.setCatBudget,
-    delCatBudget: categoryBudgetController.delCatBudget,
-    cleanupCatBudgets: categoryBudgetController.cleanupCatBudgets,
-    addFund: sinkingFundController.addFund,
-    beginEditFund: sinkingFundController.beginEditFund,
-    cancelEditFund: sinkingFundController.cancelEditFund,
-    delFund: sinkingFundController.delFund,
-    topupFund: sinkingFundController.topupFund,
-    openFund: sinkingFundController.openFund,
-    prepareFundFromWish: sinkingFundController.prepareFundFromWish,
-    setTxType: transactionController.setTxType,
-    addCustomCat: transactionController.addCustomCat,
-    addTx: transactionController.addTx,
-    beginEditTx: transactionController.beginEditTx,
-    cancelEditTx: transactionController.cancelEditTx,
-    delTx: transactionController.delTx,
-    repayAdvance: transactionController.repayAdvance,
-    editAdvanceRepayment: transactionController.editAdvanceRepayment,
-    presetRet: retirementController.presetRet,
-    openTransactionDetail: transactionDetailController.openTransaction,
-    openBudgetSourceDetail: transactionDetailController.openBudgetSource,
-    editTransactionDetail: transactionDetailController.startEdit,
-    deleteTransactionDetail: transactionDetailController.removeActiveTransaction,
-    cancelTransactionDetailEdit: transactionDetailController.cancelEdit,
-    saveTransactionDetail: transactionDetailController.saveEdit,
-    syncTransactionDetailType: transactionDetailController.syncEditorType,
-    closeTransactionDetail: transactionDetailController.close,
-    trapTransactionDetailFocus: transactionDetailController.trapFocus,
-    saveLifeRoutine: lifeRecordReminderController.save,
-    beginEditLifeRoutine: lifeRecordReminderController.beginEdit,
-    cancelEditLifeRoutine: lifeRecordReminderController.cancelEdit,
-    deleteLifeRoutine: lifeRecordReminderController.remove,
-    toggleLifeRoutine: lifeRecordReminderController.toggle,
-    viewLifeRoutine: lifeRecordReminderController.view,
-  };
-
+  const { actions, controllers } = composition;
+  const {
+    balanceSheetController,
+    accountCenterController,
+    wishlistController,
+    categoryBudgetController,
+    sinkingFundController,
+    transactionController,
+    transactionSearchController,
+    lifeRecordReminderController,
+    transactionDetailController,
+    importController,
+    recoveryCenterController,
+    deviceDataController,
+    retirementController,
+  } = controllers;
+  uiCoordinator.bindRetirementController(retirementController);
   const bindEvents = () => bindAppEvents({
     doc,
     win: window,

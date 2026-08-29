@@ -105,7 +105,7 @@ Since 2026-08-29, new work follows a maintenance-first gate: every feature needs
 - 交易搜尋週期間隔檢查已演進為 schema v3 的本機「生活週期提醒」候選：保存名稱、關鍵字、預期間隔、提前提醒與啟用狀態；最近事件、平均間隔、預計日期仍完全由 `txs` 推導，同日多筆只算一次，不複製交易明細。提供站內到期摘要、查看既有搜尋、編輯／停用／刪除；暫不做背景通知或專業建議。
 - 裝置資料清理安全候選：只清目前 local／UID scope，兩段式確認、未同步資料明確 acknowledgement、Firebase persistence 與 recovery fail-closed、snapshot 最後刪除；不刪正式 Firestore 雲端資料。
 - v7 管理 Functions 候選：summary 以 active v7 非 tombstone records 為權威、preparing 可回退 v6，data/full 對單一 UID app scope recursive delete；只在 `demo-finance-web` Auth／Firestore／Functions Emulator 驗證，Functions 維持不部署。
-- 維護性整理：`bootstrap.js` 的 DOM map 與 browser file helper 已拆出，smoke seed 集中，unit runner 改為自動發現測試。
+- 維護性整理：`bootstrap.js` 已由 920 行收斂至約 307 行，UI coordinator、render coordinator 與 controller composition 已抽離；`transaction-controller.js` 已由 641 行收斂至約 413 行，純交易 commands 可脫離 DOM 單測。smoke seed 集中，unit runner 維持自動發現測試。
 - PWA 更新與同步衝突自動化：JavaScript／CSS 改為 network-first；新版 Service Worker 只在使用者按「立即更新」後切換並重新載入一次。兩個隔離瀏覽器透過 `demo-finance-web` Auth／Firestore Emulators 驗證相同資料零提示，以及真實衝突只提示一次、落敗版本進 IndexedDB、成功時不下載 JSON。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：

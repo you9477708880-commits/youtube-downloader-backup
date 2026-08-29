@@ -1,6 +1,6 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-08-29
+- 最後更新：2026-08-30
 - 正式分支：`main` at `67ed8fc`
 - 遠端正式點：`origin/main` at `67ed8fc`
 - 正式 Hosting 已知部署點：`67ed8fc`
@@ -47,14 +47,14 @@
 
 ## 維護性結論
 
-專案不需要換框架或全面重寫。`actions.js` 已收斂為 27 行，既有 domain／controller／view 與 `commitState()` 邊界可繼續沿用。主要熱點：
+專案不需要換框架或全面重寫。`actions.js` 已收斂為 27 行，既有 domain／controller／view 與 `commitState()` 邊界可繼續沿用。2026-08-30 已完成維護計畫第一、第二批：
 
-1. `src/app/bootstrap.js`：約 910 行、45 個 import、約 231 個 DOM 引用。
-2. `src/services/storage-cloud-records.js`：約 793 行、17 個具名 function。
-3. `src/app/controllers/transaction-controller.js`：約 641 行。
-4. `src/smoke-scenarios.js`：約 1305 行，屬測試維護負擔。
+1. `src/app/bootstrap.js`：920 → 約 307 行；UI、render 與 controller composition 已抽離。
+2. `src/app/controllers/transaction-controller.js`：641 → 約 413 行；純帳務 commands 已移到 `src/domain/transaction-commands.js`。
+3. 新增 `ui-coordinator.js`、`render-coordinator.js`、`controller-composition.js`，沒有新增全域 state。
+4. 新增不依賴 DOM 的 transaction command tests，既有交易結果、介面與同步語意不變。
 
-本批不冒險重寫同步與帳務；建議依 `maintenance-convergence-plan.md` 分成 bootstrap 組裝、交易純邏輯、record sync 邊界、smoke／文件四批。每批先補 characterization tests，再抽離，不改帳務或同步語意。
+目前剩餘熱點是 `storage-cloud-records.js` 約 793 行，以及 `smoke-scenarios.js` 約 1307 行。下一批應獨立處理 record sync 邊界，不能和新功能、migration 或部署混在同一批。
 
 ## 目前驗證
 
@@ -64,6 +64,10 @@
 - record codec：包含 round-trip、revision 與刪除 tombstone。
 - localStorage／JSON shape／event wiring：通過。
 - transaction-search UI smoke：通過，確認保存提醒後不改月度報表範圍、不複製交易列表。
+- render coordinator：3 項直接測試通過，鎖定完整 render 順序、搜尋替代 ledger 與 whole-state refresh。
+- transaction commands：4 項直接測試通過，涵蓋 transfer／advance 驗證、fund allocation、detail edit、provenance、刪除 cascade 與 repayment 關聯。
+- 原本 20 項 transaction controller characterization tests 保持通過。
+- 聚焦 browser smoke：準備金不足、解除準備、代墊修改、還款修改、搜尋、帳戶中心及 AndroMoney 匯入通過。
 - 完整 `npm test`：通過；包含 unit、release artifact、驗收隔離、20 項 Emulator 測試與 15 條瀏覽器 smoke 情境。
 - 已知非阻擋警告：Functions 使用的 `firebase-functions` 版本較舊；Emulator 暫以主機 Node 24 執行，而 `functions/package.json` 指定 Node 20。依本批限制不升級依賴，另列維護批次處理。
 
