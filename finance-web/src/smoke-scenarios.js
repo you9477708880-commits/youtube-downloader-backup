@@ -939,6 +939,14 @@ export async function runDesktopCoreLayoutScenario() {
     if (!guardrailText.includes("目前提領率") || !guardrailText.includes("投資組合內現金")) {
       throw new Error("retirement-guardrail-output-missing");
     }
+    const stockReturn = document.getElementById("rg-stock-return");
+    stockReturn.value = "20";
+    stockReturn.dispatchEvent(new Event("input", { bubbles: true }));
+    await waitFor(() => (document.getElementById("rg-output")?.textContent || "").includes("股票 64.3%（超配 4.3%）"));
+    const rebalancedText = document.getElementById("rg-output")?.textContent || "";
+    if (!rebalancedText.includes("賣出上漲且超過目標配置的股票")) {
+      throw new Error("retirement-return-did-not-trigger-rebalancing");
+    }
     document.querySelector('[data-action="toggle-tbl"]')?.click();
     await waitFor(() => !document.getElementById("tbl-w").classList.contains("d-none"));
 
@@ -1020,14 +1028,15 @@ export async function runMonthlyReviewScenario() {
       !text.includes("NT$ 50,000") ||
       !text.includes("NT$ 8,000") ||
       !text.includes("動用準備") ||
-      !text.includes("財務導航") ||
-      !text.includes("不評分，也不保存自評答案") ||
       !text.includes("與上期比較") ||
       !text.includes("只比較相同天數") ||
       !text.includes("主要預算使用來源") ||
       !text.includes("Smoke phone")
     ) {
       throw new Error(`monthly-review-content-missing: ${text}`);
+    }
+    if (text.includes("財務導航") || text.includes("本月自評")) {
+      throw new Error("monthly-review-obsolete-self-assessment-still-visible");
     }
 
     const sourceTrigger = document.querySelector('#monthly-review [data-action="view-budget-source"]');
@@ -1038,7 +1047,7 @@ export async function runMonthlyReviewScenario() {
     }
     document.getElementById("transaction-detail-close").click();
 
-    writeSmokeResult("pass", "monthly review renders financial navigation, traceable comparison, and complete source details");
+    writeSmokeResult("pass", "monthly review stays concise while rendering traceable comparison and complete source details");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
@@ -1164,11 +1173,10 @@ export async function runTransactionSearchScenario(app) {
     const reminderPanel = document.getElementById("life-reminder-panel");
     if (!reminderPanel || reminderPanel.open) throw new Error("life-reminder-not-collapsed-by-default");
     reminderPanel.open = true;
-    const reminderQuery = document.getElementById("life-reminder-query");
     const reminderInterval = document.getElementById("life-reminder-interval");
-    reminderQuery.value = "醫療 洗牙";
     reminderInterval.value = "180";
-    app.renderAll();
+    reminderInterval.dispatchEvent(new Event("input", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 250));
     if (!document.getElementById("life-reminder-summary")?.textContent.includes("3 個不同日期")) {
       throw new Error("life-reminder-summary-missing");
     }
@@ -1176,16 +1184,9 @@ export async function runTransactionSearchScenario(app) {
     if (!reminderText.includes("歷次平均相隔") || !reminderText.includes("依 180 天試算下次")) {
       throw new Error("life-reminder-derived-summary-missing");
     }
-    const reminderRows = [...document.querySelectorAll('#life-reminder-results [data-action="view-tx"]')];
-    if (reminderRows.length !== 3) throw new Error("life-reminder-recent-records-mismatch");
-    reminderRows[0].click();
-    if (document.getElementById("transaction-detail-modal").classList.contains("d-none")) {
-      throw new Error("life-reminder-detail-missing");
+    if (document.getElementById("life-reminder-query") || document.getElementById("life-reminder-results")) {
+      throw new Error("life-reminder-still-duplicates-search-results");
     }
-    if (!(document.getElementById("transaction-detail-body")?.textContent || "").includes("例行洗牙")) {
-      throw new Error("life-reminder-transaction-detail-missing");
-    }
-    document.getElementById("transaction-detail-close")?.click();
     if (
       document.getElementById("f-start")?.value !== reportStart ||
       document.getElementById("f-end")?.value !== reportEnd ||
@@ -1200,7 +1201,7 @@ export async function runTransactionSearchScenario(app) {
       throw new Error("transaction-search-clear-mismatch");
     }
 
-    writeSmokeResult("pass", "independent transaction search and non-persistent life reminder keep report state isolated and open existing transaction details");
+    writeSmokeResult("pass", "transaction search and its optional non-persistent interval check keep report state isolated without duplicate result rows");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
@@ -1272,6 +1273,23 @@ export async function runAccountCenterScenario(app) {
     const adjustment = app.store.getState().txs.find((tx) => tx.type === "balance_adjustment");
     if (adjustment.amount !== 100 || adjustment.direction !== "increase") {
       throw new Error("account-center-adjustment-mismatch");
+    }
+    document.querySelector(`[data-action="view-tx"][data-id="${adjustment.id}"]`)?.click();
+    await waitFor(() => !document.getElementById("transaction-detail-modal")?.classList.contains("d-none"));
+    const deleteAdjustment = document.getElementById("transaction-detail-delete");
+    if (!deleteAdjustment || deleteAdjustment.classList.contains("d-none") || !deleteAdjustment.textContent.includes("刪除這筆帳戶調整")) {
+      throw new Error("account-adjustment-direct-delete-missing");
+    }
+    const deleteConfirm = window.confirm;
+    window.confirm = () => true;
+    try {
+      deleteAdjustment.click();
+    } finally {
+      window.confirm = deleteConfirm;
+    }
+    await waitFor(() => !app.store.getState().txs.some((tx) => tx.id === adjustment.id));
+    if (!document.getElementById("transaction-detail-modal")?.classList.contains("d-none")) {
+      throw new Error("account-adjustment-detail-stayed-open-after-delete");
     }
 
     document.getElementById("bs-account-type").value = "liability";

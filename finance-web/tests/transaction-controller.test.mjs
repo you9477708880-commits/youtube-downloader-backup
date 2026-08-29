@@ -34,6 +34,7 @@ function createHarness(t, stateOverrides = {}) {
     shortfallChoices: [],
     promptResponses: [],
     confirmResponses: [],
+    confirmMessages: [],
     syncTxType: 0,
     renderCategories: 0,
     populateSubcategories: 0,
@@ -142,7 +143,10 @@ function createHarness(t, stateOverrides = {}) {
       incomeCategories: ["薪資"],
       expenseCategories: ["餐飲", "其他"],
     },
-    confirmDelete: () => calls.confirmResponses.length ? calls.confirmResponses.shift() : true,
+    confirmDelete: (message) => {
+      calls.confirmMessages.push(message);
+      return calls.confirmResponses.length ? calls.confirmResponses.shift() : true;
+    },
     promptInput: () => calls.promptResponses.length ? calls.promptResponses.shift() : null,
   });
   return { actions: controller, calls, controller, dom, store };
@@ -471,16 +475,28 @@ test("deleting linked transactions removes fund events and deleting an advance c
   });
   calls.confirmResponses.push(false, true);
 
-  actions.delTx("adv-1");
+  assert.equal(actions.delTx("adv-1"), false);
   assert.deepEqual(store.getState().txs, txs);
   assert.equal(calls.save, 0);
 
-  actions.delTx("adv-1");
+  assert.equal(actions.delTx("adv-1"), true);
   assert.deepEqual(store.getState().txs.map((tx) => tx.id), ["unrelated"]);
   assert.deepEqual(store.getState().sinkingFunds[0].events.map((event) => event.id), ["kept"]);
   assert.equal(calls.save, 1);
   assert.equal(calls.commit, 1);
   assert.equal(calls.renderAll, 1);
+});
+
+test("deleting a balance adjustment explains that the account balance will be recalculated", (t) => {
+  const { actions, calls, store } = createHarness(t, {
+    txs: [{ id: "adjustment-1", type: "balance_adjustment", direction: "increase", amount: 1000, date: "2026-08-29", acc: "cash" }],
+  });
+  calls.confirmResponses.push(true);
+
+  assert.equal(actions.delTx("adjustment-1"), true);
+  assert.equal(store.getState().txs.length, 0);
+  assert.match(calls.confirmMessages[0], /帳戶餘額會回到調整前/);
+  assert.match(calls.toasts.at(-1)[0], /已刪除帳戶調整/);
 });
 
 test("repaying an advance creates a linked non-income repayment and rejects cancelled or excessive amounts", (t) => {

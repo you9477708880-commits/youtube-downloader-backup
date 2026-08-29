@@ -95,6 +95,7 @@ Effects:
 - `direction: "increase"` 增加指定帳戶餘額；`direction: "decrease"` 減少指定帳戶餘額。
 - 不增加收入、支出、現金流或預算使用額。
 - 保留在 `txs` 中供追溯；刪除該筆調整即可撤銷效果。
+- 交易明細只對 `balance_adjustment` 顯示專用刪除按鈕；刪除前必須明確提示帳戶餘額會重新計算。
 - 信用卡欠款以負餘額表示；信用卡繳款仍應使用資產帳戶轉入信用卡的 `transfer`。
 
 Account reconciliation adjustments only align the calculated balance with the financial institution's actual balance. They affect the selected account balance but are excluded from income, expenses, cash flow, and budgets. They remain traceable in `txs` and can be reversed by deleting the adjustment.
@@ -395,7 +396,7 @@ Deletions use tombstones so stale offline devices cannot silently restore remove
 - 護欄年度檢查使用使用者輸入的投資組合市值、起始提領率、上年度提領與報酬率試算，不把 5.3% 視為所有人的固定答案。
 - 提領率高於起始提領率的 120% 時，在預期壽命前 15 年以前把下年度提領降低 10%；低於 80% 時提高 10%。
 - 上年度組合報酬為負且目前提領率高於起始提領率時，跳過通膨調整；並非所有負報酬年份都自動凍結。
-- 提領來源依簡化順序試算：上漲且超配的股票、上漲且超配的債券、投資組合現金、其餘債券、經使用者明確允許的緊急預備金、最後才是其餘股票。
+- 提領來源先以「上年度期初配置 × 各資產報酬」推估目前配置（現金報酬固定視為 0%），再和目標配置比較。簡化順序為：上漲且超配的股票、上漲且超配的債券、投資組合現金、其餘債券、經使用者明確允許的緊急預備金、最後才是其餘股票；因此相同 60/30/10 期初與目標配置在股票上漲後，也會產生股票超配與再平衡來源。
 - 緊急預備金預設不動用；1–2 年等目標只是使用者可調整的非持久化規劃值。
 - 護欄與來源順序只產生試算，不建立交易、不改帳戶餘額，也不寫回資產負債表。
 - 推估結果不寫回交易、帳戶或資產負債表。

@@ -25,6 +25,7 @@ const DATA_ACTIONS = {
   "view-tx": ({ button, actions }) => actions.openTransactionDetail(button.dataset.id, button),
   "view-budget-source": ({ button, actions }) => actions.openBudgetSourceDetail(button.dataset.id, button.dataset.sourceType, button),
   "edit-transaction-detail": ({ actions }) => actions.editTransactionDetail(),
+  "delete-transaction-detail": ({ actions }) => actions.deleteTransactionDetail(),
   "cancel-transaction-detail-edit": ({ actions }) => actions.cancelTransactionDetailEdit(),
   "save-transaction-detail": ({ actions }) => { void actions.saveTransactionDetail(); },
   "close-transaction-detail": ({ actions }) => actions.closeTransactionDetail(),
@@ -121,7 +122,6 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.transactionSearchStart, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchEnd, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
-  on(dom.lifeReminderQuery, "input", handlers.updateLifeRecordReminder);
   on(dom.lifeReminderInterval, "input", handlers.updateLifeRecordReminder);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));

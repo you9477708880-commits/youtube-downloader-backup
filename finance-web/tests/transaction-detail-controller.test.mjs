@@ -23,6 +23,7 @@ function setup() {
   };
   const title = { textContent: "" };
   const body = { innerHTML: "" };
+  const remove = { classList: createClassList() };
   const edit = { classList: createClassList(), focused: false, focus() { this.focused = true; } };
   const close = { focused: false, focus() { this.focused = true; } };
   const trigger = { focused: false, focus() { this.focused = true; } };
@@ -52,14 +53,16 @@ function setup() {
       events: [{ id: "topup-1", type: "topup", amount: 1000, date: "2026-08-02", note: "臨時補入" }],
     }],
   };
+  const deleted = [];
   const controller = createTransactionDetailController({
-    elements: { modal, title, body, edit, close },
+    elements: { modal, title, body, delete: remove, edit, close },
     store: { getState: () => state },
     formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
     escapeHTML: (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
     updateTransaction: async () => true,
+    deleteTransaction: async (id) => { deleted.push(id); return true; },
   });
-  return { controller, modal, title, body, edit, close, trigger, doc, first, last, state };
+  return { controller, modal, title, body, remove, edit, close, trigger, doc, first, last, state, deleted };
 }
 
 test("opens a complete escaped transaction detail and restores focus when closed", () => {
@@ -73,7 +76,31 @@ test("opens a complete escaped transaction detail and restores focus when closed
   assert.doesNotMatch(fx.body.innerHTML, /<script>/);
   assert.equal(fx.close.focused, true);
   assert.equal(fx.edit.classList.contains("d-none"), false);
+  assert.equal(fx.remove.classList.contains("d-none"), true);
   assert.equal(fx.controller.close(), true);
+  assert.equal(fx.modal.classList.contains("d-none"), true);
+  assert.equal(fx.trigger.focused, true);
+});
+
+test("balance adjustment detail offers a direct delete and closes after success", async () => {
+  const fx = setup();
+  fx.state.txs = [{
+    id: "adjustment-1",
+    type: "balance_adjustment",
+    direction: "increase",
+    amount: 1000,
+    date: "2026-08-29",
+    acc: "cash",
+    category: "帳戶調整",
+    subcategory: "對帳",
+    desc: "對帳調整：現金",
+  }];
+
+  assert.equal(fx.controller.openTransaction("adjustment-1", fx.trigger), true);
+  assert.equal(fx.edit.classList.contains("d-none"), true);
+  assert.equal(fx.remove.classList.contains("d-none"), false);
+  assert.equal(await fx.controller.removeActiveTransaction(), true);
+  assert.deepEqual(fx.deleted, ["adjustment-1"]);
   assert.equal(fx.modal.classList.contains("d-none"), true);
   assert.equal(fx.trigger.focused, true);
 });

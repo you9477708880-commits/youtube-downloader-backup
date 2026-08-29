@@ -4,16 +4,14 @@ import { renderLifeRecordReminder } from "../../views/life-record-reminder-view.
 export function createLifeRecordReminderController({
   elements,
   store,
-  utils,
   now = () => new Date(),
   schedule = (callback) => setTimeout(callback, 200),
   cancelSchedule = (handle) => clearTimeout(handle),
 }) {
-  if (!elements?.query || !elements?.interval || !elements?.status || !elements?.summary || !elements?.results) {
+  if (!elements?.query || !elements?.interval || !elements?.status || !elements?.summary) {
     throw new Error("life-record-reminder-elements-required");
   }
   if (!store || typeof store.getState !== "function") throw new Error("life-record-reminder-store-required");
-  if (!utils?.escapeHTML || !utils?.formatMoney) throw new Error("life-record-reminder-utils-required");
 
   let pendingRender = null;
 
@@ -35,9 +33,8 @@ export function createLifeRecordReminderController({
   }
 
   function render() {
-    const state = store.getState();
     const model = getModel();
-    renderLifeRecordReminder({ model, accounts: state.accounts, elements, utils });
+    renderLifeRecordReminder({ model, elements });
     return model;
   }
 
@@ -52,13 +49,10 @@ export function createLifeRecordReminderController({
   function reset() {
     cancelPendingRender();
     if (elements.panel) elements.panel.open = false;
-    elements.query.value = "";
     elements.interval.value = "";
     renderLifeRecordReminder({
       model: deriveLifeRecordReminder(),
-      accounts: [],
       elements,
-      utils,
     });
   }
 

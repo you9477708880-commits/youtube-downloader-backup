@@ -1,6 +1,5 @@
 import { calculateBalanceSheet } from "./accounts.js";
 import { calculateBudgetData } from "./budget.js";
-import { buildFinancialNavigation } from "./financial-navigation.js";
 import { summarizeCashFlow, summarizeOverview } from "./transactions.js";
 
 function isDateInRange(date, range) {
@@ -163,8 +162,5 @@ export function calculateMonthlyReviewData(state, range) {
     ],
   };
 
-  return {
-    ...review,
-    navigation: buildFinancialNavigation(review),
-  };
+  return review;
 }

@@ -33,6 +33,52 @@ function isValidAllocation(allocation) {
   return Math.abs(allocationTotal(allocation) - 100) < 0.01;
 }
 
+export function calculatePostReturnAllocation({
+  startingAllocation,
+  stockReturnPct = 0,
+  bondReturnPct = 0,
+  cashReturnPct = 0,
+}) {
+  const starting = normalizeAllocation(startingAllocation);
+  if (!isValidAllocation(starting)) {
+    return {
+      valid: false,
+      reason: "allocation-total-must-be-100",
+      startingAllocation: starting,
+      startingTotal: allocationTotal(starting),
+      currentAllocation: starting,
+    };
+  }
+
+  const afterReturn = {
+    stock: starting.stock * Math.max(0, 1 + finiteNumber(stockReturnPct) / 100),
+    bond: starting.bond * Math.max(0, 1 + finiteNumber(bondReturnPct) / 100),
+    cash: starting.cash * Math.max(0, 1 + finiteNumber(cashReturnPct) / 100),
+  };
+  const total = allocationTotal(afterReturn);
+  if (total <= RATE_EPSILON) {
+    return {
+      valid: false,
+      reason: "post-return-allocation-empty",
+      startingAllocation: starting,
+      startingTotal: 100,
+      currentAllocation: { stock: 0, bond: 0, cash: 0 },
+    };
+  }
+
+  return {
+    valid: true,
+    reason: "",
+    startingAllocation: starting,
+    startingTotal: 100,
+    currentAllocation: {
+      stock: afterReturn.stock / total * 100,
+      bond: afterReturn.bond / total * 100,
+      cash: afterReturn.cash / total * 100,
+    },
+  };
+}
+
 export function calculateGuardrailDecision({
   portfolioValue,
   initialWithdrawalRatePct = GUARDRAIL_DEFAULTS.initialWithdrawalRatePct,

@@ -82,6 +82,14 @@ test("retirement scenario and guardrail rendering stay projection-only and expla
   assert.match(dom.retireGuardrailOutput.innerHTML, /目前提領率/);
   assert.match(dom.retireGuardrailOutput.innerHTML, /本次提領來源順序/);
   assert.match(dom.retireGuardrailOutput.innerHTML, /使用投資組合內現金/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /依期初配置與上年度資產報酬推估目前配置/);
   assert.match(dom.retireGuardrailOutput.innerHTML, /不會修改帳戶、建立交易或保證資金安全/);
   assert.match(dom.retireGuardrailEmergencyLabel.textContent, /目前可辨識緊急預備金/);
+
+  dom.retireGuardrailStockReturn.value = "20";
+  dom.retireGuardrailBondReturn.value = "0";
+  dom.retireGuardrailPortfolioReturn.value = "12";
+  renderRetirement({ state: sampleState(), utils, dom });
+  assert.match(dom.retireGuardrailOutput.innerHTML, /股票 64\.3%（超配 4\.3%）/);
+  assert.match(dom.retireGuardrailOutput.innerHTML, /賣出上漲且超過目標配置的股票/);
 });

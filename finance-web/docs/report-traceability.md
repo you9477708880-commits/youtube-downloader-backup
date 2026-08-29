@@ -30,7 +30,7 @@ This document defines the traceability standard for report numbers. Users should
 | 月度回顧 2.0 / Period Comparison | 收入、生活支出、準備活動 | 目前範圍與相同天數前一期間的既有 `txs`、預算與準備資料 | 只讀推導，不持久化比較結果 |
 | 月度回顧 2.0 / Category Change | 最大生活支出分類變化 | 兩期預算頁生活支出來源依主分類加總 | 排除已由準備覆蓋的部分 |
 | 記帳 / Ledger | 交易列表 | `txs` | 主要交易明細 |
-| 記帳 / Life Record Reminder | 最近日期、平均間隔、預計下次 | 截至今天的全部 `txs`，依使用者關鍵字命中並按不同日期去重 | 只讀推導；不加總金額、不保存條件、不影響報表期間 |
+| 記帳 / Search Interval Check | 最近日期、平均間隔、預計下次 | 截至今天的全部 `txs`，沿用交易搜尋關鍵字並按不同日期去重 | 只讀推導；不重複交易清單、不保存條件、不影響報表期間 |
 | 預算 / Budget | 本月可支配預算 | `settings.budgetCap` | 設定值 |
 | 預算 / Budget | 本月生活支出 | `txs` 中仍由當月負擔的個人支出 | 可由交易與準備覆蓋規則推導 |
 | 預算 / Budget | 本月大額準備 | `sinkingFunds.monthlyContribution` 依期間推算 | 預算規劃，不是帳戶轉帳 |
@@ -51,7 +51,7 @@ This document defines the traceability standard for report numbers. Users should
 | 退休 / Retirement | 退休推估 | 使用者輸入 + 資產資料 + 模型參數 | 推估，不是帳務事實 |
 | 退休 / Retirement | 4% 法則參考 | 每月提領 × 300 | 經驗法則提示 |
 | 退休 / Guardrail | 明年提領額 | 目前組合、上年度提領、起始提領率、通膨與上年度報酬 | 非持久化年度規則試算 |
-| 退休 / Withdrawal Sources | 提領來源順序 | 使用者輸入的目前／目標配置、資產報酬、既有緊急預備金 | 非持久化來源規劃，不建立交易 |
+| 退休 / Withdrawal Sources | 提領來源順序 | 使用者輸入的期初／目標配置、資產報酬所推估的目前配置、既有緊急預備金 | 非持久化再平衡來源規劃，不建立交易 |
 
 ## 3. 預算頁追溯 / Budget Traceability
 

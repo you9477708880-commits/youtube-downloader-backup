@@ -252,13 +252,9 @@
         <div class="tx-search-summary" id="tx-search-summary" hidden></div>
         <div class="empty tx-search-empty" id="tx-search-empty" hidden></div>
         <details class="life-reminder" id="life-reminder-panel">
-          <summary>生活紀錄提醒（不保存）</summary>
+          <summary>檢查這個搜尋的週期間隔（選填）</summary>
           <div class="life-reminder-body">
             <div class="life-reminder-controls">
-              <label>
-                <span>關鍵字</span>
-                <input type="search" id="life-reminder-query" maxlength="200" autocomplete="off" placeholder="例如：洗牙、汽車 保養">
-              </label>
               <label>
                 <span>預期間隔（天）</span>
                 <input type="number" id="life-reminder-interval" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如：180">
@@ -266,8 +262,7 @@
             </div>
             <div class="life-reminder-status" id="life-reminder-status" data-state="idle" aria-live="polite"></div>
             <div class="life-reminder-summary" id="life-reminder-summary" hidden></div>
-            <div class="life-reminder-results" id="life-reminder-results" hidden></div>
-            <p class="life-reminder-note">提醒會比對截至今天的全部帳務紀錄，不受月度報表或上方搜尋期間影響。這只是依記帳文字與自行輸入的間隔試算，不代表醫療、汽車保養或其他專業建議；條件不會保存或同步。</p>
+            <p class="life-reminder-note">沿用上方搜尋關鍵字，但週期計算會比對截至今天的全部帳務紀錄，不受搜尋期間或月度報表影響。這只是日期試算，不代表醫療、汽車保養或其他專業建議；間隔不會保存或同步。</p>
           </div>
         </details>
       </div>
@@ -526,7 +521,7 @@
               </div>
               <div class="text-xs text-gray mt-1">投資組合市值請不要重複包含下方網站已標記的緊急預備金。</div>
 
-              <div class="ct mt-3">目前配置比例</div>
+              <div class="ct mt-3">上年度期初配置比例</div>
               <div class="grid-3">
                 <div><label class="flb" for="rg-current-stock">股票 %</label><input type="number" id="rg-current-stock" min="0" max="100" step="1" value="60"></div>
                 <div><label class="flb" for="rg-current-bond">債券 %</label><input type="number" id="rg-current-bond" min="0" max="100" step="1" value="30"></div>
@@ -544,6 +539,7 @@
                 <div><label class="flb" for="rg-stock-return">上年度股票報酬率 %</label><input type="number" id="rg-stock-return" min="-100" max="100" step="0.1" value="0"></div>
                 <div><label class="flb" for="rg-bond-return">上年度債券報酬率 %</label><input type="number" id="rg-bond-return" min="-100" max="100" step="0.1" value="0"></div>
               </div>
+              <div class="text-xs text-gray mt-1">系統會依期初配置與股票／債券報酬率推估目前配置，再和目標配置比較；現金報酬暫以 0% 計算。</div>
 
               <label class="flex-row justify-start gap-2 font-bold text-sm pointer mt-3">
                 <input type="checkbox" id="rg-use-emergency" class="w-16px h-16px">
@@ -604,6 +600,7 @@
     </div>
     <div id="transaction-detail-body" class="mt-3"></div>
     <div class="transaction-detail-footer mt-3">
+      <button type="button" id="transaction-detail-delete" class="sbtn danger d-none" data-action="delete-transaction-detail">刪除這筆帳戶調整</button>
       <button type="button" id="transaction-detail-edit" class="sbtn d-none" data-action="edit-transaction-detail">編輯這筆交易</button>
       <button type="button" id="transaction-detail-close" class="sbtn outline" data-action="close-transaction-detail">關閉</button>
     </div>

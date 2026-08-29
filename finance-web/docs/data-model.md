@@ -456,7 +456,7 @@ The system should warn the user and suggest:
 - 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
 - 「清除此裝置」只刪目前 `local`／Firebase UID scope 的 snapshot、rollback、UID outbox 與衝突復原紀錄。登入狀態還會先停止同步、登出、終止 Firestore 並呼叫官方離線快取清除；不會建立空 state、tombstone 或任何雲端 delete。
 - Firestore IndexedDB cache 無法依 UID 分開，因此登入狀態的裝置清理會清除此 Firebase app 在該網站來源下的離線快取；其他帳號的雲端資料不受影響。其他 UID localStorage、legacy v6 keys、migration marker 與共用 device-id 刻意保留。
-- 生活紀錄提醒只從截至今天的 `txs`、帳戶與準備金名稱即時計算；關鍵字、預期間隔、狀態及結果不加入 state、JSON、localStorage 或 Firestore。
+- 交易搜尋週期間隔檢查只從截至今天的 `txs`、帳戶與準備金名稱即時計算；它沿用交易搜尋關鍵字，不另存一份查詢或結果。預期間隔、狀態及結果不加入 state、JSON、localStorage 或 Firestore。
 
 後續限制：
 
@@ -497,7 +497,7 @@ Remaining limits:
 
 - 自訂報酬率、通膨、提領、壽命的推估是主邏輯。
 - 4% 法則只是額外參考。
-- 護欄輸入、目前／目標股票債券現金配置、報酬率與緊急預備金目標年數都只存在畫面記憶體；重新載入即回到範例值，不加入 state、JSON、localStorage 或 Firestore。
+- 護欄輸入、上年度期初／目標股票債券現金配置、報酬率與緊急預備金目標年數都只存在畫面記憶體；系統用期初配置與股票／債券報酬推估目前配置，現金報酬在簡化模型中固定為 0%。重新載入即回到範例值，不加入 state、JSON、localStorage 或 Firestore。
 - `emergencyFund` 由既有標記為緊急預備金的帳戶與手動項目推導，仍排除在 `retirementReadyAsset` 之外；只有使用者勾選允許時，年度來源試算才可把它列為股票之前的備援來源。
 - 護欄決策與 `withdrawal source plan` 都是衍生結果，不保存，也不自動建立提領交易。
 - 僅加入透明的年度規則與來源順序，不擴張成蒙地卡羅、稅務或自動再平衡交易平台。

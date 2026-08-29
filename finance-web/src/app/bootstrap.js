@@ -603,20 +603,19 @@ export async function bootstrapFinanceApp(doc = document) {
   lifeRecordReminderController = createLifeRecordReminderController({
     elements: {
       panel: dom.lifeReminderPanel,
-      query: dom.lifeReminderQuery,
+      query: dom.transactionSearchQuery,
       interval: dom.lifeReminderInterval,
       status: dom.lifeReminderStatus,
       summary: dom.lifeReminderSummary,
-      results: dom.lifeReminderResults,
     },
     store,
-    utils,
   });
   const transactionDetailController = createTransactionDetailController({
     elements: {
       modal: dom.transactionDetailModal,
       title: dom.transactionDetailTitle,
       body: dom.transactionDetailBody,
+      delete: dom.transactionDetailDelete,
       edit: dom.transactionDetailEdit,
       close: dom.transactionDetailClose,
     },
@@ -624,6 +623,7 @@ export async function bootstrapFinanceApp(doc = document) {
     formatMoney,
     escapeHTML,
     updateTransaction: (id, input) => transactionController.updateTransactionFromDetail(id, input),
+    deleteTransaction: (id) => transactionController.delTx(id),
   });
   const importController = createImportController({
     elements: {
@@ -768,6 +768,7 @@ export async function bootstrapFinanceApp(doc = document) {
     openTransactionDetail: transactionDetailController.openTransaction,
     openBudgetSourceDetail: transactionDetailController.openBudgetSource,
     editTransactionDetail: transactionDetailController.startEdit,
+    deleteTransactionDetail: transactionDetailController.removeActiveTransaction,
     cancelTransactionDetailEdit: transactionDetailController.cancelEdit,
     saveTransactionDetail: transactionDetailController.saveEdit,
     syncTransactionDetailType: transactionDetailController.syncEditorType,
@@ -813,9 +814,15 @@ export async function bootstrapFinanceApp(doc = document) {
         dom.goalCenter.dataset.filter = filter;
         renderGoalCenter({ state: store.getState(), filterRange: getFilterRangeValue(), utils, dom });
       },
-      searchTransactions: transactionSearchController.handleQueryInput,
+      searchTransactions: () => {
+        transactionSearchController.handleQueryInput();
+        lifeRecordReminderController.handleInput();
+      },
       changeTransactionSearchPeriod: transactionSearchController.handlePresetChange,
-      clearTransactionSearch: transactionSearchController.clear,
+      clearTransactionSearch: () => {
+        transactionSearchController.clear();
+        lifeRecordReminderController.reset();
+      },
       updateLifeRecordReminder: lifeRecordReminderController.handleInput,
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),

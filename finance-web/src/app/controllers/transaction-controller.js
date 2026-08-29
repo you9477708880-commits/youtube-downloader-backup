@@ -520,13 +520,21 @@ export function createTransactionController({
   };
 
   const delTx = (id) => {
-    if (!confirmDelete("確定要刪除這筆交易嗎？")) return;
+    const target = store.getState().txs.find((tx) => sameId(tx.id, id));
+    if (!target) {
+      toast.show("找不到這筆交易", "error");
+      return false;
+    }
+    const message = target.type === "balance_adjustment"
+      ? "確定要刪除這筆帳戶調整嗎？刪除後，帳戶餘額會回到調整前的計算結果。"
+      : "確定要刪除這筆交易嗎？";
+    if (!confirmDelete(message)) return false;
     commitState((draft) => {
-      const target = draft.txs.find((tx) => sameId(tx.id, id));
       draft.txs = draft.txs.filter((tx) => !sameId(tx.id, id) && !(target?.type === "advance" && tx.type === "advance_repayment" && sameId(tx.advanceId, id)));
       draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, id);
     }, { updateUi: renderAll });
-    toast.show("已刪除交易");
+    toast.show(target.type === "balance_adjustment" ? "已刪除帳戶調整，帳戶餘額已重新計算" : "已刪除交易");
+    return true;
   };
 
   const repayAdvance = (id) => {

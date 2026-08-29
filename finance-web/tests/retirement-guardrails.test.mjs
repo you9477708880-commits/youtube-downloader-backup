@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   calculateGuardrailDecision,
+  calculatePostReturnAllocation,
   calculateWithdrawalSourcePlan,
 } from "../src/domain/retirement-guardrails.js";
 
@@ -112,6 +113,56 @@ test("positive overweight stock is used before cash and bonds", () => {
     label: "賣出上漲且超過目標配置的股票",
     amount: 1060000,
   }]);
+});
+
+test("positive stock returns create different post-return overweight amounts for rebalancing", () => {
+  const tenPercent = calculatePostReturnAllocation({
+    startingAllocation: { stock: 60, bond: 30, cash: 10 },
+    stockReturnPct: 10,
+    bondReturnPct: 0,
+  });
+  const twentyPercent = calculatePostReturnAllocation({
+    startingAllocation: { stock: 60, bond: 30, cash: 10 },
+    stockReturnPct: 20,
+    bondReturnPct: 0,
+  });
+
+  assert.equal(tenPercent.valid, true);
+  assert.ok(Math.abs(tenPercent.currentAllocation.stock - 62.2641509434) < 0.000001);
+  assert.ok(Math.abs(twentyPercent.currentAllocation.stock - 64.2857142857) < 0.000001);
+
+  const tenPlan = calculateWithdrawalSourcePlan({
+    portfolioValue: 20000000,
+    currentAllocation: tenPercent.currentAllocation,
+    targetAllocation: { stock: 60, bond: 30, cash: 10 },
+    annualWithdrawal: 1081200,
+    priorStockReturnPct: 10,
+  });
+  const twentyPlan = calculateWithdrawalSourcePlan({
+    portfolioValue: 20000000,
+    currentAllocation: twentyPercent.currentAllocation,
+    targetAllocation: { stock: 60, bond: 30, cash: 10 },
+    annualWithdrawal: 1081200,
+    priorStockReturnPct: 20,
+  });
+
+  assert.equal(tenPlan.steps[0].source, "stock");
+  assert.ok(Math.abs(tenPlan.steps[0].amount - 452830.18868) < 0.01);
+  assert.equal(tenPlan.steps[1].source, "cash");
+  assert.equal(twentyPlan.steps[0].source, "stock");
+  assert.ok(Math.abs(twentyPlan.steps[0].amount - 857142.85714) < 0.01);
+  assert.equal(twentyPlan.steps[1].source, "cash");
+  assert.ok(twentyPlan.steps[0].amount > tenPlan.steps[0].amount);
+});
+
+test("post-return allocation rejects an invalid starting total without mutating input", () => {
+  const startingAllocation = { stock: 60, bond: 20, cash: 10 };
+  const before = structuredClone(startingAllocation);
+  const result = calculatePostReturnAllocation({ startingAllocation, stockReturnPct: 10 });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.startingTotal, 90);
+  assert.deepEqual(startingAllocation, before);
 });
 
 test("positive overweight stock and bonds are consumed in that order", () => {

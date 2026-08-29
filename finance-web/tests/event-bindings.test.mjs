@@ -54,7 +54,7 @@ function createHarness() {
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
-    "transactionSearchEnd", "transactionSearchClear", "lifeReminderQuery", "lifeReminderInterval", "transactionDetailModal",
+    "transactionSearchEnd", "transactionSearchClear", "lifeReminderInterval", "transactionDetailModal",
     "recoveryCenterModal", "deviceClearModal",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
@@ -95,6 +95,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("view-tx", { id: "tx-detail" });
   dispatch("view-budget-source", { id: "plan-fund", sourceType: "fund-plan" });
   dispatch("edit-transaction-detail");
+  dispatch("delete-transaction-detail");
   dispatch("save-transaction-detail");
   dispatch("cancel-transaction-detail-edit");
   dispatch("close-transaction-detail");
@@ -120,6 +121,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["openTransactionDetail", "tx-detail", { dataset: { action: "view-tx", id: "tx-detail" } }],
     ["openBudgetSourceDetail", "plan-fund", "fund-plan", { dataset: { action: "view-budget-source", id: "plan-fund", sourceType: "fund-plan" } }],
     ["editTransactionDetail"],
+    ["deleteTransactionDetail"],
     ["saveTransactionDetail"],
     ["cancelTransactionDetailEdit"],
     ["closeTransactionDetail"],
@@ -167,7 +169,6 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.transactionSearchQuery.emit("input");
   dom.transactionSearchPreset.emit("change");
   dom.transactionSearchClear.emit("click");
-  dom.lifeReminderQuery.emit("input");
   dom.lifeReminderInterval.emit("input");
   dom.balanceType.value = "item";
   dom.balanceType.emit("change");
@@ -202,7 +203,6 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "searchTransactions",
     "changeTransactionSearchPeriod",
     "clearTransactionSearch",
-    "updateLifeRecordReminder",
     "updateLifeRecordReminder",
     "changeBalanceType",
     "changeBalanceType",

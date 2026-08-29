@@ -1,5 +1,5 @@
 import { calculateRetirementScenarios } from "../domain/retirement-scenarios.js";
-import { calculateGuardrailDecision, calculateWithdrawalSourcePlan } from "../domain/retirement-guardrails.js";
+import { calculateGuardrailDecision, calculatePostReturnAllocation, calculateWithdrawalSourcePlan } from "../domain/retirement-guardrails.js";
 import { toMoneyInt } from "../utils/format.js";
 
 function parseNumberOrDefault(value, fallback) {
@@ -122,13 +122,18 @@ export function renderRetirement({ state, utils, dom }) {
       maximumAge: deathAge,
     });
     const availableEmergencyReserve = Math.max(0, projection.emergencyFund);
-    const sourcePlan = calculateWithdrawalSourcePlan({
-      portfolioValue,
-      currentAllocation: {
+    const postReturnAllocation = calculatePostReturnAllocation({
+      startingAllocation: {
         stock: dom.retireGuardrailCurrentStock.value,
         bond: dom.retireGuardrailCurrentBond.value,
         cash: dom.retireGuardrailCurrentCash.value,
       },
+      stockReturnPct: dom.retireGuardrailStockReturn.value,
+      bondReturnPct: dom.retireGuardrailBondReturn.value,
+    });
+    const sourcePlan = calculateWithdrawalSourcePlan({
+      portfolioValue,
+      currentAllocation: postReturnAllocation.currentAllocation,
       targetAllocation: {
         stock: dom.retireGuardrailTargetStock.value,
         bond: dom.retireGuardrailTargetBond.value,
@@ -148,9 +153,16 @@ export function renderRetirement({ state, utils, dom }) {
 
     if (!decision.valid) {
       dom.retireGuardrailOutput.innerHTML = `<div class="text-xs text-exp">請輸入大於 0 的投資組合市值、上年度全年提領與起始提領率。</div>`;
+    } else if (!postReturnAllocation.valid) {
+      const allocationMessage = postReturnAllocation.reason === "post-return-allocation-empty"
+        ? "依期初配置與上年度報酬推估後，投資組合沒有可用資產；請檢查報酬率輸入。"
+        : `期初配置合計 ${postReturnAllocation.startingTotal.toFixed(1)}%；期初配置必須等於 100%。`;
+      dom.retireGuardrailOutput.innerHTML = `
+        <div class="text-xs text-exp">${allocationMessage}</div>
+      `;
     } else if (!sourcePlan.valid) {
       dom.retireGuardrailOutput.innerHTML = `
-        <div class="text-xs text-exp">目前配置合計 ${sourcePlan.currentTotal.toFixed(1)}%，目標配置合計 ${sourcePlan.targetTotal.toFixed(1)}%；兩者都必須各自等於 100%。</div>
+        <div class="text-xs text-exp">目標配置合計 ${sourcePlan.targetTotal.toFixed(1)}%；目標配置必須等於 100%。</div>
       `;
     } else {
       const action = guardrailActionMeta(decision.action);
@@ -181,6 +193,14 @@ export function renderRetirement({ state, utils, dom }) {
           ? `<div class="text-xs text-exp mt-2">以明年提領額估算，保留 ${reserveTargetYears.toFixed(1)} 年緊急預備金的目標是 ${utils.formatMoney(reserveTargetAmount)}，目前尚差 ${utils.formatMoney(reserveTargetGap)}。</div>`
           : `<div class="text-xs text-inc mt-2">目前緊急預備金已達 ${reserveTargetYears.toFixed(1)} 年目標（約 ${utils.formatMoney(reserveTargetAmount)}）。</div>`
         : `<div class="text-xs text-gray mt-2">目前未設定緊急預備金年數目標。</div>`;
+      const derived = sourcePlan.currentAllocation;
+      const target = sourcePlan.targetAllocation;
+      const allocationName = { stock: "股票", bond: "債券", cash: "現金" };
+      const allocationDrift = ["stock", "bond", "cash"].map((key) => {
+        const difference = derived[key] - target[key];
+        const direction = Math.abs(difference) < 0.005 ? "符合目標" : difference > 0 ? `超配 ${difference.toFixed(1)}%` : `低配 ${Math.abs(difference).toFixed(1)}%`;
+        return `${allocationName[key]} ${derived[key].toFixed(1)}%（${direction}）`;
+      }).join("｜");
 
       dom.retireGuardrailOutput.innerHTML = `
         <div class="detail-list">
@@ -194,12 +214,13 @@ export function renderRetirement({ state, utils, dom }) {
           </div>
         </div>
         ${preRetirementNote}${preservationExpiry}
+        <div class="text-xs text-gray mt-2">依期初配置與上年度資產報酬推估目前配置（現金報酬暫以 0%）：${utils.escapeHTML(allocationDrift)}</div>
         <div class="text-xs text-gray mt-2">投資組合內現金可支應 ${sourcePlan.cashBufferYears.toFixed(2)} 年；${sourcePlan.allowEmergencyReserve ? `加上已允許的緊急預備金後約 ${sourcePlan.protectedBufferYears.toFixed(2)} 年。` : "緊急預備金預設不動用。"}</div>
         ${reserveTarget}
         <div class="ct mt-3">本次提領來源順序</div>
         <div class="detail-list">${sourceRows}</div>
         ${stockProtection}${unfunded}
-        <div class="text-xs text-gray mt-2">來源順序依簡化的 Guyton-Klinger 投資組合管理規則：先處理上漲且超配的資產，再用現金、債券、經你允許的緊急預備金，最後才用股票。這是年度規劃試算，不會修改帳戶、建立交易或保證資金安全。</div>
+        <div class="text-xs text-gray mt-2">來源順序依簡化的 Guyton-Klinger 投資組合管理規則：先用提領賣出上漲且超配的資產，讓配置往目標靠近，再用現金、債券、經你允許的緊急預備金，最後才用其餘股票。這是年度規劃試算，不會修改帳戶、建立交易或保證資金安全。</div>
         <div class="text-xs mt-2"><a href="https://www.financialplanningassociation.org/article/journal/MAR06-decision-rules-and-maximum-initial-withdrawal-rates" target="_blank" rel="noopener noreferrer">原始研究規則</a>｜<a href="https://potawang.substack.com/p/retirement-guardrail-strategy-vs-4-percent-rule" target="_blank" rel="noopener noreferrer">中文閱讀參考</a></div>
       `;
     }

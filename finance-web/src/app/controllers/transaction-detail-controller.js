@@ -19,14 +19,15 @@ function displayText(value, fallback = "未填寫") {
   return text || fallback;
 }
 
-export function createTransactionDetailController({ elements, store, formatMoney, escapeHTML, updateTransaction }) {
-  if (!elements?.modal || !elements?.title || !elements?.body || !elements?.edit || !elements?.close) {
+export function createTransactionDetailController({ elements, store, formatMoney, escapeHTML, updateTransaction, deleteTransaction }) {
+  if (!elements?.modal || !elements?.title || !elements?.body || !elements?.delete || !elements?.edit || !elements?.close) {
     throw new Error("transaction-detail-elements-required");
   }
   if (!store || typeof store.getState !== "function") throw new Error("transaction-detail-store-required");
   requireFunction(formatMoney, "format-money");
   requireFunction(escapeHTML, "escape-html");
   requireFunction(updateTransaction, "update-transaction");
+  requireFunction(deleteTransaction, "delete-transaction");
 
   let previousFocus = null;
   let activeTransactionId = null;
@@ -42,11 +43,12 @@ export function createTransactionDetailController({ elements, store, formatMoney
   const money = (value) => formatMoney(Number(value) || 0);
   const findAccountName = (state, id) => state.accounts.find((account) => String(account.id) === String(id))?.name || "未知帳戶";
 
-  const show = ({ title, html, trigger, editable = false }) => {
+  const show = ({ title, html, trigger, editable = false, deletable = false }) => {
     previousFocus = trigger?.focus ? trigger : null;
     editing = false;
     elements.title.textContent = title;
     elements.body.innerHTML = `<dl class="transaction-detail-grid">${html}</dl>`;
+    elements.delete.classList.toggle("d-none", !deletable);
     elements.edit.classList.toggle("d-none", !editable);
     elements.modal.classList.remove("d-none");
     elements.close.focus?.();
@@ -56,6 +58,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
   const close = () => {
     if (elements.modal.classList.contains("d-none")) return false;
     elements.modal.classList.add("d-none");
+    elements.delete.classList.add("d-none");
     elements.edit.classList.add("d-none");
     activeTransactionId = null;
     editing = false;
@@ -95,6 +98,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     const advanceRepaidAmount = tx.type === "advance" ? getAdvanceRepaidAmount(state.txs, tx.id) : 0;
 
     elements.title.textContent = "編輯交易";
+    elements.delete.classList.add("d-none");
     elements.edit.classList.add("d-none");
     elements.body.innerHTML = `
       <form id="transaction-detail-form" class="transaction-detail-editor">
@@ -223,6 +227,14 @@ export function createTransactionDetailController({ elements, store, formatMoney
     return true;
   };
 
+  const removeActiveTransaction = async () => {
+    if (!activeTransactionId) return false;
+    const removed = await deleteTransaction(activeTransactionId);
+    if (!removed) return false;
+    close();
+    return true;
+  };
+
   const trapFocus = (event) => {
     if (event?.key !== "Tab" || elements.modal.classList.contains("d-none")) return false;
     const focusable = [...(elements.modal.querySelectorAll?.(
@@ -272,7 +284,13 @@ export function createTransactionDetailController({ elements, store, formatMoney
     if (tx.externalSource) html += field("資料來源", tx.externalSource === "andromoney" ? "AndroMoney 匯入" : tx.externalSource);
     html += field("完整備註", tx.desc, { multiline: true });
 
-    return show({ title: getTransactionTitle(tx), html, trigger, editable: tx.type !== "balance_adjustment" });
+    return show({
+      title: getTransactionTitle(tx),
+      html,
+      trigger,
+      editable: tx.type !== "balance_adjustment",
+      deletable: tx.type === "balance_adjustment",
+    });
   };
 
   const openBudgetSource = (id, type, trigger = null) => {
@@ -318,6 +336,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     startEdit,
     cancelEdit,
     saveEdit,
+    removeActiveTransaction,
     syncEditorType,
     close,
     trapFocus,
