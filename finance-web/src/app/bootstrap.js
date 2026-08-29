@@ -63,7 +63,7 @@ function createFallbackCloudSync() {
 }
 
 export async function bootstrapFinanceApp(doc = document) {
-  setupPWA();
+  setupPWA(doc);
 
   const runtime = getFinanceRuntime();
   const dom = collectDom(doc);

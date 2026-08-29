@@ -17,6 +17,8 @@
 Firebase、Google 登入、雲端 queue 與 PWA，並使用 `fin_v7:acceptance:*` localStorage
 及獨立 IndexedDB。它不會讀取、覆蓋或遷移正式版的本機資料。
 
+本機候選另完成 PWA 更新保護：JavaScript／CSS 改為 network-first；偵測到等待中的新版時顯示「立即更新／稍後」，只有使用者按下立即更新後才啟用新 Service Worker 並重新載入一次。同步衝突也新增兩個隔離瀏覽器的 Auth／Firestore Emulator 端到端測試，已自動證明相同資料不提示、不建立復原紀錄且不下載 JSON；真正差異只提示一次，並在保留雲端前把本機落敗版本存入 UID scope 的 IndexedDB。
+
 正式 Hosting 部署現在必須使用 `npm run deploy:hosting:production`。部署保護會要求
 明確確認、位於 `main`、`HEAD == origin/main`、finance-web tracked worktree 乾淨，且
 Firebase 專案與 runtime 均為正式設定；直接執行 `firebase deploy --only hosting`
@@ -88,6 +90,14 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 語法與全部 unit、正式打包 82 個檔案、正式版 smoke、驗收隔離與驗收版 smoke 均通過；Auth／Firestore／Functions Emulators 合計 19/19 通過。
 - 15 個 UI scenarios 最終整批全數通過，包含 AndroMoney 帳戶修復、交易搜尋與不持久化的生活紀錄提醒；headless 瀏覽器使用 Windows swiftshader fallback。
 - `git diff --check` 通過；只剩既有 Node 將 `.js` 重新解析為 ESM 的效能警告，以及 Functions dependency／host Node 版本的 Emulator 警告。本批不得推送或部署。
+
+2026-08-29 PWA 與同步衝突自動化強化（本機候選）：
+
+- Service Worker 不再於安裝時直接 `skipWaiting`；新版等待使用者按「立即更新」後才切換，`controllerchange` 也只允許重新載入一次。
+- JavaScript／CSS 使用 network-first，避免正式站 HTML 已更新但舊快取程式仍長期顯示舊介面；圖片與字型保留 stale-while-revalidate。
+- 新增真實 Chrome／Edge、兩個獨立 profile 與 `demo-finance-web` Auth／Firestore Emulators 的同步測試；涵蓋相同資料零提示、真實差異一次提示、IndexedDB 復原與成功時零緊急 JSON 下載。
+- 全部語法與 unit、正式打包 82 個檔案、正式／驗收包啟動、驗收隔離、Auth／Firestore／Functions Emulators 20/20、UI smoke 15/15 與 `git diff --check` 均通過。
+- 本批沒有新增依賴或持久化欄位，沒有修改 Rules／Functions，沒有讀寫正式 Firestore；依授權不得推送或部署。
 
 2026-08-24 退休護欄與提領來源本機批次：
 

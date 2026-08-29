@@ -1,9 +1,17 @@
-const CACHE_VERSION = "finance-app-v17";
+const CACHE_VERSION = "finance-app-v18";
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const PAGE_CACHE = `pages-${CACHE_VERSION}`;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      clients.forEach((client) => client.postMessage({ type: "FINANCE_UPDATE_AVAILABLE" }));
+    }),
+  );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "FINANCE_SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -18,8 +26,8 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-async function networkFirst(request) {
-  const cache = await caches.open(PAGE_CACHE);
+async function networkFirst(request, cacheName = PAGE_CACHE) {
+  const cache = await caches.open(cacheName);
   try {
     const fresh = await fetch(request, { cache: "no-store" });
     if (fresh?.ok) await cache.put(request, fresh.clone());
@@ -61,7 +69,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (/\.(css|js|png|jpg|jpeg|svg|gif|webp|ico|woff2?)$/i.test(url.pathname)) {
+  if (/\.(css|js)$/i.test(url.pathname)) {
+    event.respondWith(networkFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  if (/\.(png|jpg|jpeg|svg|gif|webp|ico|woff2?)$/i.test(url.pathname)) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });

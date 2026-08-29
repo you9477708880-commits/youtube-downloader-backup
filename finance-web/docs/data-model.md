@@ -449,6 +449,7 @@ The system should warn the user and suggest:
 - `sinkingFunds.events` 只在同步層拆開；套回前端 state 時會重新組回原本巢狀結構，因此帳務 domain 不需要改寫。
 - 每筆 record 使用穩定 key、`revision`、`updatedBy`、server `updatedAt` 與 deletion tombstone。不同 record 的跨裝置修改可共存。
 - 同一 record 的 revision 競爭不做欄位拼裝；寫入會停止並顯示三個明確按鈕：「保留雲端」「保留本機」「暫不處理」。選擇覆蓋前，落敗版本會依目前 `local`／Firebase UID scope 存入裝置內的 IndexedDB 衝突復原中心，不再於每次衝突自動下載 JSON；只有 IndexedDB 儲存失敗時才下載緊急 JSON，若兩種保護都失敗則阻止覆蓋。
+- 初次登入會先正規化並遞迴排序物件欄位後比較本機與雲端 state；語意相同的資料不顯示衝突、不建立復原紀錄，也不下載 JSON。陣列順序或帳務值真正不同時仍視為衝突。此語意由兩個隔離瀏覽器與 Auth／Firestore Emulators 端到端驗證。
 - 衝突復原中心每個 scope 最多保留最近 10 份、最長 30 天。使用者可以看逐筆差異摘要、勾選紀錄、手動匯出或刪除。復原會經正常 `commitState()` 寫成新的本機／雲端 revision，不會倒轉 Firestore revision，也不做欄位級自動合併。
 - 復原準備事件時會確保母準備項目一併存在；復原刪除準備項目時會同步移除其事件，避免留下不可見的孤兒紀錄。
 - 一般 mutation group 使用單一 Firestore batch；超過 400 筆差異會拒絕而保留本機資料，不做可能部分成功的分批覆蓋。
@@ -475,6 +476,7 @@ Current model:
 - Fund events are flattened only in the sync adapter and are rebuilt into `sinkingFunds.events` before entering the domain layer.
 - Records carry stable keys, revisions, server timestamps, writer IDs, and deletion tombstones.
 - Different records merge naturally. A same-record revision conflict pauses and presents explicit Keep cloud, Keep local, and Not now buttons; field-level guessing is not used. Before overwrite, the losing version is stored in a UID-scoped local IndexedDB recovery center instead of triggering an automatic download. Emergency JSON is downloaded only if internal recovery storage fails.
+- Initial sign-in compares normalized states with recursively sorted object keys. Equivalent data creates no prompt, recovery entry, or JSON download; actual accounting-value or array-order differences still conflict. A two-profile browser test verifies this against the Auth and Firestore Emulators.
 - Recovery history is limited to 10 entries per scope and 30 days. Selected records are restored through the normal commit pipeline as new revisions; fund parent-child integrity is preserved.
 - Normal mutation groups are one atomic batch and are rejected above 400 changed records.
 - The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.

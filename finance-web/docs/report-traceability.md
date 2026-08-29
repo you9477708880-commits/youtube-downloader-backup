@@ -207,6 +207,7 @@ For future transaction editing:
 - 本機 snapshot 已依未綁定 `local` 與 Firebase `uid` 分區；帳號切換會替換整個 store，不沿用上一帳號畫面。
 - Firestore 以 record-level 文件保存，revision 是衝突依據；`updatedAt` 只用於稽核和顯示。
 - 不同 record 可自動共存；相同 record 的同版修改會停下來要求整筆選擇，不做欄位級黑盒合併。
+- 本機／雲端 state 正規化後若語意相同，不會進入衝突流程；因此也不會產生復原歷史或 JSON。真正不同的資料才要求選擇，這條邊界已有兩個隔離瀏覽器的 Emulator 測試。
 - 刪除會寫 tombstone，不以實體 delete 讓離線舊裝置重新復活資料。
 - 待送標記依 UID 保存；帳號切換會停用舊 listener 和 queue。
 - 遷移必須先完成 records 數量與完整 state round-trip 驗證，`sync/finance_v7` 才能標記為 `active`。
@@ -223,6 +224,7 @@ Traceability rules:
 - Local snapshots are separated into the unbound local namespace and Firebase UID namespaces.
 - Firestore uses record-level documents; revision is authoritative for conflicts, while `updatedAt` is audit metadata.
 - Different records can coexist. Same-record concurrent edits require a whole-record choice and never use field-level guessing.
+- Semantically equivalent normalized local/cloud states bypass conflict handling and create neither recovery history nor JSON. A two-profile Emulator browser test protects this boundary.
 - Deletions create tombstones so stale offline devices cannot silently resurrect removed data.
 - Pending metadata, listeners, and queues are isolated by UID.
 - Migration activates v7 only after record-count and full-state round-trip verification.

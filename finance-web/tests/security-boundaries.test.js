@@ -71,7 +71,8 @@ function testPwaUsesStaticSameOriginFiles() {
   assert.match(pwaSource, /new URL\("\.\.\/\.\.\/manifest\.webmanifest", import\.meta\.url\)/);
   assert.match(pwaSource, /\.register\(new URL\("\.\.\/\.\.\/sw\.js", import\.meta\.url\)/);
   assert.doesNotMatch(pwaSource, /serviceWorker\s*\.register\(URL\.createObjectURL|new Blob\(\[swCode\]/);
-  assert.doesNotMatch(pwaSource, /controllerchange[\s\S]*location\.reload/);
+  assert.match(pwaSource, /controllerchange[\s\S]*if \(!reloadRequested \|\| reloading\) return;[\s\S]*locationRef\.reload\(\)/);
+  assert.match(pwaSource, /FINANCE_SKIP_WAITING/);
 
   const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "manifest.webmanifest"), "utf8"));
   assert.equal(manifest.start_url, "/");
@@ -83,6 +84,9 @@ function testPwaUsesStaticSameOriginFiles() {
   assert.match(serviceWorker, /url\.origin !== self\.location\.origin/);
   assert.match(serviceWorker, /request\.method !== "GET"/);
   assert.match(serviceWorker, /caches\.delete/);
+  assert.match(serviceWorker, /FINANCE_UPDATE_AVAILABLE/);
+  assert.match(serviceWorker, /FINANCE_SKIP_WAITING/);
+  assert.match(serviceWorker, /\/\\\.\(css\|js\)\$\/i[\s\S]*networkFirst\(request, STATIC_CACHE\)/);
 }
 
 function testSyncConflictUsesExplicitButtons() {

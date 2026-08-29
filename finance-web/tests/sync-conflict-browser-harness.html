@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <title>Finance Sync Conflict Browser Harness</title>
+</head>
+<body>
+  <pre id="sync-e2e-result" data-status="running">RUNNING</pre>
+  <script>
+    (() => {
+      const showBootFailure = (message) => {
+        const result = document.getElementById("sync-e2e-result");
+        if (!result || result.dataset.status !== "running") return;
+        result.dataset.status = "fail";
+        result.textContent = `FAIL boot: ${message}`;
+      };
+      window.addEventListener("error", (event) => {
+        showBootFailure(`${event.message || "script error"} ${event.filename || ""}:${event.lineno || 0}`);
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        const reason = event.reason;
+        showBootFailure(reason?.stack || reason?.message || String(reason || "unhandled rejection"));
+      });
+    })();
+  </script>
+  <script type="module" src="./sync-conflict-browser-harness.js"></script>
+</body>
+</html>

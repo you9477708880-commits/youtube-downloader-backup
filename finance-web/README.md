@@ -16,7 +16,7 @@ https://financial-computer.web.app
 
 ## 一鍵測試
 
-完整測試會執行語法、單元、Auth／Firestore／Functions Emulator 與全部 15 個 UI smoke scenarios：
+完整測試會執行語法、單元、Auth／Firestore／Functions Emulator、兩個隔離瀏覽器的同步衝突端到端測試，以及全部 15 個 UI smoke scenarios：
 
 ```powershell
 npm ci
@@ -32,6 +32,8 @@ npm run test:functions
 npm run test:emulators
 npm run test:smoke
 ```
+
+同步衝突瀏覽器測試只連線到固定的 `demo-finance-web` Emulators：相同資料不得提示，真正差異只提示一次，落敗版本成功存入 IndexedDB 時不得自動下載 JSON。
 
 ## 常用命令
 

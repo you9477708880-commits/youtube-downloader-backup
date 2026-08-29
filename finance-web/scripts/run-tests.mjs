@@ -9,6 +9,7 @@ const excludedUnitTests = new Set([
   "acceptance-isolation.test.mjs",
   "firestore-rules.emulator.test.mjs",
   "functions-emulator.test.mjs",
+  "sync-conflict-browser.emulator.test.mjs",
 ]);
 const testFiles = readdirSync(join(projectRoot, "tests"))
   .filter((name) => /\.test\.(mjs|js)$/.test(name) && !excludedUnitTests.has(name))

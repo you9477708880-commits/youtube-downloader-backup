@@ -9,6 +9,40 @@
 
 .card.pad-sm { padding: 14px 10px; }
 
+.pwa-update-banner {
+  position: fixed;
+  z-index: 1100;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 28px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--acc);
+  border-radius: 14px;
+  background: var(--sur);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+}
+
+.pwa-update-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .pwa-update-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pwa-update-actions .sbtn { flex: 1; }
+}
+
 .ct {
   font-size: 14px;
   font-weight: 600;

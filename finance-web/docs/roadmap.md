@@ -1,6 +1,6 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-08-24
+最後更新 / Last updated: 2026-08-29
 正式穩定分支 / Production stable branch: `main` at `e01aa1c`
 本機候選分支 / Local candidate branch: `codex/next`
 最新已部署安全點 / Latest deployed safety point: `e01aa1c 避免相同資料誤判同步衝突`
@@ -100,6 +100,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 裝置資料清理安全候選：只清目前 local／UID scope，兩段式確認、未同步資料明確 acknowledgement、Firebase persistence 與 recovery fail-closed、snapshot 最後刪除；不刪正式 Firestore 雲端資料。
 - v7 管理 Functions 候選：summary 以 active v7 非 tombstone records 為權威、preparing 可回退 v6，data/full 對單一 UID app scope recursive delete；只在 `demo-finance-web` Auth／Firestore／Functions Emulator 驗證，Functions 維持不部署。
 - 維護性整理：`bootstrap.js` 的 DOM map 與 browser file helper 已拆出，smoke seed 集中，unit runner 改為自動發現測試。
+- PWA 更新與同步衝突自動化：JavaScript／CSS 改為 network-first；新版 Service Worker 只在使用者按「立即更新」後切換並重新載入一次。兩個隔離瀏覽器透過 `demo-finance-web` Auth／Firestore Emulators 驗證相同資料零提示，以及真實衝突只提示一次、落敗版本進 IndexedDB、成功時不下載 JSON。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。

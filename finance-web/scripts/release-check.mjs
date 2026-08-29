@@ -82,6 +82,13 @@ function checkArtifact() {
   const pwaSource = readFileSync(join(outputRoot, "src/services/pwa.js"), "utf8");
   assert.match(pwaSource, /\.register\(new URL\("\.\.\/\.\.\/sw\.js", import\.meta\.url\)/);
   assert.doesNotMatch(pwaSource, /serviceWorker\s*\.register\(URL\.createObjectURL|new Blob\(\[swCode\]/);
+  assert.match(pwaSource, /controllerchange[\s\S]*if \(!reloadRequested \|\| reloading\) return;[\s\S]*locationRef\.reload\(\)/);
+  assert.match(pwaSource, /FINANCE_SKIP_WAITING/);
+
+  const serviceWorker = readFileSync(join(outputRoot, "sw.js"), "utf8");
+  assert.match(serviceWorker, /FINANCE_UPDATE_AVAILABLE/);
+  assert.match(serviceWorker, /FINANCE_SKIP_WAITING/);
+  assert.match(serviceWorker, /\/\\\.\(css\|js\)\$\/i[\s\S]*networkFirst\(request, STATIC_CACHE\)/);
 
   console.log(`Release artifact check passed (${files.length} files).`);
 }
