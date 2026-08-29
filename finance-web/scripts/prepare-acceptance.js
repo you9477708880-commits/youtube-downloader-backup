@@ -32,6 +32,16 @@ function copyRequired(sourceRelativePath) {
   fs.cpSync(source, destination, { recursive: true, filter: shouldCopy });
 }
 
+function enforceExcludedOutputs() {
+  excludedRelativePaths.forEach((relativePath) => {
+    const destination = path.join(outputRoot, ...relativePath.split("/"));
+    fs.rmSync(destination, { recursive: true, force: true });
+    if (fs.existsSync(destination)) {
+      throw new Error(`Forbidden acceptance output remains: ${relativePath}`);
+    }
+  });
+}
+
 function replaceRuntimeConfig() {
   const indexPath = path.join(outputRoot, "index.html");
   const source = fs.readFileSync(indexPath, "utf8");
@@ -63,6 +73,7 @@ function prepareAcceptanceDirectory() {
   fs.mkdirSync(outputRoot, { recursive: true });
   rootFiles.forEach(copyRequired);
   publicDirectories.forEach(copyRequired);
+  enforceExcludedOutputs();
   replaceRuntimeConfig();
   console.log(`Prepared isolated acceptance files in ${outputRoot}`);
 }
