@@ -22,7 +22,7 @@ financial-computer
 https://financial-computer.web.app
 ```
 
-正式版只允許從本機 `main` 部署；本機驗收與功能候選留在 `codex/next`。
+正式版只允許從本機 `main` 部署；本機驗收與功能候選留在 `codex/*` 分支。
 `.acceptance-public` 永遠不是 Firebase Hosting 的發布來源。
 
 ## 本機驗收版
@@ -141,7 +141,7 @@ artifacts/{appId}/users/{userId}/sync/finance_v7/records/{recordKey}
 
 只能允許 `request.auth.uid == userId` 的使用者讀寫。v7 record create 必須從 revision 1 開始，update 必須剛好加 1，禁止實體 delete；tombstone 必須 `payload == null`。v7 meta active 後，舊 `finance_v6` 不再允許舊版 client 寫入。其他路徑預設拒絕。
 
-第三、四階段不能只部署 Hosting。必須先確認新版 Hosting 與新版 Firestore rules 會在同一個維護窗口發布；若只發布其中一邊，新 client 會因 records 路徑被拒絕，或舊 client 可能繼續覆寫 `finance_v6`。
+任何新增 record kind 的資料版本不能只部署 Hosting。schema v3 的生活週期提醒新增 `lifeRoutine` kind，必須先部署已通過 Emulator 的新版 Firestore Rules，再部署相容 Hosting；若先發布 Hosting，正式 Rules 會拒絕保存提醒。舊有第三、四階段 v7 migration fence 仍同樣禁止只發布不相容的一邊。
 
 若要部署 Firestore 規則：
 
@@ -207,7 +207,7 @@ node .\scripts\prepare-hosting.js
 
 這個步驟會重新建立 `.firebase-public`，而 Firebase Hosting 只會發布該目錄。正式發布內容採允許清單，只包含 `index.html`、`404.html`、`assets/`、正式 `src/` 與 `admin/`；`src/smoke-scenarios.js` 會被排除。
 
-若這次有修改 `firestore.rules`，請另外部署規則：
+若這次有修改 `firestore.rules`，請先部署規則並確認成功，再部署相容 Hosting：
 
 ```powershell
 firebase deploy --only firestore:rules
@@ -240,6 +240,7 @@ Unable to find a valid endpoint for function `adminApi`
 - 使用 `npm run deploy:hosting:production`，不要繞過部署 guard。
 - `firebase.json` 沒有 Functions rewrite。
 - `firestore.rules` 已部署到 Firebase 專案。
+- 若資料 schema 新增 record kind，Rules Emulator 已允許該 kind，且發布順序是 Rules 先、Hosting 後。
 - JS 語法檢查通過。
 - 核心 domain 測試通過。
 - 雲端同步寫入 queue 測試通過。

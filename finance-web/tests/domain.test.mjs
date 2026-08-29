@@ -462,7 +462,7 @@ function testCategorySchemaMigration() {
     settings: {},
   });
 
-  assert.equal(normalized.schemaVersion, 2);
+  assert.equal(normalized.schemaVersion, 3);
   assert.equal(normalized.txs[0].category, "餐飲");
   assert.equal(normalized.txs[0].subcategory, "未分類");
   assert.equal(normalized.txs[0].cat, "餐飲");
@@ -600,6 +600,7 @@ function testStateMoneyNormalization() {
         events: [{ id: "e", type: "topup", amount: 999.9999999999999 }],
       },
     ],
+    lifeRoutines: [{ id: "routine-1", name: "半年洗牙", query: "洗牙", expectedIntervalDays: 180, dueSoonDays: 14, enabled: true }],
     settings: {
       budgetCap: 19999.999999999996,
       retManualAsset: 999.9999999999999,
@@ -1081,6 +1082,7 @@ function testImportValidationRejectsUnsafeShape() {
         events: [{ id: "event-1", type: "topup", amount: 1000, date: "2026-04-01", note: "補入" }],
       },
     ],
+    lifeRoutines: [{ id: "routine-1", name: "半年洗牙", query: "洗牙", expectedIntervalDays: 180, dueSoonDays: 14, enabled: true }],
     settings: { budgetCap: 20000, catBudgets: { 餐飲: 5000 }, retManualAsset: 0 },
     userCats: { income: [], expense: ["餐飲"] },
   };
@@ -1096,6 +1098,8 @@ function testImportValidationRejectsUnsafeShape() {
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], amount: {} }] }), false);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], date: "not-a-date" }] }), false);
   assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], id: 'bad" onmouseover="x' }] }), false);
+  assert.equal(isValidImportShape({ ...validImport, lifeRoutines: [{ ...validImport.lifeRoutines[0], dueSoonDays: 366 }] }), false);
+  assert.equal(isValidImportShape({ ...validImport, lifeRoutines: [{ ...validImport.lifeRoutines[0], query: "" }] }), false);
   const polluted = JSON.parse(JSON.stringify(validImport).replace('"userCats":{"income":[],"expense":["餐飲"]}', '"userCats":{"income":[],"expense":[],"__proto__":{"polluted":true}}'));
   assert.equal(isValidImportShape(polluted), false);
 }

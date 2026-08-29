@@ -1,5 +1,5 @@
 export const APP_ID = "default-finance-app";
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 export const DEFAULT_SUBCATEGORY = "未分類";
 
 export const STORAGE_KEYS = {

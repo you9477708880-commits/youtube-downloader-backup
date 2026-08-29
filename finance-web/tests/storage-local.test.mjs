@@ -36,6 +36,16 @@ function stateWithMarker(marker) {
     cat: "其他支出",
     acc: "a1",
   }];
+  state.lifeRoutines = [{
+    id: `routine-${marker}`,
+    name: marker,
+    query: marker,
+    expectedIntervalDays: 180,
+    dueSoonDays: 14,
+    enabled: true,
+    createdAt: "2026-08-29T12:00:00.000Z",
+    updatedAt: "2026-08-29T12:00:00.000Z",
+  }];
   return state;
 }
 
@@ -51,6 +61,7 @@ saveLocalState(stateWithMarker("B"), scopeB, storage);
 assert.equal(loadLocalState(base, LOCAL_STORAGE_SCOPE, storage).txs[0].desc, "local");
 assert.equal(loadLocalState(base, scopeA, storage).txs[0].desc, "A");
 assert.equal(loadLocalState(base, scopeB, storage).txs[0].desc, "B");
+assert.equal(loadLocalState(base, scopeA, storage).lifeRoutines[0].query, "A");
 assert.notEqual(
   __localStorageTestUtils.snapshotKey(scopeA),
   __localStorageTestUtils.snapshotKey(scopeB),

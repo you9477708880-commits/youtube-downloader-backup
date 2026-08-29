@@ -95,13 +95,14 @@ async function exists(path) {
   return found;
 }
 
-function legacyFinance({ transactions = 0, wishes = 0, accounts = 0, categoryBudgets = 0 } = {}) {
+function legacyFinance({ transactions = 0, wishes = 0, accounts = 0, categoryBudgets = 0, lifeRoutines = 0 } = {}) {
   return {
     txs: Array.from({ length: transactions }, (_, index) => ({ id: `legacy-tx-${index}` })),
     wishes: Array.from({ length: wishes }, (_, index) => ({ id: `legacy-wish-${index}` })),
     accounts: Array.from({ length: accounts }, (_, index) => ({ id: `legacy-account-${index}` })),
     bsI: [{ id: "legacy-bs" }],
     sinkingFunds: [{ id: "legacy-fund", events: [{ id: "legacy-event" }] }],
+    lifeRoutines: Array.from({ length: lifeRoutines }, (_, index) => ({ id: `legacy-routine-${index}` })),
     settings: {
       catBud: Object.fromEntries(
         Array.from({ length: categoryBudgets }, (_, index) => [`category-${index}`, 100]),
@@ -211,7 +212,7 @@ test("v6-only summary preserves the existing response fields", async () => {
   const target = await signUp("v6-summary@example.test");
   await seedDocuments([[
     legacyPath(target.uid),
-    legacyFinance({ transactions: 3, wishes: 2, accounts: 4, categoryBudgets: 2 }),
+    legacyFinance({ transactions: 3, wishes: 2, accounts: 4, categoryBudgets: 2, lifeRoutines: 1 }),
   ]]);
 
   const { response, payload } = await callApi(`/users/${target.uid}/summary`);
@@ -224,6 +225,7 @@ test("v6-only summary preserves the existing response fields", async () => {
   assert.equal(payload.counts.balanceSheetItems, 1);
   assert.equal(payload.counts.sinkingFunds, 1);
   assert.equal(payload.counts.fundEvents, 1);
+  assert.equal(payload.counts.lifeRoutines, 1);
   assert.equal(payload.storage.authoritativeSource, "v6");
   assert.equal(payload.storage.hasLegacyFinanceDoc, true);
   assert.equal(payload.storage.hasV7Meta, false);
@@ -235,26 +237,28 @@ test("active v7 summary takes precedence over legacy and excludes tombstones", a
   const target = await signUp("v7-summary@example.test");
   await seedDocuments([
     [legacyPath(target.uid), legacyFinance({ transactions: 9, wishes: 9, accounts: 9, categoryBudgets: 9 })],
-    [metaPath(target.uid), { status: "active", recordCount: 6 }],
+    [metaPath(target.uid), { status: "active", recordCount: 7 }],
     [recordPath(target.uid, "tx-1"), v7Record("transaction", "tx-1", { id: "tx-1" })],
     [recordPath(target.uid, "tx-2"), v7Record("transaction", "tx-2", { id: "tx-2" })],
     [recordPath(target.uid, "tx-deleted"), v7Record("transaction", "tx-deleted", null, { deleted: true })],
     [recordPath(target.uid, "wish-1"), v7Record("wish", "wish-1", { id: "wish-1" })],
     [recordPath(target.uid, "account-1"), v7Record("account", "account-1", { id: "account-1" })],
     [recordPath(target.uid, "settings"), v7Record("settings", "root", { catBud: { food: 100, travel: 200 } })],
+    [recordPath(target.uid, "routine-1"), v7Record("lifeRoutine", "routine-1", { id: "routine-1", query: "洗牙" })],
   ]);
 
   const { response, payload } = await callApi(`/users/${target.uid}/summary`);
   assert.equal(response.status, 200);
   assert.equal(payload.storage.authoritativeSource, "v7");
   assert.equal(payload.storage.v7Status, "active");
-  assert.equal(payload.storage.v7RecordCount, 6);
-  assert.equal(payload.storage.v7ActiveCount, 5);
+  assert.equal(payload.storage.v7RecordCount, 7);
+  assert.equal(payload.storage.v7ActiveCount, 6);
   assert.equal(payload.storage.v7TombstoneCount, 1);
   assert.equal(payload.counts.transactions, 2);
   assert.equal(payload.counts.wishes, 1);
   assert.equal(payload.counts.accounts, 1);
   assert.equal(payload.counts.categoryBudgets, 2);
+  assert.equal(payload.counts.lifeRoutines, 1);
   assert.ok(payload.storage.legacyApproxBytes > 0);
   assert.ok(payload.storage.v7ApproxBytes > 0);
 });

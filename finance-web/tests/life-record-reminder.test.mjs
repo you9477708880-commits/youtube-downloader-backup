@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deriveLifeRecordReminder } from "../src/domain/life-record-reminder.js";
+import { deriveLifeRecordReminder, deriveLifeRoutineCenter } from "../src/domain/life-record-reminder.js";
 
 const today = new Date(2026, 7, 29);
 const transactions = [
@@ -58,4 +58,37 @@ test("adds calendar days safely across leap day and limits recent transactions",
   assert.equal(model.nextExpectedDate, "2024-02-29");
   assert.equal(model.averageIntervalDays, 31);
   assert.deepEqual(model.recentTransactions.map((item) => item.id), ["1", "2"]);
+});
+
+test("saved routines derive alerts from transactions without duplicating or mutating them", () => {
+  const before = structuredClone(transactions);
+  const center = deriveLifeRoutineCenter({
+    routines: [
+      { id: "dental", name: "半年洗牙", query: "洗牙", expectedIntervalDays: 90, dueSoonDays: 14, enabled: true },
+      { id: "disabled", name: "停用項目", query: "洗牙", expectedIntervalDays: 180, dueSoonDays: 14, enabled: false },
+    ],
+    transactions,
+    accounts,
+    today,
+  });
+  assert.equal(center.total, 2);
+  assert.equal(center.overdue, 1);
+  assert.equal(center.dueSoon, 0);
+  assert.deepEqual(center.items.map((item) => item.reminder.status), ["overdue", "disabled"]);
+  assert.deepEqual(transactions, before);
+});
+
+test("saved routines sort due work ahead of quiet or unmatched items", () => {
+  const center = deriveLifeRoutineCenter({
+    routines: [
+      { id: "quiet", name: "年度洗牙", query: "洗牙", expectedIntervalDays: 365, dueSoonDays: 14, enabled: true },
+      { id: "soon", name: "洗牙", query: "洗牙", expectedIntervalDays: 110, dueSoonDays: 14, enabled: true },
+      { id: "missing", name: "健檢", query: "健檢", expectedIntervalDays: 365, dueSoonDays: 30, enabled: true },
+    ],
+    transactions,
+    accounts,
+    today,
+  });
+  assert.deepEqual(center.items.map((item) => item.routine.id), ["soon", "missing", "quiet"]);
+  assert.equal(center.dueSoon, 1);
 });

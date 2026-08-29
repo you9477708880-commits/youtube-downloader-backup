@@ -1,14 +1,16 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
 最後更新 / Last updated: 2026-08-29
-正式穩定分支 / Production stable branch: `main` at `e01aa1c`
-本機候選分支 / Local candidate branch: `codex/next`
-最新已部署安全點 / Latest deployed safety point: `e01aa1c 避免相同資料誤判同步衝突`
-目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `e01aa1c`; Firestore v7 rules remain unchanged, and Firebase Functions remain intentionally undeployed.
+正式穩定分支 / Production stable branch: `main` at `67ed8fc`
+本機候選分支 / Local candidate branch: `codex/maintenance-life-cycle`
+最新已部署安全點 / Latest deployed safety point: `67ed8fc 修正 Windows 正式部署啟動器`
+目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `67ed8fc`; the existing Firestore v7 rules are live, and Firebase Functions remain intentionally undeployed. The schema-v3 life-cycle reminder candidate is local only and requires tested Rules deployment before any matching Hosting release.
 
 這份文件是後續開發的長期藍圖。最新本機、遠端、部署狀態與立即下一步以
 `docs/current-status.md` 為準。中文用來方便產品討論，英文用來讓模型與程式維護時
 更容易快速理解規則。
+
+近期維護工作與大型檔案拆分順序見 `docs/maintenance-convergence-plan.md`。
 
 This document is the long-term roadmap. Use `docs/current-status.md` for the latest
 local, remote, deployment, and immediate-next-step status. Chinese is for product
@@ -29,6 +31,8 @@ discussion; English is for model and code maintenance.
 
 目前重點不是把投資模擬做得很花，而是先把帳務事實、預算規劃、準備金事件與退休推估分清楚。
 
+自 2026-08-29 起採「維護優先」閘門：新功能必須能回答具體使用情境、重用既有資料真相、具備刪除與同步語意，且不能只是重複另一個頁面的數字或清單。若新增功能會擴大 `bootstrap.js`、同步服務或大型 controller，先補 characterization tests 與抽離邊界，再加入第二個功能。
+
 ### English
 
 This project is not just a bookkeeping page. It is intended to become a personal finance operating system. The core goal is stable, understandable, and traceable management of:
@@ -41,6 +45,8 @@ This project is not just a bookkeeping page. It is intended to become a personal
 - Local and cloud data
 
 The current priority is not advanced investment simulation. The priority is to clearly separate accounting facts, budget planning, fund events, and retirement projections.
+
+Since 2026-08-29, new work follows a maintenance-first gate: every feature needs a concrete workflow, must reuse an existing source of truth, and must define sync/deletion behavior. Features that merely duplicate another page are rejected. Changes that expand the oversized bootstrap, cloud-record service, or transaction controller require characterization coverage and a named extraction boundary first.
 
 ## 2. 已完成 / Completed
 
@@ -88,7 +94,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
 - 桌機版核心頁面工作區整理第一輪已完成：總覽、記帳、預算分配、現金流、資產負債與退休頁已新增頁面級 workspace wrapper，桌機 `900px+` 會套用專屬工作區排版；手機維持原本單欄流程。已補 `desktop-core-layout` smoke scenario。
 
-2026-08-23 至 2026-08-29 新增、目前僅在本機提交或工作區，尚未推送與部署：
+2026-08-23 至 2026-08-29 歷史批次（其中候選功能後續已於 `67ed8fc` 前合併並發布；以下文字保留設計背景）：
 
 - 正式版與本機驗收版安全隔離：`main` 對齊遠端正式安全點，候選功能留在 `codex/next`；驗收包強制關閉 Firebase、Google 登入、雲端同步與 PWA，並使用獨立 localStorage／IndexedDB。正式 Hosting 部署則需通過分支、遠端 commit、乾淨工作區、Firebase 專案與 runtime guard。
 - 月度回顧 2.0 本機驗收版：除既有摘要與來源明細外，新增預設收合的同天數前期比較，顯示收入、生活支出、準備提撥 / 補入、動用準備與最大支出分類變化。比較只讀取既有帳務來源，不新增持久化欄位、不評分，也不把增加或減少直接判成好壞。
@@ -96,7 +102,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 財務導航摘要 A 曾完成本機候選，但人工驗收認定四個數字重複既有頁面、兩個自評問題也無法形成後續行動，因此已從候選版移除。若未來重做，必須先定義可記錄、可回顧且不增加壓力的具體用途。
 - 退休情境比較 A 本機候選：比較目前設定、延後三年退休及每月提領降低 10%，每次只改一個條件；顯示退休時資產、最低需求估算及耗盡時間，維持個人估算器而非投資平台定位。
 - 退休護欄與提領來源本機候選：依 Guyton-Klinger 年度決策規則顯示提領率護欄、通膨凍結、10% 增減與年齡停用條件；使用者輸入上年度期初與目標股票債券現金配置，系統依股票／債券報酬先推估目前配置，再優先用上漲超配資產支應提領以協助再平衡。緊急預備金需明確允許，最後才賣下跌股票。所有輸入與結果均不保存、不建立交易。
-- 交易搜尋週期間隔檢查：直接沿用交易搜尋關鍵字，依選填預期間隔從全部歷史 `txs` 推導最近事件、平均間隔與預計下次；同日多筆只算一次，不再複製交易明細，條件不保存、不做背景通知或專業建議。
+- 交易搜尋週期間隔檢查已演進為 schema v3 的本機「生活週期提醒」候選：保存名稱、關鍵字、預期間隔、提前提醒與啟用狀態；最近事件、平均間隔、預計日期仍完全由 `txs` 推導，同日多筆只算一次，不複製交易明細。提供站內到期摘要、查看既有搜尋、編輯／停用／刪除；暫不做背景通知或專業建議。
 - 裝置資料清理安全候選：只清目前 local／UID scope，兩段式確認、未同步資料明確 acknowledgement、Firebase persistence 與 recovery fail-closed、snapshot 最後刪除；不刪正式 Firestore 雲端資料。
 - v7 管理 Functions 候選：summary 以 active v7 非 tombstone records 為權威、preparing 可回退 v6，data/full 對單一 UID app scope recursive delete；只在 `demo-finance-web` Auth／Firestore／Functions Emulator 驗證，Functions 維持不部署。
 - 維護性整理：`bootstrap.js` 的 DOM map 與 browser file helper 已拆出，smoke seed 集中，unit runner 改為自動發現測試。

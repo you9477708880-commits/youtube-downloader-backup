@@ -128,6 +128,25 @@ function isValidSinkingFund(fund) {
   );
 }
 
+function isValidLifeRoutine(routine) {
+  return (
+    isPlainObject(routine) &&
+    isSafeId(routine.id) &&
+    isSafeString(routine.name, 200) &&
+    isSafeString(routine.query, 200) &&
+    routine.query.trim().length > 0 &&
+    Number.isSafeInteger(Number(routine.expectedIntervalDays)) &&
+    Number(routine.expectedIntervalDays) >= 1 &&
+    Number(routine.expectedIntervalDays) <= 3650 &&
+    Number.isSafeInteger(Number(routine.dueSoonDays)) &&
+    Number(routine.dueSoonDays) >= 0 &&
+    Number(routine.dueSoonDays) <= 365 &&
+    typeof routine.enabled === "boolean" &&
+    isOptionalString(routine.createdAt, 40) &&
+    isOptionalString(routine.updatedAt, 40)
+  );
+}
+
 function isValidUserCats(userCats) {
   return (
     isPlainObject(userCats) &&
@@ -155,6 +174,7 @@ export function isValidImportShape(data) {
   if (!Array.isArray(data.accounts) || !data.accounts.every(isValidAccount)) return false;
   if (!Array.isArray(data.wishes) || !data.wishes.every(isValidWish)) return false;
   if ("sinkingFunds" in data && (!Array.isArray(data.sinkingFunds) || !data.sinkingFunds.every(isValidSinkingFund))) return false;
+  if ("lifeRoutines" in data && (!Array.isArray(data.lifeRoutines) || !data.lifeRoutines.every(isValidLifeRoutine))) return false;
   return isValidSettings(data.settings) && isValidUserCats(data.userCats);
 }
 

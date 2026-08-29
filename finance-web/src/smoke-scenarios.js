@@ -1145,7 +1145,6 @@ export async function runTransactionSearchScenario(app) {
 
     document.querySelector('[data-action="tab"][data-target="wl"]')?.click();
     document.querySelector('#goal-center [data-action="filter-goals"][data-filter="considering"]')?.click();
-    const goalHtmlBefore = document.getElementById("goal-center")?.innerHTML;
 
     document.querySelector('[data-action="tab"][data-target="lg"]')?.click();
     const query = document.getElementById("tx-search-query");
@@ -1160,7 +1159,8 @@ export async function runTransactionSearchScenario(app) {
       document.getElementById("f-start")?.value !== reportStart ||
       document.getElementById("f-end")?.value !== reportEnd ||
       document.getElementById("goal-center")?.dataset.filter !== "considering" ||
-      document.getElementById("goal-center")?.innerHTML !== goalHtmlBefore
+      app.store.getState().wishes.length !== 1 ||
+      app.store.getState().sinkingFunds.length !== 1
     ) {
       throw new Error("transaction-search-mutated-report-or-goal-center");
     }
@@ -1173,17 +1173,18 @@ export async function runTransactionSearchScenario(app) {
     const reminderPanel = document.getElementById("life-reminder-panel");
     if (!reminderPanel || reminderPanel.open) throw new Error("life-reminder-not-collapsed-by-default");
     reminderPanel.open = true;
+    document.getElementById("life-reminder-name").value = "半年洗牙";
     const reminderInterval = document.getElementById("life-reminder-interval");
     reminderInterval.value = "180";
-    reminderInterval.dispatchEvent(new Event("input", { bubbles: true }));
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    if (!document.getElementById("life-reminder-summary")?.textContent.includes("3 個不同日期")) {
-      throw new Error("life-reminder-summary-missing");
+    document.getElementById("life-reminder-due-soon").value = "14";
+    document.getElementById("form-life-routine")?.requestSubmit();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const routine = app.store.getState().lifeRoutines?.[0];
+    const routineCard = document.querySelector("#life-routine-list .life-routine-card");
+    if (!routine || routine.name !== "半年洗牙" || routine.query !== "醫療 洗牙" || !routineCard?.textContent.includes("半年洗牙")) {
+      throw new Error("life-routine-save-or-render-missing");
     }
-    const reminderText = `${document.getElementById("life-reminder-status")?.textContent || ""} ${document.getElementById("life-reminder-summary")?.textContent || ""}`;
-    if (!reminderText.includes("歷次平均相隔") || !reminderText.includes("依 180 天試算下次")) {
-      throw new Error("life-reminder-derived-summary-missing");
-    }
+    if (!document.getElementById("life-reminder-heading")?.textContent.includes("1 項")) throw new Error("life-routine-heading-missing");
     if (document.getElementById("life-reminder-query") || document.getElementById("life-reminder-results")) {
       throw new Error("life-reminder-still-duplicates-search-results");
     }
@@ -1191,7 +1192,8 @@ export async function runTransactionSearchScenario(app) {
       document.getElementById("f-start")?.value !== reportStart ||
       document.getElementById("f-end")?.value !== reportEnd ||
       document.getElementById("goal-center")?.dataset.filter !== "considering" ||
-      document.getElementById("goal-center")?.innerHTML !== goalHtmlBefore
+      app.store.getState().wishes.length !== 1 ||
+      app.store.getState().sinkingFunds.length !== 1
     ) {
       throw new Error("life-reminder-mutated-report-or-goal-center");
     }
@@ -1201,7 +1203,7 @@ export async function runTransactionSearchScenario(app) {
       throw new Error("transaction-search-clear-mismatch");
     }
 
-    writeSmokeResult("pass", "transaction search and its optional non-persistent interval check keep report state isolated without duplicate result rows");
+    writeSmokeResult("pass", "transaction search can save one synchronized life-cycle routine while reusing the existing result list and keeping report state isolated");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

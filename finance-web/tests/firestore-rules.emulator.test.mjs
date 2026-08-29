@@ -196,6 +196,15 @@ describe("Firestore security rules emulator", () => {
     await seed(metaPath("alice"), { ...activeMeta(), updatedAt: new Date() });
     const alice = testEnv.authenticatedContext("alice").firestore();
 
+    await assertSucceeds(setDoc(
+      doc(alice, recordPath("alice", "lifeRoutine__routine-1")),
+      recordEnvelope({
+        kind: "lifeRoutine",
+        recordId: "routine-1",
+        payload: { id: "routine-1", name: "半年洗牙", query: "洗牙", expectedIntervalDays: 180, dueSoonDays: 14, enabled: true },
+      }),
+    ));
+
     await assertFails(setDoc(
       doc(alice, recordPath("alice", "unknown__1")),
       recordEnvelope({ kind: "unknown", recordId: "unknown-1" }),

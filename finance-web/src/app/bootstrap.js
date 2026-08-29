@@ -603,12 +603,19 @@ export async function bootstrapFinanceApp(doc = document) {
   lifeRecordReminderController = createLifeRecordReminderController({
     elements: {
       panel: dom.lifeReminderPanel,
+      heading: dom.lifeReminderHeading,
       query: dom.transactionSearchQuery,
+      name: dom.lifeReminderName,
       interval: dom.lifeReminderInterval,
-      status: dom.lifeReminderStatus,
-      summary: dom.lifeReminderSummary,
+      dueSoon: dom.lifeReminderDueSoon,
+      save: dom.lifeReminderSave,
+      cancel: dom.lifeReminderCancel,
+      list: dom.lifeRoutineList,
     },
     store,
+    commitState,
+    toast,
+    renderSearch: () => transactionSearchController.render(),
   });
   const transactionDetailController = createTransactionDetailController({
     elements: {
@@ -774,6 +781,12 @@ export async function bootstrapFinanceApp(doc = document) {
     syncTransactionDetailType: transactionDetailController.syncEditorType,
     closeTransactionDetail: transactionDetailController.close,
     trapTransactionDetailFocus: transactionDetailController.trapFocus,
+    saveLifeRoutine: lifeRecordReminderController.save,
+    beginEditLifeRoutine: lifeRecordReminderController.beginEdit,
+    cancelEditLifeRoutine: lifeRecordReminderController.cancelEdit,
+    deleteLifeRoutine: lifeRecordReminderController.remove,
+    toggleLifeRoutine: lifeRecordReminderController.toggle,
+    viewLifeRoutine: lifeRecordReminderController.view,
   };
 
   const bindEvents = () => bindAppEvents({
@@ -816,14 +829,11 @@ export async function bootstrapFinanceApp(doc = document) {
       },
       searchTransactions: () => {
         transactionSearchController.handleQueryInput();
-        lifeRecordReminderController.handleInput();
       },
       changeTransactionSearchPeriod: transactionSearchController.handlePresetChange,
       clearTransactionSearch: () => {
         transactionSearchController.clear();
-        lifeRecordReminderController.reset();
       },
-      updateLifeRecordReminder: lifeRecordReminderController.handleInput,
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
       retryCloudSync: async () => {

@@ -8,6 +8,7 @@ export function createInitialState() {
     bsI: [],
     wishes: [],
     sinkingFunds: [],
+    lifeRoutines: [],
     userCats: { income: [], expense: [] },
     accounts: DEFAULT_ACCOUNTS.map((account) => ({ ...account })),
     settings: {

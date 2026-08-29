@@ -110,6 +110,7 @@ function legacyCounts(finance) {
     categoryBudgets: finance?.settings?.catBud ? Object.keys(finance.settings.catBud).length : 0,
     balanceSheetItems: Array.isArray(finance?.bsI) ? finance.bsI.length : 0,
     sinkingFunds: Array.isArray(finance?.sinkingFunds) ? finance.sinkingFunds.length : 0,
+    lifeRoutines: Array.isArray(finance?.lifeRoutines) ? finance.lifeRoutines.length : 0,
     fundEvents: Array.isArray(finance?.sinkingFunds)
       ? finance.sinkingFunds.reduce(
         (total, fund) => total + (Array.isArray(fund?.events) ? fund.events.length : 0),
@@ -148,6 +149,7 @@ function summarizeV7Records(snapshot) {
       balanceSheetItems: byKind.balanceSheetItem || 0,
       sinkingFunds: byKind.sinkingFund || 0,
       fundEvents: byKind.fundEvent || 0,
+      lifeRoutines: byKind.lifeRoutine || 0,
     },
     byKind,
     activeCount: snapshot.size - tombstones,

@@ -204,6 +204,7 @@ function renderSummary(summary = null) {
       <div class="summary-row"><span>Email</span><span>${escapeHtml(summary.user?.email || "—")}</span></div>
       <div class="summary-row"><span>帳戶數量</span><span>${escapeHtml(summary.counts?.accounts ?? 0)}</span></div>
       <div class="summary-row"><span>分類預算數量</span><span>${escapeHtml(summary.counts?.categoryBudgets ?? 0)}</span></div>
+      <div class="summary-row"><span>生活週期提醒</span><span>${escapeHtml(summary.counts?.lifeRoutines ?? 0)}</span></div>
       <div class="summary-row"><span>權威資料版本</span><span>${escapeHtml(summary.storage?.authoritativeSource || "none")}</span></div>
       <div class="summary-row"><span>v7 有效／刪除紀錄</span><span>${escapeHtml(summary.storage?.v7ActiveCount ?? 0)}／${escapeHtml(summary.storage?.v7TombstoneCount ?? 0)}</span></div>
       <div class="summary-row"><span>估算資料大小</span><span>${escapeHtml(summary.approxBytes ?? 0)} bytes</span></div>

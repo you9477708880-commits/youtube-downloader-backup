@@ -211,6 +211,7 @@ const KIND_LABELS = {
   account: "帳戶",
   sinkingFund: "大額準備",
   fundEvent: "準備事件",
+  lifeRoutine: "生活週期提醒",
   settings: "設定",
   userCategories: "自訂分類",
 };

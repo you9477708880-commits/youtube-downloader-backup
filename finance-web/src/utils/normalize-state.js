@@ -26,6 +26,17 @@ function normalizeTransactionCategory(tx) {
   return tx;
 }
 
+function normalizeLifeRoutine(routine) {
+  routine.name = String(routine.name ?? "").trim().slice(0, 200);
+  routine.query = String(routine.query ?? "").normalize("NFKC").trim().replace(/\s+/g, " ").slice(0, 200);
+  routine.expectedIntervalDays = Math.min(3650, Math.max(1, Math.trunc(Number(routine.expectedIntervalDays) || 1)));
+  routine.dueSoonDays = Math.min(365, Math.max(0, Math.trunc(Number(routine.dueSoonDays) || 0)));
+  routine.enabled = routine.enabled !== false;
+  routine.createdAt = String(routine.createdAt ?? "").slice(0, 40);
+  routine.updatedAt = String(routine.updatedAt ?? "").slice(0, 40);
+  return routine;
+}
+
 export function normalizeFinanceStateMoney(state) {
   const next = {
     ...state,
@@ -61,6 +72,7 @@ export function normalizeFinanceStateMoney(state) {
       });
       return fund;
     }),
+    lifeRoutines: normalizeList(state.lifeRoutines, normalizeLifeRoutine),
     settings: {
       ...(state.settings || {}),
       budgetCap: toMoneyInt(state.settings?.budgetCap),

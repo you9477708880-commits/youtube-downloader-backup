@@ -231,7 +231,24 @@ Traceability rules:
 - JSON export remains a user-readable complete state without sync internals.
 - Losing conflict versions are kept in device-local, scope-isolated IndexedDB for at most 10 entries and 30 days. Recovery creates a normal new revision; reports never read recovery history directly.
 
-## 8. 退休頁追溯 / Retirement Traceability
+## 8. 生活週期提醒追溯 / Life-Cycle Reminder Traceability
+
+來源：
+
+- 規則來源是 `lifeRoutines`：名稱、搜尋關鍵字、預期間隔、提前提醒天數與啟用狀態。
+- 發生事實只來自 `txs`；搜尋會沿用帳戶與大額準備名稱，但不建立交易副本。
+- 最近日期、平均間隔、預計日期與逾期／即將到期狀態都是即時衍生值，不保存。
+
+規則：
+
+- 同一日多筆符合交易只算一次發生，避免一次洗牙的掛號費與診療費被誤當兩次。
+- 未啟用的規則保留但不列為待辦；沒有符合交易時清楚顯示「尚無符合紀錄」，不猜測上次日期。
+- 「查看紀錄」只把關鍵字送回既有交易搜尋，搜尋期間仍不改月度報表範圍。
+- 刪除提醒只刪 `lifeRoutine` record 並建立 tombstone，不刪任何 `txs`。
+
+The routine record stores only the rule. Occurrences remain traceable to `txs`, same-day matches count once, and every date/status is derived. Viewing reuses the existing transaction search; deleting a routine never deletes transactions.
+
+## 9. 退休頁追溯 / Retirement Traceability
 
 ### 中文
 
@@ -277,7 +294,7 @@ Rules:
 - After a negative equity year, stock appears only after cash, bonds, and any explicitly authorized emergency reserve are insufficient.
 - The source plan never changes transactions, accounts, manual items, or actual allocation.
 
-## 9. 維護檢查點 / Maintenance Checklist
+## 10. 維護檢查點 / Maintenance Checklist
 
 新增或修改報表時，請確認：
 
@@ -288,6 +305,7 @@ Rules:
 - 代墊與轉帳是否用正確視角顯示。
 - 手動資產 / 負債是否清楚標示為手動項目。
 - 退休頁是否仍清楚標示為推估，不是帳務事實。
+- 生活週期提醒是否只保存規則，且能由既有交易重算相同日期與狀態。
 
 When adding or changing reports, verify:
 
@@ -298,4 +316,5 @@ When adding or changing reports, verify:
 - Advances and transfers use the correct report perspective.
 - Manual assets / liabilities are clearly marked as manual items.
 - The retirement page remains clearly marked as projection, not accounting fact.
+- Life-cycle reminders persist rules only and reproduce the same dates/status from existing transactions.
 

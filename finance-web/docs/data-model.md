@@ -12,12 +12,13 @@ The frontend and JSON backup still use one state object. Local storage keeps a c
 
 ```js
 {
-  schemaVersion: 2,
+  schemaVersion: 3,
   txType: "expense",
   txs: [],
   bsI: [],
   wishes: [],
   sinkingFunds: [],
+  lifeRoutines: [],
   userCats: {
     income: [],
     expense: []
@@ -32,21 +33,23 @@ The frontend and JSON backup still use one state object. Local storage keeps a c
 ### 中文
 
 - `txs` 是交易事實來源，代表實際發生的收入、支出、轉帳、代墊與代墊收款。
-- `schemaVersion` 是資料形狀版本，目前版本為 `2`。
+- `schemaVersion` 是資料形狀版本，目前版本為 `3`。
 - `accounts.initialBalance` 是帳戶起始餘額來源。
 - `bsI` 是手動資產 / 負債來源。
 - `sinkingFunds` 是大額支出準備的設定來源。
 - `sinkingFunds.events` 是大額準備的補入與動用事件來源。
+- `lifeRoutines` 只保存生活例行提醒規則；實際發生日期仍以 `txs` 為唯一來源。
 - 退休頁是推估工具，不是帳務事實來源。
 
 ### English
 
 - `txs` is the source of truth for actual transactions: income, expenses, transfers, advances, and advance repayments.
-- `schemaVersion` records the normalized data-shape version. Current version: `2`.
+- `schemaVersion` records the normalized data-shape version. Current version: `3`.
 - `accounts.initialBalance` is the source for account starting balances.
 - `bsI` stores manual assets and liabilities.
 - `sinkingFunds` stores large-expense fund settings.
 - `sinkingFunds.events` stores fund top-up and spending events.
+- `lifeRoutines` stores reminder rules only; actual occurrence dates still come exclusively from `txs`.
 - The retirement page is a projection tool, not an accounting source of truth.
 
 ## 3. txs
@@ -437,6 +440,30 @@ The system should warn the user and suggest:
 
 ## 9. 本機與雲端 / Local And Cloud
 
+### 生活週期提醒 / Life-Cycle Routines
+
+```js
+{
+  id: "routine-...",
+  name: "半年洗牙",
+  query: "洗牙",
+  expectedIntervalDays: 180,
+  dueSoonDays: 14,
+  enabled: true,
+  createdAt: "2026-08-29T12:00:00.000Z",
+  updatedAt: "2026-08-29T12:00:00.000Z"
+}
+```
+
+- 只保存名稱、搜尋條件與提醒規則，不保存交易副本、最近日期、平均間隔、預計日期或狀態。
+- 最近一次與到期狀態每次都從截至今天的 `txs`、帳戶名稱與準備金名稱重新推導；同一日期多筆符合交易只算一次發生。
+- `enabled: false` 保留規則但不產生到期提醒。刪除例行事項會由 record sync 產生 `lifeRoutine` tombstone。
+- 舊 schema 1／2 資料載入時正規化為 `lifeRoutines: []`，不修改任何既有交易。
+- JSON 備份包含 `lifeRoutines`；AndroMoney CSV 不包含，因為它只交換交易層。
+- 目前只提供開啟網頁時的站內提醒，不註冊背景通知、行事曆或 Service Worker 排程。
+
+Only rule metadata is persisted. Occurrence dates and status are always derived from existing transactions. Disabled routines stay stored but do not alert; deletion uses the normal `lifeRoutine` tombstone path. Older data migrates to an empty list without changing transactions. JSON backup includes routines, while AndroMoney CSV and background notifications remain out of scope.
+
 ### 中文
 
 目前模型：
@@ -445,7 +472,7 @@ The system should warn the user and suggest:
 - 未登入資料使用 `fin_v7:state:local`；Google 帳號資料使用 `fin_v7:state:uid:<encoded uid>`，不同帳號不共用本機 snapshot。
 - 舊 `fin_v6_*` 只會複製到未綁定的 `local` namespace，保留舊 key 作為回復來源，不會自動歸入任何 Google 帳號。
 - 登出或切換 Firebase `uid` 時，store 會立即切換到對應 namespace；第一個遠端 snapshot 完成前不開放雲端保存。
-- Firestore v7 使用 `sync/finance_v7` meta 與其下的 `records` collection。交易、帳戶、資產負債項目、待購項目、準備項目、準備事件、設定與自訂分類各自投影成 record。
+- Firestore v7 使用 `sync/finance_v7` meta 與其下的 `records` collection。交易、帳戶、資產負債項目、待購項目、準備項目、準備事件、生活週期提醒、設定與自訂分類各自投影成 record。
 - `sinkingFunds.events` 只在同步層拆開；套回前端 state 時會重新組回原本巢狀結構，因此帳務 domain 不需要改寫。
 - 每筆 record 使用穩定 key、`revision`、`updatedBy`、server `updatedAt` 與 deletion tombstone。不同 record 的跨裝置修改可共存。
 - 同一 record 的 revision 競爭不做欄位拼裝；寫入會停止並顯示三個明確按鈕：「保留雲端」「保留本機」「暫不處理」。選擇覆蓋前，落敗版本會依目前 `local`／Firebase UID scope 存入裝置內的 IndexedDB 衝突復原中心，不再於每次衝突自動下載 JSON；只有 IndexedDB 儲存失敗時才下載緊急 JSON，若兩種保護都失敗則阻止覆蓋。
@@ -456,7 +483,7 @@ The system should warn the user and suggest:
 - 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
 - 「清除此裝置」只刪目前 `local`／Firebase UID scope 的 snapshot、rollback、UID outbox 與衝突復原紀錄。登入狀態還會先停止同步、登出、終止 Firestore 並呼叫官方離線快取清除；不會建立空 state、tombstone 或任何雲端 delete。
 - Firestore IndexedDB cache 無法依 UID 分開，因此登入狀態的裝置清理會清除此 Firebase app 在該網站來源下的離線快取；其他帳號的雲端資料不受影響。其他 UID localStorage、legacy v6 keys、migration marker 與共用 device-id 刻意保留。
-- 交易搜尋週期間隔檢查只從截至今天的 `txs`、帳戶與準備金名稱即時計算；它沿用交易搜尋關鍵字，不另存一份查詢或結果。預期間隔、狀態及結果不加入 state、JSON、localStorage 或 Firestore。
+- 生活週期提醒沿用交易搜尋；`lifeRoutines` 只保存規則，日期、間隔、狀態與搜尋結果不保存，也不另建交易清單。
 
 後續限制：
 
@@ -481,7 +508,7 @@ Current model:
 - Normal mutation groups are one atomic batch and are rejected above 400 changed records.
 - The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.
 - Device clearing is current-scope only: it stops sync, signs out, terminates Firestore, clears the app persistence cache, and then removes current recovery/rollback/outbox/snapshot data without writing cloud deletes or empty-state tombstones.
-- Life-record reminder inputs and derived results are memory-only and absent from state, JSON, localStorage, and Firestore.
+- Life-cycle routine rules are persisted as `lifeRoutine` records. Dates, intervals, status, and result rows remain derived and are never duplicated.
 
 Remaining limits:
 

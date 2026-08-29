@@ -101,3 +101,50 @@ export function deriveLifeRecordReminder({
     recentTransactions: search.matches.slice(0, Math.max(0, recentLimit)),
   };
 }
+
+const ROUTINE_STATUS_ORDER = {
+  overdue: 0,
+  due_soon: 1,
+  no_matches: 2,
+  not_due: 3,
+  disabled: 4,
+};
+
+export function deriveLifeRoutineCenter({
+  routines = [],
+  transactions = [],
+  accounts = [],
+  funds = [],
+  today = new Date(),
+} = {}) {
+  const items = routines.map((routine) => {
+    if (routine.enabled === false) {
+      return { routine, reminder: idleModel(routine.query, routine.expectedIntervalDays, "disabled") };
+    }
+    return {
+      routine,
+      reminder: deriveLifeRecordReminder({
+        transactions,
+        accounts,
+        funds,
+        query: routine.query,
+        expectedIntervalDays: routine.expectedIntervalDays,
+        dueSoonDays: routine.dueSoonDays,
+        today,
+      }),
+    };
+  }).sort((left, right) => {
+    const statusDiff = (ROUTINE_STATUS_ORDER[left.reminder.status] ?? 9) - (ROUTINE_STATUS_ORDER[right.reminder.status] ?? 9);
+    if (statusDiff) return statusDiff;
+    const dateDiff = String(left.reminder.nextExpectedDate || "").localeCompare(String(right.reminder.nextExpectedDate || ""));
+    return dateDiff || String(left.routine.name || left.routine.query).localeCompare(String(right.routine.name || right.routine.query), "zh-Hant");
+  });
+
+  return {
+    items,
+    total: items.length,
+    overdue: items.filter((item) => item.reminder.status === "overdue").length,
+    dueSoon: items.filter((item) => item.reminder.status === "due_soon").length,
+    enabled: items.filter((item) => item.routine.enabled !== false).length,
+  };
+}

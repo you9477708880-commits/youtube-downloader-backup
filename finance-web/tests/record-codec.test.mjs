@@ -43,6 +43,16 @@ state.wishes = [
   { id: 10, name: "第一個", price: 100, cat: "其他" },
   { id: 20, name: "第二個", price: 200, cat: "其他" },
 ];
+state.lifeRoutines = [{
+  id: "routine-1",
+  name: "半年洗牙",
+  query: "洗牙",
+  expectedIntervalDays: 180,
+  dueSoonDays: 14,
+  enabled: true,
+  createdAt: "2026-08-29T12:00:00.000Z",
+  updatedAt: "2026-08-29T12:00:00.000Z",
+}];
 
 const initialMutations = buildRecordMutations(state, new Map(), {
   updatedBy: "device-a",
@@ -56,10 +66,12 @@ const roundTrip = recordEnvelopesToState(baseline);
 assert.equal(areFinanceStatesEquivalent(state, roundTrip), true);
 assert.equal(roundTrip.sinkingFunds[0].events[0].linkedTxId, "tx-1");
 assert.deepEqual(roundTrip.wishes.map((wish) => wish.id), [10, 20]);
+assert.equal(roundTrip.lifeRoutines[0].query, "洗牙");
 
 const changed = structuredClone(state);
 changed.txs[0].amount = 250;
 changed.wishes.splice(0, 1);
+changed.lifeRoutines.splice(0, 1);
 changed.txs.push({
   id: "tx-2",
   type: "income",
@@ -78,10 +90,13 @@ const nextMutations = buildRecordMutations(changed, baseline, {
 const update = nextMutations.find((mutation) => mutation.envelope.recordId === "tx-1");
 const creation = nextMutations.find((mutation) => mutation.envelope.recordId === "tx-2");
 const deletion = nextMutations.find((mutation) => mutation.envelope.recordId === "10");
+const routineDeletion = nextMutations.find((mutation) => mutation.envelope.recordId === "routine-1");
 assert.equal(update.envelope.revision, 2);
 assert.equal(creation.envelope.revision, 1);
 assert.equal(deletion.envelope.deleted, true);
 assert.equal(deletion.envelope.payload, null);
+assert.equal(routineDeletion.envelope.kind, "lifeRoutine");
+assert.equal(routineDeletion.envelope.deleted, true);
 
 const afterChanges = recordEnvelopesToState(applyMutations(baseline, nextMutations));
 assert.equal(areFinanceStatesEquivalent(changed, afterChanges), true);

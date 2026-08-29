@@ -44,6 +44,10 @@ const DATA_ACTIONS = {
   "backup-before-device-clear": ({ handlers }) => handlers.backupBeforeDeviceClear(),
   "confirm-device-clear": ({ handlers }) => handlers.confirmDeviceClear(),
   "reconcile-account": ({ button, handlers }) => handlers.reconcileAccount(button.dataset.id),
+  "view-life-routine": ({ button, actions }) => actions.viewLifeRoutine(button.dataset.id),
+  "edit-life-routine": ({ button, actions }) => actions.beginEditLifeRoutine(button.dataset.id),
+  "toggle-life-routine": ({ button, actions }) => actions.toggleLifeRoutine(button.dataset.id),
+  "delete-life-routine": ({ button, actions }) => actions.deleteLifeRoutine(button.dataset.id),
 };
 
 export function dispatchDataAction({ button, actions, ui, handlers }) {
@@ -113,6 +117,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   bindForm("form-wish", actions.addWish);
   bindForm("form-bs", actions.addBs);
   bindForm("form-fund", actions.addFund);
+  bindForm("form-life-routine", actions.saveLifeRoutine);
 
   on(dom.filterPreset, "change", (event) => actions.setDatePreset(event.target.value));
   on(dom.filterStart, "change", () => actions.customDate());
@@ -122,7 +127,6 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.transactionSearchStart, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchEnd, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
-  on(dom.lifeReminderInterval, "input", handlers.updateLifeRecordReminder);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
   on(dom.balanceAccountType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
@@ -131,6 +135,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.fundCancelButton, "click", actions.cancelEditFund);
   on(dom.bsCancelButton, "click", actions.cancelEditBs);
   on(dom.wishCancelButton, "click", actions.cancelEditWish);
+  on(dom.lifeReminderCancel, "click", actions.cancelEditLifeRoutine);
   on(dom.androMoneyCancel, "click", handlers.cancelAndroMoneyImport);
   on(dom.androMoneyConfirm, "click", handlers.confirmAndroMoneyImport);
 

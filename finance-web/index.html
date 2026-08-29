@@ -252,17 +252,29 @@
         <div class="tx-search-summary" id="tx-search-summary" hidden></div>
         <div class="empty tx-search-empty" id="tx-search-empty" hidden></div>
         <details class="life-reminder" id="life-reminder-panel">
-          <summary>檢查這個搜尋的週期間隔（選填）</summary>
+          <summary id="life-reminder-heading">生活週期提醒｜尚未建立</summary>
           <div class="life-reminder-body">
-            <div class="life-reminder-controls">
+            <p class="life-reminder-note">把上方的搜尋關鍵字儲存成例行提醒。系統只保存規則，最近紀錄與預計日期會由既有交易即時計算，不會複製明細，也不影響搜尋期間或月度報表。</p>
+            <form id="form-life-routine" class="life-reminder-controls">
+              <label>
+                <span>提醒名稱（選填）</span>
+                <input type="text" id="life-reminder-name" maxlength="200" placeholder="例如：半年洗牙">
+              </label>
               <label>
                 <span>預期間隔（天）</span>
-                <input type="number" id="life-reminder-interval" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如：180">
+                <input type="number" id="life-reminder-interval" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如：180" required>
               </label>
-            </div>
-            <div class="life-reminder-status" id="life-reminder-status" data-state="idle" aria-live="polite"></div>
-            <div class="life-reminder-summary" id="life-reminder-summary" hidden></div>
-            <p class="life-reminder-note">沿用上方搜尋關鍵字，但週期計算會比對截至今天的全部帳務紀錄，不受搜尋期間或月度報表影響。這只是日期試算，不代表醫療、汽車保養或其他專業建議；間隔不會保存或同步。</p>
+              <label>
+                <span>提前提醒（天）</span>
+                <input type="number" id="life-reminder-due-soon" min="0" max="365" step="1" inputmode="numeric" value="14" required>
+              </label>
+              <div class="life-reminder-form-actions">
+                <button type="submit" class="sbtn compact" id="life-reminder-save">儲存提醒</button>
+                <button type="button" class="sbtn outline compact" id="life-reminder-cancel" hidden>取消編輯</button>
+              </div>
+            </form>
+            <div class="life-routine-list" id="life-routine-list" aria-live="polite"></div>
+            <p class="life-reminder-note">這是裝置內與 Google 帳號同步的日期提醒，不是醫療、汽車保養或其他專業建議，也不會在背景發送系統通知。</p>
           </div>
         </details>
       </div>

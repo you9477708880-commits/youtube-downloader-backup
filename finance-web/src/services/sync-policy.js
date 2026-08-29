@@ -16,6 +16,7 @@ function normalizeForSyncCompare(state) {
     wishes: normalized.wishes,
     sinkingFunds: normalized.sinkingFunds,
     accounts: normalized.accounts,
+    lifeRoutines: normalized.lifeRoutines,
     userCats: normalized.userCats,
     settings: normalized.settings,
   };

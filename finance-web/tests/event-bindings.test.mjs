@@ -34,7 +34,7 @@ function createHarness() {
   const body = new FakeTarget();
   const win = new FakeTarget();
   const forms = Object.fromEntries(
-    ["form-tx", "form-cat-bud", "form-wish", "form-bs", "form-fund"].map((id) => {
+    ["form-tx", "form-cat-bud", "form-wish", "form-bs", "form-fund", "form-life-routine"].map((id) => {
       const form = new FakeTarget();
       form.valid = true;
       form.checkValidity = () => form.valid;
@@ -54,7 +54,7 @@ function createHarness() {
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
-    "transactionSearchEnd", "transactionSearchClear", "lifeReminderInterval", "transactionDetailModal",
+    "transactionSearchEnd", "transactionSearchClear", "lifeReminderInterval", "lifeReminderCancel", "transactionDetailModal",
     "recoveryCenterModal", "deviceClearModal",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
@@ -72,7 +72,6 @@ function createHarness() {
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
     "searchTransactions", "changeTransactionSearchPeriod", "clearTransactionSearch",
-    "updateLifeRecordReminder",
     "openRecoveryCenter", "closeRecoveryCenter", "restoreRecovery", "exportRecovery", "deleteRecovery", "reconcileAccount",
     "openDeviceClear", "closeDeviceClear", "backupBeforeDeviceClear", "confirmDeviceClear",
   ];
@@ -109,6 +108,10 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("confirm-device-clear");
   dispatch("close-device-clear");
   dispatch("reconcile-account", { id: "card-1" });
+  dispatch("view-life-routine", { id: "routine-1" });
+  dispatch("edit-life-routine", { id: "routine-1" });
+  dispatch("toggle-life-routine", { id: "routine-1" });
+  dispatch("delete-life-routine", { id: "routine-1" });
   assert.equal(dispatch("unknown"), false);
 
   assert.deepEqual(calls, [
@@ -135,6 +138,10 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["confirmDeviceClear"],
     ["closeDeviceClear"],
     ["reconcileAccount", "card-1"],
+    ["viewLifeRoutine", "routine-1"],
+    ["beginEditLifeRoutine", "routine-1"],
+    ["toggleLifeRoutine", "routine-1"],
+    ["deleteLifeRoutine", "routine-1"],
   ]);
 });
 
@@ -169,7 +176,6 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.transactionSearchQuery.emit("input");
   dom.transactionSearchPreset.emit("change");
   dom.transactionSearchClear.emit("click");
-  dom.lifeReminderInterval.emit("input");
   dom.balanceType.value = "item";
   dom.balanceType.emit("change");
   dom.balanceAccountType.value = "liability";
@@ -203,7 +209,6 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "searchTransactions",
     "changeTransactionSearchPeriod",
     "clearTransactionSearch",
-    "updateLifeRecordReminder",
     "changeBalanceType",
     "changeBalanceType",
     "normalizeMoneyInput",

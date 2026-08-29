@@ -9,6 +9,7 @@ const ARRAY_KINDS = [
   ["balanceSheetItem", "bsI"],
   ["wish", "wishes"],
   ["account", "accounts"],
+  ["lifeRoutine", "lifeRoutines"],
 ];
 
 function canonicalId(value) {
@@ -103,6 +104,7 @@ export function recordEnvelopesToState(records) {
     wishes: [],
     sinkingFunds: [],
     accounts: [],
+    lifeRoutines: [],
     userCats: { income: [], expense: [] },
     settings: { ...base.settings },
   };
