@@ -453,11 +453,14 @@ The system should warn the user and suggest:
 - 復原準備事件時會確保母準備項目一併存在；復原刪除準備項目時會同步移除其事件，避免留下不可見的孤兒紀錄。
 - 一般 mutation group 使用單一 Firestore batch；超過 400 筆差異會拒絕而保留本機資料，不做可能部分成功的分批覆蓋。
 - 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
+- 「清除此裝置」只刪目前 `local`／Firebase UID scope 的 snapshot、rollback、UID outbox 與衝突復原紀錄。登入狀態還會先停止同步、登出、終止 Firestore 並呼叫官方離線快取清除；不會建立空 state、tombstone 或任何雲端 delete。
+- Firestore IndexedDB cache 無法依 UID 分開，因此登入狀態的裝置清理會清除此 Firebase app 在該網站來源下的離線快取；其他帳號的雲端資料不受影響。其他 UID localStorage、legacy v6 keys、migration marker 與共用 device-id 刻意保留。
+- 生活紀錄提醒只從截至今天的 `txs`、帳戶與準備金名稱即時計算；關鍵字、預期間隔、狀態及結果不加入 state、JSON、localStorage 或 Firestore。
 
 後續限制：
 
 - Tombstone 目前永久保留，尚未設計安全的清理期限。
-- 尚未提供清除 Firestore IndexedDB cache 與本機 namespace 的完整隱私操作。
+- 目前只提供「目前 scope」的安全裝置清理，不是掃除同來源所有帳號與 legacy 資料的完整隱私抹除。
 - 衝突復原歷史只存於觸發衝突的裝置，不跨裝置同步；瀏覽器清除網站資料也會移除它。
 
 ### English
@@ -475,11 +478,13 @@ Current model:
 - Recovery history is limited to 10 entries per scope and 30 days. Selected records are restored through the normal commit pipeline as new revisions; fund parent-child integrity is preserved.
 - Normal mutation groups are one atomic batch and are rejected above 400 changed records.
 - The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.
+- Device clearing is current-scope only: it stops sync, signs out, terminates Firestore, clears the app persistence cache, and then removes current recovery/rollback/outbox/snapshot data without writing cloud deletes or empty-state tombstones.
+- Life-record reminder inputs and derived results are memory-only and absent from state, JSON, localStorage, and Firestore.
 
 Remaining limits:
 
 - Tombstone garbage collection is not defined yet.
-- A complete device-data clearing action, including Firestore IndexedDB cache, is still pending.
+- Current-scope clearing is available locally, but full-origin privacy erasure across other UIDs and legacy namespaces is intentionally out of scope.
 - Recovery history is device-local and is not synchronized across devices.
 
 ## 10. 退休頁定位 / Retirement Page Positioning

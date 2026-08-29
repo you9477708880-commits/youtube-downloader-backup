@@ -158,6 +158,20 @@ test("scope validation and empty selections fail closed", async () => {
   );
 });
 
+test("count and clear operate only within the requested recovery scope", async () => {
+  const repository = createConflictRecoveryStore({ driver: memoryDriver() });
+  const losing = stateWithTransaction({ amount: 100 });
+  const winner = stateWithTransaction({ amount: 200 });
+  await repository.save({ id: "a-1", scope: "uid:user-a", state: losing, winnerState: winner });
+  await repository.save({ id: "a-2", scope: "uid:user-a", state: losing, winnerState: winner });
+  await repository.save({ id: "b-1", scope: "uid:user-b", state: losing, winnerState: winner });
+
+  assert.equal(await repository.count("uid:user-a"), 2);
+  assert.equal(await repository.clear("uid:user-a"), 2);
+  assert.equal(await repository.count("uid:user-a"), 0);
+  assert.equal(await repository.count("uid:user-b"), 1);
+});
+
 test("preserver downloads only when internal storage fails and blocks when both safeguards fail", async () => {
   const state = stateWithTransaction();
   const calls = [];

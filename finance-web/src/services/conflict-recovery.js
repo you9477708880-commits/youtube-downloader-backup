@@ -192,6 +192,14 @@ export function createConflictRecoveryStore({
       await driver.delete(entry.id);
       return true;
     },
+    async count(scope) {
+      return (await listRaw(scope)).length;
+    },
+    async clear(scope) {
+      const entries = await listRaw(scope);
+      for (const entry of entries) await driver.delete(entry.id);
+      return entries.length;
+    },
     cleanup,
   };
 }

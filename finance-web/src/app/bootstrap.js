@@ -13,11 +13,13 @@ import {
 import { createConflictRecoveryStore, createRecoveryPreserver } from "../services/conflict-recovery.js";
 import { setupPWA } from "../services/pwa.js";
 import { createRecordCloudSync } from "../services/storage-cloud-records.js";
+import { createDeviceDataClearService } from "../services/device-data-clear.js";
 import { areFinanceStatesEquivalent, buildCloudConflictMessage, hasMeaningfulFinanceData } from "../services/sync-policy.js";
 import { buildAndroMoneyCsv, parseAndroMoneyCsv } from "../services/andromoney-csv.js";
 import { exportData, importData } from "../services/import-export.js";
+import { backupFilename, downloadTextFile, readFileAsText } from "../services/browser-files.js";
 import { createToastManager } from "../ui/toast.js";
-import { $ } from "../ui/dom.js";
+import { collectDom } from "./dom-elements.js";
 import { setActiveTab } from "../ui/tabs.js";
 import { localDateStr, formatMoney, escapeHTML, toMoneyInt } from "../utils/format.js";
 import { normalizeFinanceStateMoney } from "../utils/normalize-state.js";
@@ -41,193 +43,12 @@ import { createImportController } from "./controllers/import-controller.js";
 import { createCategoryBudgetController } from "./controllers/category-budget-controller.js";
 import { createRetirementController } from "./controllers/retirement-controller.js";
 import { createTransactionSearchController } from "./controllers/transaction-search-controller.js";
+import { createLifeRecordReminderController } from "./controllers/life-record-reminder-controller.js";
 import { createTransactionDetailController } from "./controllers/transaction-detail-controller.js";
 import { createRecoveryCenterController } from "./controllers/recovery-center-controller.js";
+import { createDeviceDataController } from "./controllers/device-data-controller.js";
 import { bindAppEvents } from "./event-bindings.js";
 import { createSyncCoordinator } from "./sync-coordinator.js";
-
-function collectDom(doc = document) {
-  return {
-    root: doc,
-    headerSub: $("hdr-s", doc),
-    cloudStatus: $("cloud-status", doc),
-    authButton: $("auth-btn", doc),
-    headerTag: $("hdr-tag", doc),
-    filterPreset: $("f-preset", doc),
-    filterStart: $("f-start", doc),
-    filterEnd: $("f-end", doc),
-    inputAmount: $("i-amt", doc),
-    inputDesc: $("i-desc", doc),
-    inputDate: $("i-date", doc),
-    inputCategory: $("i-cat", doc),
-    inputSubcategory: $("i-subcat", doc),
-    inputSubcategoryOptions: $("i-subcat-options", doc),
-    inputFund: $("i-fund", doc),
-    inputOwnAmount: $("i-own", doc),
-    inputAdvancePerson: $("i-person", doc),
-    inputAccount: $("i-acc", doc),
-    inputFromAccount: $("i-from", doc),
-    inputToAccount: $("i-to", doc),
-    txFormTitle: $("tx-form-title", doc),
-    txEditNote: $("tx-edit-note", doc),
-    txSubmitButton: $("tx-submit-btn", doc),
-    txCancelButton: $("tx-cancel-btn", doc),
-    incomeButton: $("b-i", doc),
-    expenseButton: $("b-e", doc),
-    transferButton: $("b-t", doc),
-    advanceButton: $("b-a", doc),
-    incomeExpenseAccountWrap: $("f-ie-acc", doc),
-    categoryWrap: $("f-cat-group", doc),
-    fundWrap: $("f-fund-group", doc),
-    advanceWrap: $("f-adv-group", doc),
-    transferWrap: $("f-tr-acc", doc),
-    oIncome: $("o-i", doc),
-    oExpense: $("o-e", doc),
-    oNet: $("o-n", doc),
-    oBars: $("o-bars", doc),
-    oTx: $("o-tx", doc),
-    monthlyReview: $("monthly-review", doc),
-    aTx: $("a-tx", doc),
-    advList: $("adv-list", doc),
-    txCount: $("tx-cnt", doc),
-    transactionSearchQuery: $("tx-search-query", doc),
-    transactionSearchPreset: $("tx-search-preset", doc),
-    transactionSearchStart: $("tx-search-start", doc),
-    transactionSearchEnd: $("tx-search-end", doc),
-    transactionSearchClear: $("tx-search-clear", doc),
-    transactionSearchCustom: $("tx-search-custom", doc),
-    transactionSearchStatus: $("tx-search-status", doc),
-    transactionSearchSummary: $("tx-search-summary", doc),
-    transactionSearchEmpty: $("tx-search-empty", doc),
-    cashflowBody: $("cf-b", doc),
-    balanceSheetBody: $("bs-b", doc),
-    accountCenter: $("account-center", doc),
-    budgetCap: $("bs-cap", doc),
-    budgetExpense: $("bs-exp", doc),
-    budgetFundContribution: $("bs-fund", doc),
-    budgetAvailable: $("bs-avail", doc),
-    budgetPlanningRoom: $("bs-room", doc),
-    overviewFill: $("ov-fill", doc),
-    overviewCapLabel: $("ov-cap-lbl", doc),
-    overviewBudget: $("o-bud", doc),
-    budgetModeNote: $("bud-mode-note", doc),
-    budgetSourceList: $("bud-source-list", doc),
-    leftoverNote: $("leftover-note", doc),
-    categoryBudgetList: $("cb-list", doc),
-    goalCenter: $("goal-center", doc),
-    wishList: $("wl-list", doc),
-    budgetCapInput: $("bud-cap", doc),
-    fundName: $("sf-name", doc),
-    fundCategory: $("sf-cat", doc),
-    fundTarget: $("sf-target", doc),
-    fundMonthly: $("sf-monthly", doc),
-    fundStart: $("sf-start", doc),
-    fundTargetMonth: $("sf-target-month", doc),
-    fundNote: $("sf-note", doc),
-    fundCarry: $("sf-carry", doc),
-    fundFormTitle: $("fund-form-title", doc),
-    fundEditNote: $("fund-edit-note", doc),
-    fundSubmitButton: $("fund-submit-btn", doc),
-    fundCancelButton: $("fund-cancel-btn", doc),
-    fundList: $("sf-list", doc),
-    bsFormTitle: $("bs-form-title", doc),
-    bsEditNote: $("bs-edit-note", doc),
-    bsSubmitButton: $("bs-submit-btn", doc),
-    bsCancelButton: $("bs-cancel-btn", doc),
-    balanceName: $("bs-n", doc),
-    balanceType: $("bs-t", doc),
-    balanceCategoryWrap: $("bs-cat-wrap", doc),
-    balanceCategory: $("bs-c", doc),
-    balanceAccountFields: $("bs-account-fields", doc),
-    balanceAccountType: $("bs-account-type", doc),
-    balanceCreditFields: $("bs-credit-fields", doc),
-    balanceCreditLimit: $("bs-credit-limit", doc),
-    balanceStatementDay: $("bs-statement-day", doc),
-    balancePaymentDueDay: $("bs-payment-due-day", doc),
-    balanceEmergency: $("bs-em", doc),
-    balanceAmount: $("bs-a", doc),
-    catBudgetCategory: $("cb-cat", doc),
-    catBudgetAmount: $("cb-amt", doc),
-    wishName: $("w-name", doc),
-    wishPrice: $("w-price", doc),
-    wishCategory: $("w-cat", doc),
-    wishFormTitle: $("wish-form-title", doc),
-    wishEditNote: $("wish-edit-note", doc),
-    wishSubmitButton: $("wish-submit-btn", doc),
-    wishCancelButton: $("wish-cancel-btn", doc),
-    fileImport: $("file-import", doc),
-    fileAndroMoneyImport: $("file-andromoney-import", doc),
-    androMoneyModal: $("andromoney-modal", doc),
-    androMoneySummary: $("andromoney-summary", doc),
-    androMoneyAccounts: $("andromoney-accounts", doc),
-    androMoneyDuplicates: $("andromoney-duplicates", doc),
-    androMoneyDuplicateMode: $("andromoney-duplicate-mode", doc),
-    androMoneyPreview: $("andromoney-preview", doc),
-    androMoneyConfirm: $("andromoney-confirm", doc),
-    androMoneyCancel: $("andromoney-cancel", doc),
-    retireLinked: $("r-linked", doc),
-    retireManualWrap: $("r-manual-wrap", doc),
-    retireLinkedValue: $("r-linked-val", doc),
-    currentAge: $("rc", doc),
-    retirementAge: $("rr", doc),
-    deathAge: $("rd", doc),
-    retireAsset: $("rs0", doc),
-    retireMonthly: $("rs1", doc),
-    retirePrincipalReturn: $("rs2", doc),
-    retireContributionReturn: $("rs3", doc),
-    retireInflation: $("rs4", doc),
-    retireWithdraw: $("rs5", doc),
-    retireTarget: $("rs6", doc),
-    retireAssetValue: $("sv0", doc),
-    retireMonthlyValue: $("sv1", doc),
-    retirePrincipalReturnValue: $("sv2", doc),
-    retireContributionReturnValue: $("sv3", doc),
-    retireInflationValue: $("sv4", doc),
-    retireWithdrawValue: $("sv5", doc),
-    retireTargetValue: $("sv6", doc),
-    retireAssetAtRetire: $("r-a", doc),
-    retireAchieve: $("r-p", doc),
-    retirePaid: $("r-pr", doc),
-    retireGain: $("r-g", doc),
-    retireSuggestion: $("r-sg", doc),
-    retireScenarios: $("r-scenarios", doc),
-    retireGuardrailPanel: $("rg-panel", doc),
-    retireGuardrailPortfolio: $("rg-portfolio", doc),
-    retireGuardrailWithdrawal: $("rg-withdrawal", doc),
-    retireGuardrailInitialRate: $("rg-initial-rate", doc),
-    retireGuardrailPortfolioReturn: $("rg-portfolio-return", doc),
-    retireGuardrailCurrentStock: $("rg-current-stock", doc),
-    retireGuardrailCurrentBond: $("rg-current-bond", doc),
-    retireGuardrailCurrentCash: $("rg-current-cash", doc),
-    retireGuardrailTargetStock: $("rg-target-stock", doc),
-    retireGuardrailTargetBond: $("rg-target-bond", doc),
-    retireGuardrailTargetCash: $("rg-target-cash", doc),
-    retireGuardrailStockReturn: $("rg-stock-return", doc),
-    retireGuardrailBondReturn: $("rg-bond-return", doc),
-    retireGuardrailUseEmergency: $("rg-use-emergency", doc),
-    retireGuardrailReserveTargetYears: $("rg-reserve-target-years", doc),
-    retireGuardrailEmergencyLabel: $("rg-emergency-label", doc),
-    retireGuardrailOutput: $("rg-output", doc),
-    retireTable: $("r-tbl", doc),
-    tableWrap: $("tbl-w", doc),
-    tableToggleLabel: $("tg-lbl", doc),
-    choiceModal: $("choice-modal", doc),
-    choiceSummary: $("choice-summary", doc),
-    choiceCancel: $("choice-cancel", doc),
-    syncChoiceModal: $("sync-choice-modal", doc),
-    syncChoiceSummary: $("sync-choice-summary", doc),
-    recoveryCenterModal: $("recovery-center-modal", doc),
-    recoveryCenterSummary: $("recovery-center-summary", doc),
-    recoveryCenterList: $("recovery-center-list", doc),
-    recoveryCenterEmpty: $("recovery-center-empty", doc),
-    recoveryCenterClose: $("recovery-center-close", doc),
-    transactionDetailModal: $("transaction-detail-modal", doc),
-    transactionDetailTitle: $("transaction-detail-title", doc),
-    transactionDetailBody: $("transaction-detail-body", doc),
-    transactionDetailEdit: $("transaction-detail-edit", doc),
-    transactionDetailClose: $("transaction-detail-close", doc),
-  };
-}
 
 function createFallbackCloudSync() {
   return {
@@ -239,33 +60,6 @@ function createFallbackCloudSync() {
     signOutToAnonymous: async () => ({ mode: "local" }),
     getUser: () => null,
   };
-}
-
-function backupFilename(label) {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `finance-backup-${label}-${stamp}.json`;
-}
-
-function readFileAsText(file) {
-  if (typeof file?.text === "function") {
-    return file.text().then((value) => String(value || ""));
-  }
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(String(event.target?.result || ""));
-    reader.onerror = () => reject(new Error("read-failed"));
-    reader.readAsText(file, "utf-8");
-  });
-}
-
-function downloadTextFile({ content, filename, type }) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 export async function bootstrapFinanceApp(doc = document) {
@@ -299,6 +93,7 @@ export async function bootstrapFinanceApp(doc = document) {
 
   let retirementController = null;
   let transactionSearchController = null;
+  let lifeRecordReminderController = null;
 
   const ui = {
     toast,
@@ -584,6 +379,7 @@ export async function bootstrapFinanceApp(doc = document) {
     renderMonthlyReview({ state, filterRange, utils, dom });
     if (transactionSearchController) transactionSearchController.render();
     else renderLedger({ state, filteredTxs, constants: CONSTANTS, utils, dom });
+    lifeRecordReminderController?.render();
     renderCashFlow({ state, filteredTxs, utils, dom });
     renderBalanceSheet({ state, utils, dom });
     renderGoalCenter({ state, filterRange, utils, dom });
@@ -804,6 +600,18 @@ export async function bootstrapFinanceApp(doc = document) {
       dom,
     }),
   });
+  lifeRecordReminderController = createLifeRecordReminderController({
+    elements: {
+      panel: dom.lifeReminderPanel,
+      query: dom.lifeReminderQuery,
+      interval: dom.lifeReminderInterval,
+      status: dom.lifeReminderStatus,
+      summary: dom.lifeReminderSummary,
+      results: dom.lifeReminderResults,
+    },
+    store,
+    utils,
+  });
   const transactionDetailController = createTransactionDetailController({
     elements: {
       modal: dom.transactionDetailModal,
@@ -861,6 +669,35 @@ export async function bootstrapFinanceApp(doc = document) {
     toast,
     escapeHTML,
   });
+  const deviceDataController = createDeviceDataController({
+    elements: {
+      modal: dom.deviceClearModal,
+      title: dom.deviceClearTitle,
+      summary: dom.deviceClearSummary,
+      notice: dom.deviceClearNotice,
+      unsyncedWrap: dom.deviceClearUnsyncedWrap,
+      unsyncedAck: dom.deviceClearUnsyncedAck,
+      confirm: dom.deviceClearConfirm,
+      cancel: dom.deviceClearCancel,
+      backup: dom.deviceClearBackup,
+    },
+    createService: () => createDeviceDataClearService({
+      recoveryStore: conflictRecoveryStore,
+      cloudSync,
+    }),
+    getTarget: () => {
+      const scope = syncCoordinator.getLocalScope();
+      if (!scope) throw new Error("device-clear-scope-unavailable");
+      const currentUser = syncCoordinator.getCurrentUser();
+      const uid = scope.startsWith("uid:") && currentUser && !currentUser.isAnonymous
+        ? String(currentUser.uid || "")
+        : "";
+      return { scope: uid ? `uid:${uid}` : LOCAL_STORAGE_SCOPE, uid };
+    },
+    exportBackup: () => importController.exportBackup(),
+    toast,
+    reload: () => window.location.reload(),
+  });
   retirementController = createRetirementController({
     elements: {
       linked: dom.retireLinked,
@@ -893,7 +730,7 @@ export async function bootstrapFinanceApp(doc = document) {
   });
   replaceWholeState = createWholeStateReplacer({
     store,
-    controllers: [balanceSheetController, accountCenterController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, transactionDetailController, importController, recoveryCenterController, retirementController],
+    controllers: [balanceSheetController, accountCenterController, wishlistController, categoryBudgetController, sinkingFundController, transactionController, transactionSearchController, lifeRecordReminderController, transactionDetailController, importController, recoveryCenterController, retirementController],
   });
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   const actions = {
@@ -954,6 +791,10 @@ export async function bootstrapFinanceApp(doc = document) {
       restoreRecovery: recoveryCenterController.restore,
       exportRecovery: recoveryCenterController.exportEntry,
       deleteRecovery: recoveryCenterController.remove,
+      openDeviceClear: deviceDataController.open,
+      closeDeviceClear: deviceDataController.close,
+      backupBeforeDeviceClear: deviceDataController.backup,
+      confirmDeviceClear: () => { void deviceDataController.confirm(); },
       changeBalanceType: balanceSheetController.syncFields,
       reconcileAccount: accountCenterController.reconcile,
       cancelAndroMoneyImport: () => importController.cancelAndroMoneyImport(),
@@ -975,6 +816,7 @@ export async function bootstrapFinanceApp(doc = document) {
       searchTransactions: transactionSearchController.handleQueryInput,
       changeTransactionSearchPeriod: transactionSearchController.handlePresetChange,
       clearTransactionSearch: transactionSearchController.clear,
+      updateLifeRecordReminder: lifeRecordReminderController.handleInput,
       updateRetirementLinked: retirementController.updateLinked,
       runAuthAction: () => syncCoordinator.performAuthAction(),
       retryCloudSync: async () => {
@@ -1029,6 +871,7 @@ export async function bootstrapFinanceApp(doc = document) {
   sinkingFundController.reset();
   transactionController.reset();
   transactionSearchController.reset();
+  lifeRecordReminderController.reset();
 
   const now = new Date();
   dom.headerSub.textContent = `${now.getFullYear()} / ${now.getMonth() + 1}`;

@@ -44,6 +44,17 @@ function snapshotKey(scope) {
   return `${snapshotPrefix()}${encodeURIComponent(normalizeScope(scope))}`;
 }
 
+function rollbackKey(scope) {
+  return `${rollbackPrefix()}${encodeURIComponent(normalizeScope(scope))}`;
+}
+
+export function localScopeStorageKeys(scope) {
+  return Object.freeze({
+    snapshot: snapshotKey(scope),
+    rollback: rollbackKey(scope),
+  });
+}
+
 function loadLegacyState(baseState, storage) {
   const next = cloneState(baseState);
 
@@ -130,7 +141,7 @@ export function saveRollbackSnapshot(state, scope, label, storage = globalThis.l
   if (!storage) throw new Error("storage-unavailable");
   const normalizedScope = normalizeScope(scope);
   const normalized = normalizeFinanceStateMoney(cloneState(state));
-  storage.setItem(`${rollbackPrefix()}${encodeURIComponent(normalizedScope)}`, JSON.stringify({
+  storage.setItem(rollbackKey(normalizedScope), JSON.stringify({
     label: String(label || "before-overwrite"),
     createdAt: new Date().toISOString(),
     state: normalized,
@@ -140,5 +151,5 @@ export function saveRollbackSnapshot(state, scope, label, storage = globalThis.l
 export const __localStorageTestUtils = {
   snapshotKey,
   get legacyMigrationKey() { return legacyMigrationKey(); },
-  rollbackKey: (scope) => `${rollbackPrefix()}${encodeURIComponent(normalizeScope(scope))}`,
+  rollbackKey,
 };

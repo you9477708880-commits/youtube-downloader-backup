@@ -54,8 +54,8 @@ function createHarness() {
     "retireAsset", "retireMonthly", "retirePrincipalReturn", "retireContributionReturn",
     "retireInflation", "retireWithdraw", "retireTarget", "fileImport", "fileAndroMoneyImport",
     "transactionSearchQuery", "transactionSearchPreset", "transactionSearchStart",
-    "transactionSearchEnd", "transactionSearchClear", "transactionDetailModal",
-    "recoveryCenterModal",
+    "transactionSearchEnd", "transactionSearchClear", "lifeReminderQuery", "lifeReminderInterval", "transactionDetailModal",
+    "recoveryCenterModal", "deviceClearModal",
   ];
   const dom = Object.fromEntries(domKeys.map((key) => [key, new FakeTarget()]));
   const record = (name) => (...args) => calls.push([name, ...args]);
@@ -72,7 +72,9 @@ function createHarness() {
     "updateConnectivity", "toggleRetirementTable",
     "filterGoalCenter",
     "searchTransactions", "changeTransactionSearchPeriod", "clearTransactionSearch",
+    "updateLifeRecordReminder",
     "openRecoveryCenter", "closeRecoveryCenter", "restoreRecovery", "exportRecovery", "deleteRecovery", "reconcileAccount",
+    "openDeviceClear", "closeDeviceClear", "backupBeforeDeviceClear", "confirmDeviceClear",
   ];
   const handlers = Object.fromEntries(handlerNames.map((name) => [name, record(name)]));
   return { calls, body, win, forms, doc, dom, actions, ui, handlers };
@@ -101,6 +103,10 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("export-recovery", { id: "recovery-1" });
   dispatch("delete-recovery", { id: "recovery-1" });
   dispatch("close-recovery-center");
+  dispatch("open-device-clear");
+  dispatch("backup-before-device-clear");
+  dispatch("confirm-device-clear");
+  dispatch("close-device-clear");
   dispatch("reconcile-account", { id: "card-1" });
   assert.equal(dispatch("unknown"), false);
 
@@ -122,6 +128,10 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["exportRecovery", "recovery-1"],
     ["deleteRecovery", "recovery-1"],
     ["closeRecoveryCenter"],
+    ["openDeviceClear"],
+    ["backupBeforeDeviceClear"],
+    ["confirmDeviceClear"],
+    ["closeDeviceClear"],
     ["reconcileAccount", "card-1"],
   ]);
 });
@@ -157,6 +167,8 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.transactionSearchQuery.emit("input");
   dom.transactionSearchPreset.emit("change");
   dom.transactionSearchClear.emit("click");
+  dom.lifeReminderQuery.emit("input");
+  dom.lifeReminderInterval.emit("input");
   dom.balanceType.value = "item";
   dom.balanceType.emit("change");
   dom.balanceAccountType.value = "liability";
@@ -171,6 +183,7 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
   dom.transactionDetailModal.emit("click", { target: dom.transactionDetailModal });
   dom.transactionDetailModal.emit("change", { target: { id: "transaction-detail-type" } });
   dom.recoveryCenterModal.emit("click", { target: dom.recoveryCenterModal });
+  dom.deviceClearModal.emit("click", { target: dom.deviceClearModal });
   const accountChoice = { matches: () => true };
   dom.androMoneyAccounts.emit("change", { target: accountChoice });
   harness.doc.emit("keydown", { key: "Escape" });
@@ -189,6 +202,8 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "searchTransactions",
     "changeTransactionSearchPeriod",
     "clearTransactionSearch",
+    "updateLifeRecordReminder",
+    "updateLifeRecordReminder",
     "changeBalanceType",
     "changeBalanceType",
     "normalizeMoneyInput",
@@ -201,9 +216,11 @@ test("bindAppEvents routes fixed inputs, files, auth, and connectivity once", ()
     "closeTransactionDetail",
     "syncTransactionDetailType",
     "closeRecoveryCenter",
+    "closeDeviceClear",
     "syncAndroMoneyAccountChoice",
     "closeTransactionDetail",
     "closeRecoveryCenter",
+    "closeDeviceClear",
     "trapTransactionDetailFocus",
     "updateRetirementAge",
     "updateRetirementInput",

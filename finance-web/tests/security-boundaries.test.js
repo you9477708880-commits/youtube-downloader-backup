@@ -123,6 +123,17 @@ function testFirestoreRecordBoundaries() {
   assert.match(rules, /get\(v7MetaPath\(appId, userId\)\)\.data\.status == 'active'/);
 }
 
+function testDeviceClearCannotWriteCloudOrBroadlyEraseBrowserStorage() {
+  const deviceClear = fs.readFileSync(path.join(projectRoot, "src", "services", "device-data-clear.js"), "utf8");
+  const recordCloud = fs.readFileSync(path.join(projectRoot, "src", "services", "storage-cloud-records.js"), "utf8");
+
+  assert.doesNotMatch(deviceClear, /localStorage\.clear\s*\(/);
+  assert.doesNotMatch(deviceClear, /indexedDB\.deleteDatabase|firebaseLocalStorageDb/);
+  assert.doesNotMatch(deviceClear, /commitState|deleteDoc|writeBatch|setDoc/);
+  assert.match(recordCloud, /clearDevicePersistence[\s\S]*signOut\(auth\)[\s\S]*terminate\(db\)[\s\S]*clearIndexedDbPersistence\(db\)/);
+  assert.doesNotMatch(recordCloud, /clearDevicePersistence[\s\S]*deleteDoc/);
+}
+
 try {
   testProductionEntryCannotRunSmokeScenarios();
   testHostingUsesGeneratedAllowlist();
@@ -130,6 +141,7 @@ try {
   testSyncConflictUsesExplicitButtons();
   testConflictRecoveryIsScopedAndDoesNotAutoDownload();
   testFirestoreRecordBoundaries();
+  testDeviceClearCannotWriteCloudOrBroadlyEraseBrowserStorage();
   console.log("Security boundary tests passed");
 } finally {
   fs.rmSync(outputRoot, { recursive: true, force: true });

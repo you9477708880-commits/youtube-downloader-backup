@@ -10,9 +10,9 @@
     "test:release": "node scripts/release-check.mjs && node tests/smoke-runner.js --root=.firebase-public --port=0",
     "test:release:remote": "node scripts/release-check.mjs --url=https://financial-computer.web.app",
     "test:acceptance": "node scripts/prepare-acceptance.js && node tests/acceptance-isolation.test.mjs && node tests/smoke-runner.js --root=.acceptance-public --port=0",
-    "test:emulators": "firebase emulators:exec --config firebase.emulator.json --only firestore,functions --project demo-finance-web \"node --test --test-concurrency=1 tests/firestore-rules.emulator.test.mjs tests/functions-emulator.test.mjs\"",
+    "test:emulators": "firebase emulators:exec --config firebase.emulator.json --only auth,firestore,functions --project demo-finance-web \"node --test --test-concurrency=1 tests/firestore-rules.emulator.test.mjs tests/functions-emulator.test.mjs\"",
     "test:rules": "firebase emulators:exec --config firebase.emulator.json --only firestore --project demo-finance-web \"node --test tests/firestore-rules.emulator.test.mjs\"",
-    "test:functions": "firebase emulators:exec --config firebase.emulator.json --only functions --project demo-finance-web \"node --test tests/functions-emulator.test.mjs\"",
+    "test:functions": "firebase emulators:exec --config firebase.emulator.json --only auth,firestore,functions --project demo-finance-web \"node --test tests/functions-emulator.test.mjs\"",
     "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center,account-center --port=0",
     "preview:acceptance": "node scripts/prepare-acceptance.js && node scripts/serve-acceptance.mjs --port=4186",
     "deploy:hosting:production": "node scripts/deploy-production.mjs"

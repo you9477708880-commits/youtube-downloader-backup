@@ -88,7 +88,7 @@ The current priority is not advanced investment simulation. The priority is to c
 - 大額準備計畫變更規則已採安全版本：短期保留現行「修改設定會重算整段規劃」模型，只在 UI 與文件中明確提醒；未加入 `plan_changed` 或設定版本化。
 - 桌機版核心頁面工作區整理第一輪已完成：總覽、記帳、預算分配、現金流、資產負債與退休頁已新增頁面級 workspace wrapper，桌機 `900px+` 會套用專屬工作區排版；手機維持原本單欄流程。已補 `desktop-core-layout` smoke scenario。
 
-2026-08-23 新增、目前僅在本機提交或工作區，尚未推送與部署：
+2026-08-23 至 2026-08-29 新增、目前僅在本機提交或工作區，尚未推送與部署：
 
 - 正式版與本機驗收版安全隔離：`main` 對齊遠端正式安全點，候選功能留在 `codex/next`；驗收包強制關閉 Firebase、Google 登入、雲端同步與 PWA，並使用獨立 localStorage／IndexedDB。正式 Hosting 部署則需通過分支、遠端 commit、乾淨工作區、Firebase 專案與 runtime guard。
 - 月度回顧 2.0 本機驗收版：除既有摘要與來源明細外，新增預設收合的同天數前期比較，顯示收入、生活支出、準備提撥 / 補入、動用準備與最大支出分類變化。比較只讀取既有帳務來源，不新增持久化欄位、不評分，也不把增加或減少直接判成好壞。
@@ -96,6 +96,10 @@ The current priority is not advanced investment simulation. The priority is to c
 - 財務導航摘要 A 本機候選：收在月度回顧的預設折疊區，只整理收入、生活支出、資產、負債四個既有數字與兩個不保存答案的自評問題；不新增六要素分數或財務階段判定。
 - 退休情境比較 A 本機候選：比較目前設定、延後三年退休及每月提領降低 10%，每次只改一個條件；顯示退休時資產、最低需求估算及耗盡時間，維持個人估算器而非投資平台定位。
 - 退休護欄與提領來源本機候選：依 Guyton-Klinger 年度決策規則顯示提領率護欄、通膨凍結、10% 增減與年齡停用條件；使用者需輸入目前／目標股票債券現金配置，來源順序會優先使用上漲超配資產、現金及債券，緊急預備金需明確允許，最後才賣股票。所有輸入與結果均不保存、不建立交易。
+- 生活紀錄提醒 A：沿用交易搜尋與詳情卡片，依使用者關鍵字及預期間隔從全部歷史 `txs` 推導最近事件、平均間隔與預計下次；同日多筆只算一次，條件不保存、不做背景通知或專業建議。
+- 裝置資料清理安全候選：只清目前 local／UID scope，兩段式確認、未同步資料明確 acknowledgement、Firebase persistence 與 recovery fail-closed、snapshot 最後刪除；不刪正式 Firestore 雲端資料。
+- v7 管理 Functions 候選：summary 以 active v7 非 tombstone records 為權威、preparing 可回退 v6，data/full 對單一 UID app scope recursive delete；只在 `demo-finance-web` Auth／Firestore／Functions Emulator 驗證，Functions 維持不部署。
+- 維護性整理：`bootstrap.js` 的 DOM map 與 browser file helper 已拆出，smoke seed 集中，unit runner 改為自動發現測試。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：
 - 待購清單與大額準備第一步整合已完成：待購項目可一鍵帶入大額準備表單，預填名稱、目標金額、每月提撥、分類與備註；此流程只預填表單，不直接新增 fund、不建立交易、不產生 `topup` / `spend` event。
@@ -209,10 +213,11 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 
 立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
-1. **在已發布安全點後繼續 controller 拆分**
-   - 待購清單 controller 與 characterization tests 已完成。
-   - 下一個候選是準備金 controller，仍先補 characterization tests。
-   - 在定義防重複計算規則前，不增加 wishlist 與 fund 的正式雙向 linking。
+1. **先統一驗收本機候選，再決定發布範圍**
+   - 使用強制離線 acceptance bundle 驗收帳戶中心、月度回顧／導航、退休候選及生活紀錄提醒。
+   - 裝置清理只在 acceptance namespace 或可丟棄測試帳號驗證，不以唯一正式資料測試。
+   - Functions 先保留本機 Emulator 證據；除非另行授權部署、設定管理員白名單與 `/api/**` rewrite，否則不發布。
+   - Tombstone GC 與管理刪除停寫 fence 保留為下一個資料安全設計題目。
 
 ### English
 

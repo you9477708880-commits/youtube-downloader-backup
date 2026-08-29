@@ -30,6 +30,7 @@ This document defines the traceability standard for report numbers. Users should
 | 月度回顧 2.0 / Period Comparison | 收入、生活支出、準備活動 | 目前範圍與相同天數前一期間的既有 `txs`、預算與準備資料 | 只讀推導，不持久化比較結果 |
 | 月度回顧 2.0 / Category Change | 最大生活支出分類變化 | 兩期預算頁生活支出來源依主分類加總 | 排除已由準備覆蓋的部分 |
 | 記帳 / Ledger | 交易列表 | `txs` | 主要交易明細 |
+| 記帳 / Life Record Reminder | 最近日期、平均間隔、預計下次 | 截至今天的全部 `txs`，依使用者關鍵字命中並按不同日期去重 | 只讀推導；不加總金額、不保存條件、不影響報表期間 |
 | 預算 / Budget | 本月可支配預算 | `settings.budgetCap` | 設定值 |
 | 預算 / Budget | 本月生活支出 | `txs` 中仍由當月負擔的個人支出 | 可由交易與準備覆蓋規則推導 |
 | 預算 / Budget | 本月大額準備 | `sinkingFunds.monthlyContribution` 依期間推算 | 預算規劃，不是帳戶轉帳 |

@@ -38,6 +38,10 @@ const DATA_ACTIONS = {
   "restore-recovery": ({ button, handlers }) => { void handlers.restoreRecovery(button.dataset.id); },
   "export-recovery": ({ button, handlers }) => { void handlers.exportRecovery(button.dataset.id); },
   "delete-recovery": ({ button, handlers }) => { void handlers.deleteRecovery(button.dataset.id); },
+  "open-device-clear": ({ handlers }) => { void handlers.openDeviceClear(); },
+  "close-device-clear": ({ handlers }) => handlers.closeDeviceClear(),
+  "backup-before-device-clear": ({ handlers }) => handlers.backupBeforeDeviceClear(),
+  "confirm-device-clear": ({ handlers }) => handlers.confirmDeviceClear(),
   "reconcile-account": ({ button, handlers }) => handlers.reconcileAccount(button.dataset.id),
 };
 
@@ -68,6 +72,7 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(doc, "keydown", (event) => {
     if (event.key === "Escape") actions.closeTransactionDetail();
     if (event.key === "Escape") handlers.closeRecoveryCenter();
+    if (event.key === "Escape") handlers.closeDeviceClear();
     if (event.key === "Tab") actions.trapTransactionDetailFocus(event);
   });
 
@@ -81,6 +86,10 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
 
   on(dom.recoveryCenterModal, "click", (event) => {
     if (event.target === dom.recoveryCenterModal) handlers.closeRecoveryCenter();
+  });
+
+  on(dom.deviceClearModal, "click", (event) => {
+    if (event.target === dom.deviceClearModal) handlers.closeDeviceClear();
   });
 
   on(dom.androMoneyAccounts, "change", (event) => {
@@ -112,6 +121,8 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.transactionSearchStart, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchEnd, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
+  on(dom.lifeReminderQuery, "input", handlers.updateLifeRecordReminder);
+  on(dom.lifeReminderInterval, "input", handlers.updateLifeRecordReminder);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
   on(dom.balanceAccountType, "change", (event) => handlers.changeBalanceType(event.target.value, event));

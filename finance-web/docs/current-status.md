@@ -1,6 +1,6 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-08-24
+- 最後更新：2026-08-29
 - 目前開發分支：`codex/next`
 - 本機 `main` 與遠端 `origin/main`：`e01aa1c`
 - 正式站已知部署點：`e01aa1c`
@@ -32,6 +32,8 @@ Firebase 專案與 runtime 均為正式設定；直接執行 `firebase deploy --
 
 退休頁另完成護欄年度檢查與提領來源本機候選：交叉採用 Guyton-Klinger 年度決策規則，要求輸入目前／目標股票、債券、現金配置，並把網站既有緊急預備金作為需明確勾選的備援來源。股票負報酬時，試算先用現金、債券與獲准動用的預備金，其他來源不足才列出賣股；畫面也顯示 1–2 年等自訂預備金目標的金額與缺口。這些設定不保存、不建立交易、不改同步格式。
 
+2026-08-29 額度更新前本機批次新增三項候選：記帳頁的「生活紀錄提醒 A」由全部歷史 `txs` 推導最近日期、平均間隔與下次日期，條件不保存、不影響報表；「清除此裝置的帳務資料」只清目前 local／UID 的 snapshot、rollback、outbox、復原紀錄與 Firebase 離線快取，採兩段式中文確認且不刪雲端；管理 Functions 已能辨識 v6／v7、排除 tombstone 並對單一 UID 遞迴刪除，但仍維持不部署。
+
 發布前穩定批次已於 2026-08-10 完成、推送並部署。Firestore v7 rules 與 Firebase
 Hosting 均已發布到 `financial-computer`，正式網址為
 `https://financial-computer.web.app`。Firebase Functions 依既定決策保持不部署。
@@ -45,6 +47,7 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - 退休情境比較 A：三種單一變因情境與耗盡／最低需求參考（本機待驗收）。
 - 退休護欄與提領來源：年度提領決策、目前／目標配置、緊急預備金年數與來源順序（本機待驗收）。
 - 待購項目預填大額準備表單；目前只預填，不會自動建立 fund、交易或事件。
+- 生活紀錄提醒 A：以關鍵字及自行輸入的天數推導過往事件間隔，最近三筆可開啟既有交易詳情；條件不保存、不同步（本機待驗收）。
 
 ### 資料安全與同步
 
@@ -55,11 +58,15 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 - localStorage 已分成未登入 `local` 與 Firebase `uid` namespace。
 - Firestore v7 已加入 record-level documents、revision、migration fence、deletion
   tombstone、UID outbox 與同一 record 的整筆衝突選擇。
+- 管理 Functions 本機候選已支援 v7 active／preparing 判讀、有效紀錄／tombstone 統計及 UID app scope recursive delete；管理者除了信箱白名單還必須完成 Email 驗證，且 `account`／`full` 會在任何刪除前阻止管理者刪除自己。Auth／Firestore／Functions Emulator 會驗證權限與刪除隔離。Functions 仍未部署。
+- 裝置資料清理本機候選只作用於目前 scope；有未同步資料時預設阻止，Firebase 快取或復原資料失敗時 fail closed，且主要 snapshot 最後才刪除。
 
 ### 工程品質與維護性
 
 - 根目錄 `npm test` 已整合語法、單元、Firestore/Functions Emulator 與 15 個 UI
   smoke scenarios。
+- 單元測試 runner 會自動納入新的 `tests/*.test.mjs|js`（排除需專用環境的 acceptance／emulator tests），不再靠人工維護長清單。
+- `bootstrap.js` 的 DOM 對照表與瀏覽器檔案操作已拆出，並新增 index DOM 完整性與 Object URL 釋放測試；smoke legacy seed 也集中成單一 helper。
 - GitHub Actions 已使用 Node 20、Temurin 21 與 `demo-finance-web`。
 - 資產負債 controller 第一批已完成，並有 10 項 characterization tests。
 - `actions.js` 不再持有資產負債編輯狀態；完整 state replacement 前會 reset
@@ -72,6 +79,15 @@ Hosting 均已發布到 `financial-computer`，正式網址為
   events 保留、刪除解除交易連結、topup、wishlist prefill 與 open behavior。
 
 ## 最近驗證結果
+
+2026-08-29 額度更新前完整本機批次：
+
+- 生活紀錄提醒 domain 4/4、controller 2/2；裝置清理 core 8/8、controller 2/2；Functions Emulator 專項 11/11 通過。
+- Functions 測試固定使用 `demo-finance-web` 的 Auth／Firestore／Functions Emulators；未授權／未驗證白名單信箱、管理者自刪阻擋、其他 UID 隔離、v7 precedence、preparing fallback、tombstone 排除及 recursive delete 均有測試。
+- 本批沒有新增持久化欄位或依賴，沒有修改 Firestore Rules，沒有讀寫正式 Firestore，也沒有實際執行目前瀏覽器資料清除。
+- 語法與全部 unit、正式打包 82 個檔案、正式版 smoke、驗收隔離與驗收版 smoke 均通過；Auth／Firestore／Functions Emulators 合計 19/19 通過。
+- 15 個 UI scenarios 最終整批全數通過，包含 AndroMoney 帳戶修復、交易搜尋與不持久化的生活紀錄提醒；headless 瀏覽器使用 Windows swiftshader fallback。
+- `git diff --check` 通過；只剩既有 Node 將 `.js` 重新解析為 ESM 的效能警告，以及 Functions dependency／host Node 版本的 Emulator 警告。本批不得推送或部署。
 
 2026-08-24 退休護欄與提領來源本機批次：
 
@@ -129,9 +145,9 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ## 尚未完成
 
-- 管理 Functions 的 summary／delete 仍只理解 v6；尚未支援 v7 recursive delete。
-  在這點完成前，正式 `firebase.json` 不應加入 Functions source 或 `/api/**` rewrite。
-- Tombstone 清理期限與「完整清除本機 namespace＋Firestore IndexedDB cache」尚未定義。
+- 管理 Functions 的 v7 summary／recursive delete 已在本機完成及通過 Emulator，但沒有部署；正式 `firebase.json` 仍不加入 Functions source 或 `/api/**` rewrite。
+- Tombstone 清理期限仍未定義。裝置清理目前刻意只清目前 local／UID scope；不會掃除其他 UID、legacy v6、migration marker 或共用 device-id。
+- `data-only` 管理刪除會保留 Auth；仍在線的舊裝置可能再次同步資料。若未來要保證不復活，需另設停寫 fence，不能把 recursive delete 誤當成並行裝置撤銷。
 - 帳戶中心與信用卡管理尚待人工驗收、推送與部署。
 - 月度回顧 2.0 尚待與帳戶中心一起人工驗收、推送與部署。
 - 財務導航摘要與退休情境比較尚待人工驗收；目前只存在本機，不推送、不部署。
@@ -153,7 +169,8 @@ Hosting 均已發布到 `financial-computer`，正式網址為
 
 ### 1. 統一人工驗收
 
-- 之後由 Codex 執行 `npm run preview:acceptance`，再一次驗收帳戶中心、月度回顧同期比較、財務導航、退休情境比較與護欄提領來源。
+- 之後由 Codex 執行 `npm run preview:acceptance`，再一次驗收帳戶中心、月度回顧同期比較、財務導航、退休情境、護欄提領來源與生活紀錄提醒。
+- 裝置清理在驗收版只測 acceptance namespace；正式 UID 的登出與 Firestore 離線快取清除需另用可丟棄測試帳號驗證，執行前先匯出 JSON，且不可拿唯一正式資料直接測。
 - 驗收版不提供 Google 登入或雲端同步；可匯入正式 JSON 的副本測試，但驗收資料只存在獨立本機 namespace。
 - 財務導航重點檢查資訊是否重複、手機捲動距離是否可接受；退休情境重點確認文字容易理解且不會被誤認為保證。
 - 驗收前不需要修改資料模型；若未來要保存自評答案或自訂情境，才另行設計同步、遷移與刪除語意。

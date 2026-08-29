@@ -6,6 +6,7 @@ import {
   __localStorageTestUtils,
   hasLocalState,
   loadLocalState,
+  localScopeStorageKeys,
   migrateLegacyLocalState,
   saveRollbackSnapshot,
   saveLocalState,
@@ -54,6 +55,10 @@ assert.notEqual(
   __localStorageTestUtils.snapshotKey(scopeA),
   __localStorageTestUtils.snapshotKey(scopeB),
 );
+assert.deepEqual(localScopeStorageKeys(scopeA), {
+  snapshot: __localStorageTestUtils.snapshotKey(scopeA),
+  rollback: __localStorageTestUtils.rollbackKey(scopeA),
+});
 
 const corruptStorage = createMemoryStorage();
 corruptStorage.setItem(__localStorageTestUtils.snapshotKey(scopeA), "{broken");

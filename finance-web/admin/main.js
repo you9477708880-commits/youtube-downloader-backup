@@ -204,6 +204,8 @@ function renderSummary(summary = null) {
       <div class="summary-row"><span>Email</span><span>${escapeHtml(summary.user?.email || "—")}</span></div>
       <div class="summary-row"><span>帳戶數量</span><span>${escapeHtml(summary.counts?.accounts ?? 0)}</span></div>
       <div class="summary-row"><span>分類預算數量</span><span>${escapeHtml(summary.counts?.categoryBudgets ?? 0)}</span></div>
+      <div class="summary-row"><span>權威資料版本</span><span>${escapeHtml(summary.storage?.authoritativeSource || "none")}</span></div>
+      <div class="summary-row"><span>v7 有效／刪除紀錄</span><span>${escapeHtml(summary.storage?.v7ActiveCount ?? 0)}／${escapeHtml(summary.storage?.v7TombstoneCount ?? 0)}</span></div>
       <div class="summary-row"><span>估算資料大小</span><span>${escapeHtml(summary.approxBytes ?? 0)} bytes</span></div>
     </div>
 
@@ -214,7 +216,7 @@ function renderSummary(summary = null) {
           刪除這位使用者的資料
         </button>
         <button class="sbtn outline danger compact" data-action="delete-account" data-uid="${escapeHtml(summary.user?.uid || "")}">
-          只刪除帳號
+          只刪除登入帳號（保留雲端資料）
         </button>
         <button class="sbtn outline danger compact" data-action="delete-full" data-uid="${escapeHtml(summary.user?.uid || "")}">
           刪除帳號 + 資料
@@ -275,7 +277,12 @@ async function deleteTarget(uid, mode) {
     account: "刪除帳號",
     full: "刪除帳號與資料",
   };
-  if (!window.confirm(`確定要${labels[mode]}嗎？這個操作不可復原。`)) return;
+  const notes = {
+    data: "登入帳號會保留；仍在線的舊裝置可能再次同步資料。",
+    account: "Firestore 雲端帳務資料會保留。",
+    full: "登入帳號與這位使用者的 v6/v7 雲端資料都會刪除。",
+  };
+  if (!window.confirm(`確定要${labels[mode]}嗎？${notes[mode]}這個操作不可復原。`)) return;
 
   try {
     await api(`/users/${uid}/${mode}`, { method: "DELETE" });

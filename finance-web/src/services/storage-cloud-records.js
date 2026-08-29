@@ -45,6 +45,12 @@ function outboxKey(uid) {
   return `${OUTBOX_PREFIX}${encodeURIComponent(uid)}`;
 }
 
+export function cloudOutboxStorageKey(uid) {
+  const value = String(uid || "").trim();
+  if (!value) throw new Error("missing-cloud-outbox-user-id");
+  return outboxKey(value);
+}
+
 function readOutbox(uid, storage = globalThis.localStorage) {
   try {
     return JSON.parse(storage?.getItem(outboxKey(uid)) || "null");
@@ -90,6 +96,14 @@ function createDisabledCloudSync(error = "") {
     resolveConflict: async () => false,
     signInWithGoogle: async () => false,
     signOutToAnonymous: async () => false,
+    getDeviceClearStatus: () => ({
+      uid: "",
+      signedIn: false,
+      queueActive: false,
+      hasPendingOutbox: false,
+      conflict: false,
+    }),
+    clearDevicePersistence: async () => { throw new Error("device-clear-cloud-disabled"); },
     getUser: () => null,
     destroy: () => {},
   };
@@ -611,6 +625,37 @@ export async function createRecordCloudSync({
       return true;
     };
 
+    const getDeviceClearStatus = () => {
+      const uid = currentUser && !currentUser.isAnonymous ? String(currentUser.uid || "") : "";
+      return {
+        uid,
+        signedIn: Boolean(uid),
+        queueActive: Boolean(saveQueue?.isActive()),
+        hasPendingOutbox: Boolean(uid && readOutbox(uid)),
+        conflict: Boolean(conflictContext),
+      };
+    };
+
+    const clearDevicePersistence = async ({ expectedUid = "", allowDiscardUnsynced = false } = {}) => {
+      const status = getDeviceClearStatus();
+      if (!status.signedIn || !status.uid) throw new Error("device-clear-signed-in-user-required");
+      if (expectedUid && status.uid !== String(expectedUid)) throw new Error("device-clear-user-changed");
+      if (!allowDiscardUnsynced && (status.queueActive || status.hasPendingOutbox || status.conflict)) {
+        throw new Error("device-clear-unsynced-acknowledgement-required");
+      }
+
+      authGeneration += 1;
+      clearUserSync();
+      unsubscribeAuth?.();
+      unsubscribeAuth = null;
+      await authMod.signOut(auth);
+      currentUser = null;
+      userId = "";
+      await firestoreMod.terminate(db);
+      await firestoreMod.clearIndexedDbPersistence(db);
+      return { cleared: true, uid: status.uid };
+    };
+
     const resolveConflict = async (choice) => {
       const context = conflictContext;
       if (!context || context.uid !== userId) return false;
@@ -682,6 +727,8 @@ export async function createRecordCloudSync({
       error: "",
       save,
       resolveConflict,
+      getDeviceClearStatus,
+      clearDevicePersistence,
       signInWithGoogle: async () => {
         authTransitioning = true;
         try {

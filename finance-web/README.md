@@ -16,7 +16,7 @@ https://financial-computer.web.app
 
 ## 一鍵測試
 
-完整測試會執行語法、單元、Firestore/Functions Emulator 與全部 12 個 UI smoke scenarios：
+完整測試會執行語法、單元、Auth／Firestore／Functions Emulator 與全部 15 個 UI smoke scenarios：
 
 ```powershell
 npm ci

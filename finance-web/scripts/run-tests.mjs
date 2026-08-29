@@ -5,37 +5,15 @@ import { spawnSync } from "node:child_process";
 const root = new URL("../", import.meta.url);
 const projectRoot = decodeURIComponent(root.pathname).replace(/^\/([A-Za-z]:)/, "$1");
 const syntaxRoots = ["src", "tests", "scripts"];
-const testFiles = [
-  "tests/state-commit.test.mjs",
-  "tests/balance-sheet-controller.test.mjs",
-  "tests/account-center.test.mjs",
-  "tests/monthly-review.test.mjs",
-  "tests/wishlist-controller.test.mjs",
-  "tests/category-budget-controller.test.mjs",
-  "tests/retirement-controller.test.mjs",
-  "tests/retirement-scenarios.test.mjs",
-  "tests/retirement-guardrails.test.mjs",
-  "tests/sinking-fund-controller.test.mjs",
-  "tests/transaction-controller.test.mjs",
-  "tests/transaction-search.test.mjs",
-  "tests/transaction-search-controller.test.mjs",
-  "tests/transaction-detail-controller.test.mjs",
-  "tests/import-controller.test.mjs",
-  "tests/conflict-recovery.test.mjs",
-  "tests/recovery-center-controller.test.mjs",
-  "tests/event-bindings.test.mjs",
-  "tests/goal-center.test.mjs",
-  "tests/sync-coordinator.test.mjs",
-  "tests/controller-lifecycle.test.mjs",
-  "tests/storage-local.test.mjs",
-  "tests/runtime-isolation.test.mjs",
-  "tests/record-codec.test.mjs",
-  "tests/latest-write-queue.test.mjs",
-  "tests/storage-cloud.test.mjs",
-  "tests/storage-cloud-records.test.mjs",
-  "tests/security-boundaries.test.js",
-  "tests/domain.test.mjs",
-];
+const excludedUnitTests = new Set([
+  "acceptance-isolation.test.mjs",
+  "firestore-rules.emulator.test.mjs",
+  "functions-emulator.test.mjs",
+]);
+const testFiles = readdirSync(join(projectRoot, "tests"))
+  .filter((name) => /\.test\.(mjs|js)$/.test(name) && !excludedUnitTests.has(name))
+  .sort()
+  .map((name) => `tests/${name}`);
 
 function collectJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

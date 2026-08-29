@@ -1,5 +1,15 @@
 import { STORAGE_KEYS } from "./config/constants.js";
 
+function seedLegacyState(state, storage = globalThis.localStorage) {
+  storage.setItem(STORAGE_KEYS.txs, JSON.stringify(state.txs));
+  storage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(state.bsI));
+  storage.setItem(STORAGE_KEYS.wishes, JSON.stringify(state.wishes));
+  storage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(state.sinkingFunds));
+  storage.setItem(STORAGE_KEYS.accounts, JSON.stringify(state.accounts));
+  storage.setItem(STORAGE_KEYS.userCats, JSON.stringify(state.userCats));
+  storage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+}
+
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -90,14 +100,7 @@ export function prepareFundShortfallChoiceScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runFundShortfallChoiceScenario(app) {
@@ -194,14 +197,7 @@ export function prepareTransactionEditUnlinksScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runTransactionEditUnlinksScenario(app) {
@@ -269,14 +265,7 @@ export function prepareFundEditRecalculatesScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runFundEditRecalculatesScenario(app) {
@@ -340,14 +329,7 @@ export function prepareTransactionSubcategoryScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runTransactionSubcategoryScenario(app) {
@@ -453,14 +435,7 @@ export function prepareAndroMoneyImportScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runAndroMoneyImportScenario(app) {
@@ -619,14 +594,7 @@ export function prepareCategoryBudgetCleanupScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runCategoryBudgetCleanupScenario(app) {
@@ -699,14 +667,7 @@ export function prepareAdvanceEditGuardsScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runAdvanceEditGuardsScenario(app) {
@@ -790,14 +751,7 @@ export function prepareEditingCompletenessScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runEditingCompletenessScenario(app) {
@@ -908,14 +862,7 @@ export function prepareDesktopCoreLayoutScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runDesktopCoreLayoutScenario() {
@@ -1059,14 +1006,7 @@ export function prepareMonthlyReviewScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runMonthlyReviewScenario() {
@@ -1122,14 +1062,7 @@ export function prepareWishFundPrefillScenario() {
       retManualAsset: 0,
     },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runWishFundPrefillScenario(app) {
@@ -1193,17 +1126,10 @@ export function prepareTransactionSearchScenario() {
     userCats: { income: [], expense: [] },
     settings: { budgetCap: 20000, catBudgets: {}, leftoverMode: "manual", investingLabel: "投資", cashReserveLabel: "預備金", retLinked: true, retManualAsset: 0 },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
-export async function runTransactionSearchScenario() {
+export async function runTransactionSearchScenario(app) {
   try {
     const reportStart = document.getElementById("f-start")?.value;
     const reportEnd = document.getElementById("f-end")?.value;
@@ -1235,12 +1161,46 @@ export async function runTransactionSearchScenario() {
     preset.dispatchEvent(new Event("change", { bubbles: true }));
     if (document.getElementById("tx-cnt")?.textContent !== "3 筆") throw new Error("transaction-search-one-year-mismatch");
 
+    const reminderPanel = document.getElementById("life-reminder-panel");
+    if (!reminderPanel || reminderPanel.open) throw new Error("life-reminder-not-collapsed-by-default");
+    reminderPanel.open = true;
+    const reminderQuery = document.getElementById("life-reminder-query");
+    const reminderInterval = document.getElementById("life-reminder-interval");
+    reminderQuery.value = "醫療 洗牙";
+    reminderInterval.value = "180";
+    app.renderAll();
+    if (!document.getElementById("life-reminder-summary")?.textContent.includes("3 個不同日期")) {
+      throw new Error("life-reminder-summary-missing");
+    }
+    const reminderText = `${document.getElementById("life-reminder-status")?.textContent || ""} ${document.getElementById("life-reminder-summary")?.textContent || ""}`;
+    if (!reminderText.includes("歷次平均相隔") || !reminderText.includes("依 180 天試算下次")) {
+      throw new Error("life-reminder-derived-summary-missing");
+    }
+    const reminderRows = [...document.querySelectorAll('#life-reminder-results [data-action="view-tx"]')];
+    if (reminderRows.length !== 3) throw new Error("life-reminder-recent-records-mismatch");
+    reminderRows[0].click();
+    if (document.getElementById("transaction-detail-modal").classList.contains("d-none")) {
+      throw new Error("life-reminder-detail-missing");
+    }
+    if (!(document.getElementById("transaction-detail-body")?.textContent || "").includes("例行洗牙")) {
+      throw new Error("life-reminder-transaction-detail-missing");
+    }
+    document.getElementById("transaction-detail-close")?.click();
+    if (
+      document.getElementById("f-start")?.value !== reportStart ||
+      document.getElementById("f-end")?.value !== reportEnd ||
+      document.getElementById("goal-center")?.dataset.filter !== "considering" ||
+      document.getElementById("goal-center")?.innerHTML !== goalHtmlBefore
+    ) {
+      throw new Error("life-reminder-mutated-report-or-goal-center");
+    }
+
     document.getElementById("tx-search-clear")?.click();
     if (document.getElementById("tx-search-query")?.value !== "" || document.getElementById("tx-cnt")?.textContent !== "1 筆") {
       throw new Error("transaction-search-clear-mismatch");
     }
 
-    writeSmokeResult("pass", "independent transaction search periods, interval summary, clear behavior, and goal-center isolation all passed");
+    writeSmokeResult("pass", "independent transaction search and non-persistent life reminder keep report state isolated and open existing transaction details");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }
@@ -1283,14 +1243,7 @@ export function prepareAccountCenterScenario() {
     userCats: { income: [], expense: [] },
     settings: { budgetCap: 20000, catBudgets: {}, leftoverMode: "manual", investingLabel: "投資", cashReserveLabel: "預備金", retLinked: true, retManualAsset: 0 },
   };
-
-  localStorage.setItem(STORAGE_KEYS.txs, JSON.stringify(seededState.txs));
-  localStorage.setItem(STORAGE_KEYS.bsItems, JSON.stringify(seededState.bsI));
-  localStorage.setItem(STORAGE_KEYS.wishes, JSON.stringify(seededState.wishes));
-  localStorage.setItem(STORAGE_KEYS.sinkingFunds, JSON.stringify(seededState.sinkingFunds));
-  localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(seededState.accounts));
-  localStorage.setItem(STORAGE_KEYS.userCats, JSON.stringify(seededState.userCats));
-  localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(seededState.settings));
+  seedLegacyState(seededState);
 }
 
 export async function runAccountCenterScenario(app) {

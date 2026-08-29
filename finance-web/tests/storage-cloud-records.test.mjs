@@ -75,6 +75,9 @@ function createFirebaseFakes(
   let batchCommitAttempts = 0;
   let rejectCommitAttempt = null;
   let legacyReads = 0;
+  let signOutCalls = 0;
+  let terminateCalls = 0;
+  let clearPersistenceCalls = 0;
 
   const pathOf = (...parts) => parts.filter((part) => part !== undefined).join("/");
   const isMeta = (ref) => ref.endsWith("/sync/finance_v7");
@@ -99,12 +102,14 @@ function createFirebaseFakes(
       signInWithCustomToken: async () => {},
       linkWithPopup: async () => {},
       signInWithPopup: async () => {},
-      signOut: async () => {},
+      signOut: async () => { signOutCalls += 1; },
     },
     firestore: {
       persistentLocalCache: () => ({}),
       persistentMultipleTabManager: () => ({}),
       initializeFirestore: () => ({}),
+      terminate: async () => { terminateCalls += 1; },
+      clearIndexedDbPersistence: async () => { clearPersistenceCalls += 1; },
       doc: (_parent, ...parts) => pathOf(...parts),
       collection: (_db, ...parts) => pathOf(...parts),
       serverTimestamp: () => "server-time",
@@ -161,6 +166,7 @@ function createFirebaseFakes(
     getMeta: () => metaValue,
     getBatchCommits: () => batchCommits,
     getAnonymousSignIns: () => anonymousSignIns,
+    getDeviceClearCalls: () => ({ signOutCalls, terminateCalls, clearPersistenceCalls }),
     rejectCommit: (error = new Error("permission-denied")) => { rejectNextCommit = error; },
     rejectCommitAfter: (successfulBatches, error = new Error("temporarily-unavailable")) => {
       rejectCommitAttempt = { attempt: batchCommitAttempts + successfulBatches + 1, error };
@@ -235,6 +241,50 @@ try {
   assert.equal(restoredAuthFakes.getAnonymousSignIns(), 0);
   assert.equal(restoredUsers.at(-1)?.uid, "user-a");
   restoredSync.destroy();
+
+  const clearUser = { uid: "clear-user", isAnonymous: false, displayName: "Clear" };
+  const clearFakes = createFirebaseFakes(clearUser, { records: initialRecords });
+  const clearSync = await createRecordCloudSync({
+    getState: () => initialState,
+    onStatus: () => {},
+    onUserChange: () => {},
+    onRemoteState: () => {},
+    onConflict: () => {},
+    firebaseModules: clearFakes.modules,
+  });
+  await flush();
+  assert.deepEqual(clearSync.getDeviceClearStatus(), {
+    uid: "clear-user",
+    signedIn: true,
+    queueActive: false,
+    hasPendingOutbox: false,
+    conflict: false,
+  });
+  globalThis.localStorage.setItem(
+    __recordCloudTestUtils.outboxKey("clear-user"),
+    JSON.stringify({ pending: true }),
+  );
+  assert.equal(clearSync.getDeviceClearStatus().hasPendingOutbox, true);
+  await assert.rejects(
+    clearSync.clearDevicePersistence({ expectedUid: "another-user", allowDiscardUnsynced: true }),
+    /device-clear-user-changed/,
+  );
+  await assert.rejects(
+    clearSync.clearDevicePersistence({ expectedUid: "clear-user" }),
+    /device-clear-unsynced-acknowledgement-required/,
+  );
+  assert.deepEqual(clearFakes.getDeviceClearCalls(), {
+    signOutCalls: 0,
+    terminateCalls: 0,
+    clearPersistenceCalls: 0,
+  });
+  await clearSync.clearDevicePersistence({ expectedUid: "clear-user", allowDiscardUnsynced: true });
+  assert.deepEqual(clearFakes.getDeviceClearCalls(), {
+    signOutCalls: 1,
+    terminateCalls: 1,
+    clearPersistenceCalls: 1,
+  });
+  assert.equal(clearFakes.observers[0].active, false);
 
   const bulkBaseState = stateWithTransactions();
   const bulkFakes = createFirebaseFakes(userA, { records: recordsFromState(bulkBaseState) });

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "finance-app-v16";
+const CACHE_VERSION = "finance-app-v17";
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const PAGE_CACHE = `pages-${CACHE_VERSION}`;
 

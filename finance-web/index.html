@@ -116,6 +116,7 @@
             <input type="file" id="file-andromoney-import" class="d-none" accept=".csv,text/csv">
           </div>
           <button type="button" class="sbtn outline w-100 mt-2" data-action="open-recovery-center">開啟衝突復原中心</button>
+          <button type="button" class="sbtn outline w-100 mt-2" data-action="open-device-clear">清除此裝置的帳務資料</button>
           <div class="text-xs text-gray mt-2">
             JSON 是完整備份 / 還原；AndroMoney CSV 只匯入或匯出一般交易。同步衝突會先保存在復原中心，不再每次自動下載檔案。
           </div>
@@ -243,6 +244,25 @@
         <div class="tx-search-status" id="tx-search-status"></div>
         <div class="tx-search-summary" id="tx-search-summary" hidden></div>
         <div class="empty tx-search-empty" id="tx-search-empty" hidden></div>
+        <details class="life-reminder" id="life-reminder-panel">
+          <summary>生活紀錄提醒（不保存）</summary>
+          <div class="life-reminder-body">
+            <div class="life-reminder-controls">
+              <label>
+                <span>關鍵字</span>
+                <input type="search" id="life-reminder-query" maxlength="200" autocomplete="off" placeholder="例如：洗牙、汽車 保養">
+              </label>
+              <label>
+                <span>預期間隔（天）</span>
+                <input type="number" id="life-reminder-interval" min="1" max="3650" step="1" inputmode="numeric" placeholder="例如：180">
+              </label>
+            </div>
+            <div class="life-reminder-status" id="life-reminder-status" data-state="idle" aria-live="polite"></div>
+            <div class="life-reminder-summary" id="life-reminder-summary" hidden></div>
+            <div class="life-reminder-results" id="life-reminder-results" hidden></div>
+            <p class="life-reminder-note">提醒會比對截至今天的全部帳務紀錄，不受月度報表或上方搜尋期間影響。這只是依記帳文字與自行輸入的間隔試算，不代表醫療、汽車保養或其他專業建議；條件不會保存或同步。</p>
+          </div>
+        </details>
       </div>
       <div id="a-tx"><div class="empty">尚無交易記錄</div></div>
     </div>
@@ -615,6 +635,23 @@
     </div>
     <div id="recovery-center-empty" class="empty mt-3">目前沒有復原紀錄。</div>
     <div id="recovery-center-list" class="recovery-list mt-3"></div>
+  </div>
+</div>
+
+<div id="device-clear-modal" class="modal-backdrop d-none" role="dialog" aria-modal="true" aria-labelledby="device-clear-title">
+  <div class="modal-panel">
+    <div class="modal-title" id="device-clear-title">清除此裝置的帳務資料</div>
+    <div class="modal-sub" id="device-clear-summary"></div>
+    <div class="device-clear-notice mt-3" id="device-clear-notice"></div>
+    <label class="device-clear-ack mt-3" id="device-clear-unsynced-wrap" hidden>
+      <input type="checkbox" id="device-clear-unsynced-ack">
+      <span>我確認尚未同步的本機修改可能永久遺失，且已完成備份或決定放棄。</span>
+    </label>
+    <div class="grid-2 mt-3">
+      <button type="button" class="sbtn outline" id="device-clear-backup" data-action="backup-before-device-clear">先匯出 JSON 備份</button>
+      <button type="button" class="sbtn outline" id="device-clear-cancel" data-action="close-device-clear">取消</button>
+    </div>
+    <button type="button" class="sbtn w-100 mt-2" id="device-clear-confirm" data-action="confirm-device-clear">下一步</button>
   </div>
 </div>
 
