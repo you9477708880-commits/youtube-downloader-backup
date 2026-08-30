@@ -55,7 +55,7 @@ D:\桌面\音樂下載\finance-web
 確認 Firebase 專案：
 
 ```powershell
-firebase use
+npm exec firebase -- use
 ```
 
 應該是：
@@ -102,13 +102,18 @@ npm ci
 npm test
 ```
 
+`npm test` 是發布級 `test:ci`：要求 `.nvmrc` 指定的 Node `20.20.2`、Java 21，以及 lockfile 內的 `firebase-tools@15.22.4`。若目前 shell 尚未切換 Node，可先執行 `npm run test:fast` 做非 Emulator 回歸，但它不能取代發布級測試。
+
 Firestore / Functions Emulator：
 
 ```powershell
+npm run check:env
 npm run test:rules
 npm run test:functions
 npm run test:emulators
 ```
+
+Emulator runner 只呼叫專案內 Firebase CLI。失敗時會把分類與 debug log 保存到 `.test-artifacts/emulators/latest`；GitHub CI 使用固定 `ubuntu-24.04` 並在失敗時上傳 14 天診斷 artifact。`infrastructure-firestore-admin-503` 表示 Emulator 環境故障，不應誤報為 Rules 或同步程式回歸，但仍不得視為發布通過。
 
 Emulator 測試固定使用 `demo-finance-web`，不得改成正式 Firebase project ID。Firestore 規則測試需驗證未登入、錯誤 UID、legacy fence、migration ID、revision、tombstone 與實體 delete；Functions 最小測試需驗證 HTTP function 能啟動且未授權要求被拒絕。
 
@@ -146,7 +151,7 @@ artifacts/{appId}/users/{userId}/sync/finance_v7/records/{recordKey}
 若要部署 Firestore 規則：
 
 ```powershell
-firebase deploy --only firestore:rules
+npm exec firebase -- deploy --only firestore:rules
 ```
 
 ## Headless smoke test
@@ -210,7 +215,7 @@ node .\scripts\prepare-hosting.js
 若這次有修改 `firestore.rules`，請先部署規則並確認成功，再部署相容 Hosting：
 
 ```powershell
-firebase deploy --only firestore:rules
+npm exec firebase -- deploy --only firestore:rules
 ```
 
 部署完成後確認：

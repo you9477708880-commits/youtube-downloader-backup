@@ -94,13 +94,21 @@ Sub-agent usage:
 
 ## 6. Testing Commands
 
-Complete one-command suite:
+Pinned release-grade suite (requires Node `20.20.2`, Java 21, and `npm ci`):
 
 ```powershell
 npm test
 ```
 
-This runs syntax checks, existing unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 15 UI smoke scenarios. It must not use a production Firebase project ID.
+This is an alias for `npm run test:ci`. It first verifies the repository toolchain, then runs syntax checks, unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 15 UI smoke scenarios. It must not use a production Firebase project ID. Firebase CLI must come from the project lockfile, never from a global installation.
+
+Fast code-only suite when the current shell is not yet on the pinned Node version:
+
+```powershell
+npm run test:fast
+```
+
+This does not include Emulators and is not sufficient for merge, Rules deployment, or Hosting release approval. Emulator failures are classified separately from assertion failures and preserve diagnostics under `.test-artifacts/emulators/latest`; CI uploads that directory on failure.
 
 Syntax check:
 
@@ -133,10 +141,13 @@ node .\tests\storage-cloud-records.test.mjs
 Emulator tests:
 
 ```powershell
+npm run check:env
 npm run test:rules
 npm run test:functions
 npm run test:emulators
 ```
+
+The authoritative Emulator gate runs on the fixed `ubuntu-24.04` GitHub Actions image with Node `20.20.2`, Temurin 21, and project-local `firebase-tools@15.22.4`. A local Windows Emulator infrastructure failure does not count as a code pass, but it must be reported as an environment failure rather than a sync or Rules regression.
 
 Project-local smoke runner:
 

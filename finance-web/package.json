@@ -2,23 +2,27 @@
   "name": "finance-web",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": "20.20.2"
   },
   "scripts": {
-    "test": "npm run test:unit && npm run test:release && npm run test:acceptance && npm run test:emulators && npm run test:smoke",
+    "test": "npm run test:ci",
+    "check:env": "node scripts/verify-test-environment.mjs",
+    "test:fast": "npm run test:unit && npm run test:release && npm run test:acceptance && npm run test:smoke",
+    "test:ci": "npm run check:env && npm run test:unit && npm run test:release && npm run test:acceptance && npm run test:emulators && npm run test:smoke",
     "test:unit": "node scripts/run-tests.mjs",
     "test:release": "node scripts/release-check.mjs && node tests/smoke-runner.js --root=.firebase-public --port=0",
     "test:release:remote": "node scripts/release-check.mjs --url=https://financial-computer.web.app",
     "test:acceptance": "node scripts/prepare-acceptance.js && node tests/acceptance-isolation.test.mjs && node tests/smoke-runner.js --root=.acceptance-public --port=0",
-    "test:emulators": "firebase emulators:exec --config firebase.emulator.json --only auth,firestore,functions --project demo-finance-web \"node --test --test-concurrency=1 tests/firestore-rules.emulator.test.mjs tests/functions-emulator.test.mjs tests/sync-conflict-browser.emulator.test.mjs\"",
-    "test:rules": "firebase emulators:exec --config firebase.emulator.json --only firestore --project demo-finance-web \"node --test tests/firestore-rules.emulator.test.mjs\"",
-    "test:functions": "firebase emulators:exec --config firebase.emulator.json --only auth,firestore,functions --project demo-finance-web \"node --test tests/functions-emulator.test.mjs\"",
+    "test:emulators": "node scripts/run-emulator-tests.mjs all",
+    "test:rules": "node scripts/run-emulator-tests.mjs rules",
+    "test:functions": "node scripts/run-emulator-tests.mjs functions",
     "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center,account-center --port=0",
     "preview:acceptance": "node scripts/prepare-acceptance.js && node scripts/serve-acceptance.mjs --port=4186",
     "deploy:hosting:production": "node scripts/deploy-production.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",
-    "firebase": "12.17.0"
+    "firebase": "12.17.0",
+    "firebase-tools": "15.22.4"
   }
 }

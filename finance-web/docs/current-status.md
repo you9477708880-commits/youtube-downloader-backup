@@ -43,7 +43,7 @@
 
 - 舊 schema 1／2 載入後只補成 `lifeRoutines: []`，不修改既有交易。
 - schema v3 Hosting 不可單獨發布；必須先部署通過測試的新 Rules，否則 `lifeRoutine` record 會被正式 Rules 拒絕。
-- 本批只使用本機與 `demo-finance-web` Emulators；不讀寫正式 Firestore，不推送、不部署。
+- 功能與同步驗證只使用本機與 `demo-finance-web` Emulators；不讀寫正式 Firestore。驗證環境標準化批次可推送候選分支確認 CI，但不部署。
 
 ## 維護性結論
 
@@ -55,6 +55,7 @@
 4. 新增不依賴 DOM 的 transaction command tests，既有交易結果、介面與同步語意不變。
 5. `src/services/storage-cloud-records.js`：793 → 約 549 行；純 record protocol、UID 本機 outbox 與 Firestore SDK adapter 已分檔。Facade 不再直接處理 Firestore path、讀寫、listener snapshot、server timestamp 或 persistence。
 6. `createRecordCloudSync()` 公開介面、Firestore v7 路徑、record codec、revision、tombstone、migration fence 與整筆衝突選擇均未改變。
+7. 驗證環境已標準化：Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4`、跨平台 Chromium 路徑與固定 `ubuntu-24.04` CI；本機不再依賴全域 Firebase CLI。
 
 目前主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行。下一批適合按產品區分拆 smoke scenario modules；record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
 
@@ -74,15 +75,18 @@
 - 本批新增的同步 characterization tests：通過；涵蓋 revision merge、同版衝突、tombstone、UID outbox、等價 state、UID switch、450 筆分批重試與 migration owner fence。
 - Firestore adapter 另有 5 項直接測試，鎖定 v7 路徑、SDK snapshot 轉換與錯誤邊界、400 筆分批上限、server timestamp 及 terminate-before-clear 順序；安全測試禁止 facade 重新引入 Firestore IO。
 - 官方 portable Node 20.20.2 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過。
-- 本機 `npm run test:rules`／`npm run test:emulators`：尚未通過。Firestore Emulator 雖能啟動，但 Rules 管理端點在測試案例開始前回傳 503 `Network closed for unknown reason`；Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4、Node 20.20.2／24.15.0 結果均相同。因此已排除 Node／Java 主版本不一致，但本次仍不能宣稱完整 `npm test` 通過，雙瀏覽器 Emulator 衝突測試也仍待同一環境問題排除。
+- 新增 4 項驗證環境測試：鎖定版本契約、專案 CLI 路徑、503／埠占用分類及 Linux 瀏覽器偵測；目前系統 Node 24 會在發布級入口快速中止，仍可用 `test:fast` 做非 Emulator 回歸。
+- 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；Node 20.20.2、Temurin 21.0.12、專案 CLI 15.22.4 與 Emulator 1.21.0 已再次重現。runner 現在正確分類為 `infrastructure-firestore-admin-503` 並保存 `.test-artifacts/emulators/latest`，不再把 21 個取消／失敗案例誤報為 record-sync 程式回歸。
+- 發布級 Emulator 證據改由固定 `ubuntu-24.04` GitHub CI 判定；候選分支推送後必須完整通過 `test:ci` 與雙瀏覽器同步衝突測試。
 - 其他既有警告：Functions 使用的 `firebase-functions` 版本較舊。依本批限制不升級依賴。
+- `firebase-tools@15.22.4` 的兩個非核心轉接相依套件在 Node 20 安裝時產生 Node 22 engine warning；目前 CLI 與 Emulator 可啟動，先由固定 CI 判定，不在本批盲目升級 Functions 或其他套件。
 
 ## 發布前剩餘步驟
 
-1. 先排除本機 Firestore Emulator Rules 管理端點 503，重跑完整 `npm test` 與雙瀏覽器同步衝突測試。
-2. 本機驗收版檢查桌機／手機：新增、編輯、停用、查看、刪除與重載後保留。
-3. 人工確認提醒用途與資訊密度。
-4. Emulator 證據恢復後，才評估合併、推送與 Rules／Hosting 發布；Functions 維持不部署。
+1. 推送候選分支，由固定 Ubuntu CI 重跑完整 `test:ci` 與雙瀏覽器同步衝突測試；若失敗，下載 14 天內保留的 Emulator diagnostics artifact。
+2. CI 通過後，才能把 record-sync 邊界拆分標記為完整復驗；若 Linux 也回相同 503，再評估容器／官方 issue，而不是改同步程式。
+3. 本機驗收版檢查桌機／手機：新增、編輯、停用、查看、刪除與重載後保留。
+4. 人工確認提醒用途與資訊密度；之後才評估 Rules／Hosting 發布。Functions 維持不部署。
 
 ## 人工驗收最小清單
 

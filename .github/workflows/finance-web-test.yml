@@ -1,5 +1,8 @@
 name: Finance Web Test
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths:
@@ -12,7 +15,8 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: finance-web
@@ -22,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.20.2
           cache: npm
           cache-dependency-path: |
             finance-web/package-lock.json
@@ -40,8 +44,14 @@ jobs:
         run: npm ci
         working-directory: finance-web/functions
 
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools@15.22.4
-
       - name: Run complete test suite
-        run: npm test
+        run: npm run test:ci
+
+      - name: Upload Emulator diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-web-emulator-diagnostics
+          path: finance-web/.test-artifacts/emulators
+          if-no-files-found: ignore
+          retention-days: 14

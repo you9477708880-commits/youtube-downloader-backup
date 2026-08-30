@@ -52,9 +52,12 @@
 
 ### 批次四：測試與文件整理
 
-- 分拆 smoke scenario 檔，但維持一鍵 `npm test`。
+- 先完成驗證環境標準化：Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4`、固定 Ubuntu CI 與 Emulator 失敗診斷；維持一鍵 `npm test`。
+- 分拆 smoke scenario 檔，但維持 runner 契約與既有 15 條情境。
 - `current-status.md` 只保留現在真相；歷史證據移入 archive 或 Git 歷史，避免交接文件反覆自相矛盾。
 - 每次發布同步更新 `current-status.md`、`roadmap.md`、`deploy-checklist.md`。
+
+驗證環境標準化不改正式 runtime、帳務、同步協定、Rules 或 Functions 語意。`npm run test:fast` 只提供非 Emulator 快速回歸；合併與發布仍以固定 Linux CI 的 `npm run test:ci` 為權威。若 Emulator 失敗，runner 必須區分 Firestore 管理端點 503、埠占用、Java／瀏覽器缺失與真正測試失敗，並保留可下載日誌。
 
 ## 第一至三批完成證據
 
@@ -69,7 +72,7 @@
 - 功能 smoke 固定關閉 cloud／PWA，避免背景匿名驗證污染 UI 情境；每個瀏覽器 fallback 使用獨立暫存 profile。15 個 smoke scenarios 已完整通過。
 - 本機 Firestore Emulator 可啟動，但載入 Rules 的管理端點回傳 503；Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4 與 Node 20.20.2／24.15.0 結果相同。這是目前唯一未完成的批次三復驗，不視為測試通過，也不以此候選發布。
 
-目前下一個結構性工作是先恢復 Emulator 規則載入，再進行批次四 smoke scenario 分檔；不應在 Emulator 證據恢復前推送或發布這次 record-sync 重構。
+目前先以標準化 Linux CI 恢復 Emulator 證據，再進行批次四 smoke scenario 分檔；不得以本機 Windows 503 當成程式通過，也不得在權威 CI 通過前發布 record-sync 重構。
 
 ## 這次生活週期提醒的邊界
 

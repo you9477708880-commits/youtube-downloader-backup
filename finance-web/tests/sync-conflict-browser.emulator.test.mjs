@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import browserCandidateModule from "./browser-candidates.js";
+
+const { browserCandidates } = browserCandidateModule;
 
 const PROJECT_ID = "demo-finance-web";
 const EMAIL = "browser-sync@example.test";
@@ -19,15 +22,6 @@ const mimeTypes = new Map([
   [".mjs", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
 ]);
-
-function browserCandidates() {
-  return [
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  ];
-}
 
 async function existingBrowsers() {
   const browsers = [];
@@ -249,7 +243,7 @@ test("two isolated browsers distinguish equivalent data from a real conflict and
 
   try {
     const browsers = await existingBrowsers();
-    assert.ok(browsers.length, "Chrome or Edge is required for the browser emulator test");
+    assert.ok(browsers.length, "A supported Chromium-based browser is required for the browser emulator test");
     let completed = false;
     let attempt = 0;
     for (const browser of browsers) {

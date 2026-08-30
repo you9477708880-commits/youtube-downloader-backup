@@ -3,6 +3,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execFileSync, spawn } = require("child_process");
+const { browserCandidates } = require("./browser-candidates.js");
 
 const args = process.argv.slice(2);
 const root = path.resolve(getArg("root") || path.join(__dirname, ".."));
@@ -139,15 +140,6 @@ function createServer() {
       res.end(data);
     });
   });
-}
-
-function browserCandidates() {
-  return [
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  ].filter((candidate) => fs.existsSync(candidate));
 }
 
 function launchPlans(browserPath, userDataDir, url) {
@@ -385,9 +377,9 @@ function writeReport(results) {
 
 async function testScenario(baseUrl, scenario) {
   const url = `${baseUrl}/${encodeURI(entry)}${scenario ? `?__smoke_runner=1&smoke=${encodeURIComponent(scenario)}` : ""}`;
-  const candidates = browserCandidates();
+  const candidates = browserCandidates().filter((candidate) => fs.existsSync(candidate));
   if (!candidates.length) {
-    return { ok: false, scenario, url, stderr: "No Chrome or Edge executable found." };
+    return { ok: false, scenario, url, stderr: "No supported Chrome, Chromium, or Edge executable found." };
   }
 
   const errors = [];

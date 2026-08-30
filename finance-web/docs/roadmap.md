@@ -220,9 +220,11 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 
 立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
-1. **先恢復本機 Emulator 證據，再進入下一個發布候選**
+1. **以標準化 CI 恢復 Emulator 證據，再進入下一個發布候選**
    - 2026-08-29 的正式候選曾完成 Emulators 20/20、UI smoke 15/15 與桌機／390px 手機整合檢查；2026-08-30 record-sync 邊界拆分後，unit、release、acceptance 與 smoke 15/15 通過，但本機 Rules 管理端點 503 阻止本次 Emulator 復驗。
-   - 在完整 `npm test` 與雙瀏覽器衝突測試重新通過前，不推送或發布 record-sync 重構。
+   - 驗證環境固定為 Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4` 與 `ubuntu-24.04` CI；不再依賴本機全域 Firebase CLI。
+   - 在完整 `npm run test:ci` 與雙瀏覽器衝突測試重新通過前，不發布 record-sync 重構。本機 `test:fast` 只算快速回歸證據。
+   - Emulator 失敗需保留 artifact 並區分環境故障與測試斷言，避免再把本機 503 誤判成程式拆分失敗。
    - 下一個結構性整理是按產品區分拆 smoke scenarios；不得和 schema、migration 或新功能混成同一批。
    - Functions 仍不發布；裝置清理仍只在 acceptance namespace 或可丟棄帳號驗證。
 
