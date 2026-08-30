@@ -57,7 +57,7 @@
 6. `createRecordCloudSync()` 公開介面、Firestore v7 路徑、record codec、revision、tombstone、migration fence 與整筆衝突選擇均未改變。
 7. 驗證環境已標準化：Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4`、跨平台 Chromium 路徑與固定 `ubuntu-24.04` CI；本機不再依賴全域 Firebase CLI。
 
-目前主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行。下一批適合按產品區分拆 smoke scenario modules；record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
+record-sync 邊界拆分已由固定 Ubuntu CI 完整復驗。現在主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行；下一批適合按產品區分拆 smoke scenario modules。record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
 
 ## 目前驗證
 
@@ -77,16 +77,17 @@
 - 官方 portable Node 20.20.2 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過。
 - 新增 4 項驗證環境測試：鎖定版本契約、專案 CLI 路徑、503／埠占用分類及 Linux 瀏覽器偵測；目前系統 Node 24 會在發布級入口快速中止，仍可用 `test:fast` 做非 Emulator 回歸。
 - 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；Node 20.20.2、Temurin 21.0.12、專案 CLI 15.22.4 與 Emulator 1.21.0 已再次重現。runner 現在正確分類為 `infrastructure-firestore-admin-503` 並保存 `.test-artifacts/emulators/latest`，不再把 21 個取消／失敗案例誤報為 record-sync 程式回歸。
-- 發布級 Emulator 證據改由固定 `ubuntu-24.04` GitHub CI 判定；候選分支推送後必須完整通過 `test:ci` 與雙瀏覽器同步衝突測試。
+- 固定 `ubuntu-24.04` GitHub CI 已在候選分支完整通過 `test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器同步衝突測試，耗時約 1 分 20 秒。這確認 Windows 503 是目前電腦的 Emulator 基礎設施問題，不是 record-sync、Rules 或 Functions 程式回歸。
+- GitHub Actions 的 `checkout`／`setup-node` 已升至使用 Node 24 runtime 的 v5，以移除舊 action runtime 棄用警告；受測應用仍固定使用 Node 20.20.2。
 - 其他既有警告：Functions 使用的 `firebase-functions` 版本較舊。依本批限制不升級依賴。
 - `firebase-tools@15.22.4` 的兩個非核心轉接相依套件在 Node 20 安裝時產生 Node 22 engine warning；目前 CLI 與 Emulator 可啟動，先由固定 CI 判定，不在本批盲目升級 Functions 或其他套件。
 
 ## 發布前剩餘步驟
 
-1. 推送候選分支，由固定 Ubuntu CI 重跑完整 `test:ci` 與雙瀏覽器同步衝突測試；若失敗，下載 14 天內保留的 Emulator diagnostics artifact。
-2. CI 通過後，才能把 record-sync 邊界拆分標記為完整復驗；若 Linux 也回相同 503，再評估容器／官方 issue，而不是改同步程式。
-3. 本機驗收版檢查桌機／手機：新增、編輯、停用、查看、刪除與重載後保留。
-4. 人工確認提醒用途與資訊密度；之後才評估 Rules／Hosting 發布。Functions 維持不部署。
+1. 完成剩餘本機驗收版桌機／手機檢查：新增、編輯、停用、查看、刪除與重載後保留。
+2. 人工確認提醒用途與資訊密度。
+3. 若決定發布 schema v3，必須先依部署清單評估 Rules，再發布相容 Hosting；Functions 維持不部署。
+4. 後續 CI 若失敗，先讀取 14 天內保留的 Emulator diagnostics artifact，不再以本機 Windows 503 推測程式回歸。
 
 ## 人工驗收最小清單
 

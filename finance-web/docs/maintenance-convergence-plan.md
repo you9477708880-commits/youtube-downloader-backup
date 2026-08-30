@@ -13,7 +13,7 @@
 | 優先 | 檔案 | 目前規模 | 風險 | 處理原則 |
 | --- | --- | ---: | --- | --- |
 | 已完成 | `src/app/bootstrap.js` | 920 → 約 307 行 | 原本初始化、render 與 controller 組裝集中 | 已抽出 `ui-coordinator`、`render-coordinator` 與 `controller-composition`；bootstrap 只保留 runtime、store、sync、事件與啟動組裝 |
-| 已拆分，待 Emulator 復驗 | `src/services/storage-cloud-records.js` | 793 → 約 549 行 | migration、revision、outbox、conflict 與 Firebase adapter 原本同檔；錯誤可能影響資料安全 | 純協定、UID 本機 outbox 與 Firestore SDK IO 已抽離；schema、路徑、revision、tombstone、migration 與衝突選擇不變 |
+| 已完成並由固定 CI 復驗 | `src/services/storage-cloud-records.js` | 793 → 約 549 行 | migration、revision、outbox、conflict 與 Firebase adapter 原本同檔；錯誤可能影響資料安全 | 純協定、UID 本機 outbox 與 Firestore SDK IO 已抽離；schema、路徑、revision、tombstone、migration 與衝突選擇不變 |
 | 已完成 | `src/app/controllers/transaction-controller.js` | 641 → 約 413 行 | 原本表單、驗證、交易建構、準備金連結、代墊與還款集中 | 純驗證、fund allocation、detail edit、刪除 cascade 與 repayment command 已移入約 299 行的 `domain/transaction-commands.js`；controller 保留表單與互動編排 |
 | P3 | `src/smoke-scenarios.js` | 約 1305 行 | 測試情境越多越難定位，但不直接影響正式 runtime | 按產品區拆 scenario modules，runner 契約保持不變 |
 
@@ -44,7 +44,7 @@
 - 抽出純函式 command builders；controller 只讀表單、呼叫 command、commit 與顯示結果。
 - 完成標準：帳務結果與既有 fixtures 完全一致，任何 command 可不靠 DOM 單測。
 
-### 批次三：record sync 邊界拆分（2026-08-30 程式完成，待 Emulator 環境復驗）
+### 批次三：record sync 邊界拆分（2026-08-30 完成並由固定 CI 復驗）
 
 - 先凍結 v6→v7 migration、revision conflict、tombstone、outbox 與 UID switch 測試。
 - 把純 record merge／migration protocol 與 Firebase SDK IO 分開。
@@ -70,9 +70,9 @@
 - characterization tests 鎖定 revision merge、同版不同內容衝突、tombstone、UID outbox、等價初始資料不提示、UID 切換淘汰舊 listener、450 筆分批重試與 competing migration owner。
 - adapter 5 項直接測試鎖定路徑、snapshot／錯誤邊界、400 筆批次、timestamp 與 persistence 清理順序；安全測試阻止 SDK IO 回流 facade。
 - 功能 smoke 固定關閉 cloud／PWA，避免背景匿名驗證污染 UI 情境；每個瀏覽器 fallback 使用獨立暫存 profile。15 個 smoke scenarios 已完整通過。
-- 本機 Firestore Emulator 可啟動，但載入 Rules 的管理端點回傳 503；Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4 與 Node 20.20.2／24.15.0 結果相同。這是目前唯一未完成的批次三復驗，不視為測試通過，也不以此候選發布。
+- 本機 Windows Firestore Emulator 的 Rules 管理端點在 Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4／1.21.0 與 Node 20.20.2／24.15.0 皆回傳 503；runner 現在將它分類為基礎設施故障。固定 Ubuntu CI 已完整通過同一套 Rules、Functions 與雙隔離瀏覽器測試，因此批次三程式復驗完成。
 
-目前先以標準化 Linux CI 恢復 Emulator 證據，再進行批次四 smoke scenario 分檔；不得以本機 Windows 503 當成程式通過，也不得在權威 CI 通過前發布 record-sync 重構。
+標準化 Linux CI 已恢復 Emulator 證據，record-sync 重構完成復驗。下一個結構性工作才是批次四 smoke scenario 分檔；本機 Windows 503 保留為環境診斷，不再阻擋或冒充程式驗收結果。
 
 ## 這次生活週期提醒的邊界
 
