@@ -242,6 +242,25 @@ try {
   assert.equal(restoredUsers.at(-1)?.uid, "user-a");
   restoredSync.destroy();
 
+  const equivalentUser = { uid: "equivalent-user", isAnonymous: false, displayName: "Equivalent" };
+  const equivalentFakes = createFirebaseFakes(equivalentUser, { records: initialRecords });
+  globalThis.localStorage.setItem(
+    __recordCloudTestUtils.outboxKey(equivalentUser.uid),
+    JSON.stringify({ pending: true, mode: "records" }),
+  );
+  const equivalentSync = await createRecordCloudSync({
+    getState: () => initialState,
+    onStatus: () => {},
+    onUserChange: () => {},
+    onRemoteState: () => {},
+    onConflict: () => {},
+    firebaseModules: equivalentFakes.modules,
+  });
+  await flush();
+  equivalentFakes.emitRecords(0);
+  assert.equal(globalThis.localStorage.getItem(__recordCloudTestUtils.outboxKey(equivalentUser.uid)), null);
+  equivalentSync.destroy();
+
   const clearUser = { uid: "clear-user", isAnonymous: false, displayName: "Clear" };
   const clearFakes = createFirebaseFakes(clearUser, { records: initialRecords });
   const clearSync = await createRecordCloudSync({
@@ -382,7 +401,10 @@ try {
 
   const userB = { uid: "user-b", isAnonymous: false, displayName: "B" };
   const commitsBeforeSwitch = fakes.getBatchCommits();
+  const remoteEventsBeforeSwitch = remoteEvents.length;
   await fakes.emitAuth(userB);
+  fakes.emitRecords(0);
+  assert.equal(remoteEvents.length, remoteEventsBeforeSwitch);
   currentState = stateWithTransactions(["tx-b", 300]);
   await sync.save();
   assert.equal(fakes.getBatchCommits(), commitsBeforeSwitch);
@@ -413,6 +435,30 @@ try {
   assert.equal(migrationFakes.getMeta().status, "active");
   assert.ok(migrationFakes.stored.size > 0);
   migrationSync.destroy();
+
+  const competingMigrationFakes = createFirebaseFakes(userA, {
+    meta: {
+      status: "preparing",
+      migrationId: "migration-other-device",
+      migrationSourceHash: __recordCloudTestUtils.sourceFingerprint(initialState),
+      ownerDeviceId: "other-device",
+    },
+    legacy: initialState,
+    records: new Map(),
+  });
+  const competingMigrationSync = await createRecordCloudSync({
+    getState: () => initialState,
+    onStatus: () => {},
+    onUserChange: () => {},
+    onRemoteState: () => {},
+    onConflict: () => {},
+    firebaseModules: competingMigrationFakes.modules,
+  });
+  await flush();
+  await assert.rejects(competingMigrationSync.save(), /migration-in-progress/);
+  assert.equal(competingMigrationFakes.getMeta().status, "preparing");
+  assert.equal(competingMigrationFakes.stored.size, 0);
+  competingMigrationSync.destroy();
 
   const changedLegacyState = stateWithTransactions(["tx-1", 125]);
   const selectedLocalState = stateWithTransactions(["tx-local", 500]);

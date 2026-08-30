@@ -1,22 +1,32 @@
-import { APP_ID, CURRENT_SCHEMA_VERSION } from "../config/constants.js";
+import { APP_ID } from "../config/constants.js";
 import { getFinanceRuntime } from "../config/runtime.js";
 import { cloneState, createInitialState } from "../state/initial-state.js";
 import { areFinanceStatesEquivalent } from "./sync-policy.js";
 import { isValidImportShape } from "./import-export.js";
 import { createLatestWriteQueue } from "./latest-write-queue.js";
 import {
-  SYNC_SCHEMA_VERSION,
   applyMutations,
   buildRecordMutations,
-  mapSnapshotRecords,
-  recordEnvelopesToState,
   recordFingerprint,
-  stateToRecordSpecs,
 } from "./record-codec.js";
+import { createFirestoreRecordAdapter } from "./firestore-record-adapter.js";
+import {
+  cloudOutboxStorageKey,
+  getDeviceId,
+  outboxKey,
+  readOutbox,
+  writeOutbox,
+} from "./record-sync-local-store.js";
+import {
+  buildConflictResolutionState,
+  mapsEquivalent,
+  materializeValidatedRecords,
+  mergeRecordMapsByRevision,
+  serializeOutboxMutations,
+  sourceFingerprint,
+} from "./record-sync-protocol.js";
 
-const RECORD_BATCH_LIMIT = 400;
-const DEVICE_ID_KEY = "fin_v7:sync:device-id";
-const OUTBOX_PREFIX = "fin_v7:sync:outbox:";
+export { cloudOutboxStorageKey };
 
 function toUserProfile(user) {
   if (!user) return null;
@@ -26,47 +36,6 @@ function toUserProfile(user) {
     displayName: user.displayName || "",
     email: user.email || "",
   };
-}
-
-function createClientId(prefix) {
-  if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getDeviceId(storage = globalThis.localStorage) {
-  const existing = storage?.getItem(DEVICE_ID_KEY);
-  if (existing) return existing;
-  const created = createClientId("device");
-  storage?.setItem(DEVICE_ID_KEY, created);
-  return created;
-}
-
-function outboxKey(uid) {
-  return `${OUTBOX_PREFIX}${encodeURIComponent(uid)}`;
-}
-
-export function cloudOutboxStorageKey(uid) {
-  const value = String(uid || "").trim();
-  if (!value) throw new Error("missing-cloud-outbox-user-id");
-  return outboxKey(value);
-}
-
-function readOutbox(uid, storage = globalThis.localStorage) {
-  try {
-    return JSON.parse(storage?.getItem(outboxKey(uid)) || "null");
-  } catch (error) {
-    console.warn("Cloud outbox metadata failed to parse.", error);
-    return null;
-  }
-}
-
-function writeOutbox(uid, value, storage = globalThis.localStorage) {
-  if (!storage) return;
-  if (!value) {
-    storage.removeItem(outboxKey(uid));
-    return;
-  }
-  storage.setItem(outboxKey(uid), JSON.stringify(value));
 }
 
 function isBrowserOnline() {
@@ -109,112 +78,6 @@ function createDisabledCloudSync(error = "") {
   };
 }
 
-function mapsEquivalent(left, right) {
-  if (left.size !== right.size) return false;
-  for (const [key, value] of left) {
-    const other = right.get(key);
-    if (!other || Number(other.revision) !== Number(value.revision) || recordFingerprint(other) !== recordFingerprint(value)) return false;
-  }
-  return true;
-}
-
-function mergeRecordMapsByRevision(left, right) {
-  const merged = new Map();
-  const keys = new Set([...left.keys(), ...right.keys()]);
-  for (const key of keys) {
-    const leftRecord = left.get(key);
-    const rightRecord = right.get(key);
-    if (!leftRecord) {
-      merged.set(key, rightRecord);
-      continue;
-    }
-    if (!rightRecord) {
-      merged.set(key, leftRecord);
-      continue;
-    }
-    const leftRevision = Number(leftRecord.revision || 0);
-    const rightRevision = Number(rightRecord.revision || 0);
-    if (leftRevision > rightRevision) {
-      merged.set(key, leftRecord);
-      continue;
-    }
-    if (rightRevision > leftRevision) {
-      merged.set(key, rightRecord);
-      continue;
-    }
-    if (recordFingerprint(leftRecord) !== recordFingerprint(rightRecord)) {
-      throw new Error(`equal-revision-record-mismatch:${key}`);
-    }
-    merged.set(key, rightRecord);
-  }
-  return merged;
-}
-
-function serializeOutboxMutations(mutations) {
-  return mutations.map(({ key, baseRevision, envelope }) => ({
-    key,
-    baseRevision,
-    envelope: {
-      ...envelope,
-      updatedAt: null,
-      deletedAt: envelope.deleted ? null : envelope.deletedAt,
-    },
-  }));
-}
-
-function buildConflictResolutionState(context, choice) {
-  const localSpecs = stateToRecordSpecs(context.localState);
-  const merged = new Map(context.remoteRecords);
-  const selectedKeys = choice === "local"
-    ? context.mutationKeys
-    : context.mutationKeys.filter((key) => !context.conflictKeys.includes(key));
-
-  selectedKeys.forEach((key) => {
-    const localRecord = localSpecs.get(key);
-    const remoteRecord = merged.get(key);
-    if (localRecord) {
-      merged.set(key, {
-        ...localRecord,
-        revision: Number(remoteRecord?.revision || 0),
-        deleted: false,
-      });
-      return;
-    }
-    if (remoteRecord) {
-      merged.set(key, {
-        ...remoteRecord,
-        payload: null,
-        deleted: true,
-      });
-    }
-  });
-
-  return {
-    state: materializeValidatedRecords(merged),
-    selectedKeys,
-  };
-}
-
-function sourceFingerprint(state) {
-  const canonical = [...stateToRecordSpecs(state).entries()]
-    .map(([key, record]) => `${key}:${recordFingerprint(record)}`)
-    .sort()
-    .join("|");
-  let hash = 14695981039346656037n;
-  const mask = 0xffffffffffffffffn;
-  for (let index = 0; index < canonical.length; index += 1) {
-    hash ^= BigInt(canonical.charCodeAt(index));
-    hash = (hash * 1099511628211n) & mask;
-  }
-  return `fnv1a64:${hash.toString(16).padStart(16, "0")}`;
-}
-
-function materializeValidatedRecords(records) {
-  const state = recordEnvelopesToState(records);
-  if (!isValidImportShape(state)) throw new Error("invalid-cloud-record-state");
-  return state;
-}
-
 export async function createRecordCloudSync({
   onRemoteState,
   onStatus,
@@ -249,6 +112,7 @@ export async function createRecordCloudSync({
     const provider = new authMod.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     const deviceId = getDeviceId();
+    const recordAdapter = createFirestoreRecordAdapter({ firestoreMod, db, appId, deviceId });
 
     let currentUser = null;
     let userId = "";
@@ -300,115 +164,6 @@ export async function createRecordCloudSync({
       initialLegacyFingerprint = "";
     };
 
-    const refsFor = (uid) => {
-      const legacy = firestoreMod.doc(db, "artifacts", appId, "users", uid, "data", "finance_v6");
-      const meta = firestoreMod.doc(db, "artifacts", appId, "users", uid, "sync", "finance_v7");
-      const records = firestoreMod.collection(db, "artifacts", appId, "users", uid, "sync", "finance_v7", "records");
-      return { legacy, meta, records };
-    };
-
-    const writeBatches = async (recordsRef, mutations) => {
-      for (let offset = 0; offset < mutations.length; offset += RECORD_BATCH_LIMIT) {
-        const batch = firestoreMod.writeBatch(db);
-        for (const mutation of mutations.slice(offset, offset + RECORD_BATCH_LIMIT)) {
-          batch.set(firestoreMod.doc(recordsRef, mutation.key), mutation.envelope);
-        }
-        await batch.commit();
-      }
-    };
-
-    const writeMutationGroup = async (recordsRef, mutations) => {
-      await writeBatches(recordsRef, mutations);
-    };
-
-    const activateMigration = async (uid, generation, state, refs) => {
-      if (!isValidImportShape(state)) throw new Error("invalid-migration-state");
-      const migrationId = createClientId("migration");
-      let migrationState = state;
-      let sourceHash = sourceFingerprint(migrationState);
-      const claimedMigrationId = await firestoreMod.runTransaction(db, async (transaction) => {
-        const current = await transaction.get(refs.meta);
-        const data = current.exists() ? current.data() : null;
-        if (data?.status === "active") return "";
-        if (data?.status === "preparing" && data.ownerDeviceId !== deviceId) {
-          throw new Error("migration-in-progress");
-        }
-        if (data?.status === "preparing" && data.migrationSourceHash !== sourceHash) {
-          throw new Error("migration-source-changed");
-        }
-        const claimedId = data?.migrationId || migrationId;
-        transaction.set(refs.meta, {
-          status: "preparing",
-          migrationId: claimedId,
-          migrationSourceHash: data?.migrationSourceHash || sourceHash,
-          ownerDeviceId: deviceId,
-          syncSchemaVersion: SYNC_SCHEMA_VERSION,
-          stateSchemaVersion: CURRENT_SCHEMA_VERSION,
-          updatedAt: firestoreMod.serverTimestamp(),
-        });
-        return claimedId;
-      });
-      if (!claimedMigrationId) return;
-      if (!isCurrent(uid, generation)) return;
-
-      const fencedLegacySnapshot = await firestoreMod.getDoc(refs.legacy);
-      if (initialLegacyFingerprint) {
-        const latestLegacyState = fencedLegacySnapshot.exists()
-          ? fencedLegacySnapshot.data()
-          : createInitialState();
-        if (!isValidImportShape(latestLegacyState)) throw new Error("invalid-fenced-legacy-state");
-        const latestLegacyHash = sourceFingerprint(latestLegacyState);
-        if (latestLegacyHash !== initialLegacyFingerprint) {
-          if (sourceHash !== initialLegacyFingerprint) {
-            throw new Error("legacy-changed-before-cutover");
-          }
-          migrationState = latestLegacyState;
-          sourceHash = latestLegacyHash;
-          await firestoreMod.setDoc(refs.meta, {
-            status: "preparing",
-            migrationId: claimedMigrationId,
-            migrationSourceHash: sourceHash,
-            ownerDeviceId: deviceId,
-            syncSchemaVersion: SYNC_SCHEMA_VERSION,
-            stateSchemaVersion: CURRENT_SCHEMA_VERSION,
-            updatedAt: firestoreMod.serverTimestamp(),
-          });
-        }
-      }
-
-      const existingSnapshot = await firestoreMod.getDocs(refs.records);
-      const existing = mapSnapshotRecords(existingSnapshot);
-      const initialMutations = buildRecordMutations(migrationState, new Map(), {
-        updatedBy: deviceId,
-        updatedAt: firestoreMod.serverTimestamp(),
-        migrationId: claimedMigrationId,
-      }).filter((mutation) => {
-        const present = existing.get(mutation.key);
-        if (!present) return true;
-        if (present.revision === 1 && recordFingerprint(present) === recordFingerprint(mutation.envelope)) return false;
-        throw new Error(`migration-record-conflict:${mutation.key}`);
-      });
-      await writeBatches(refs.records, initialMutations);
-
-      const expectedCount = stateToRecordSpecs(migrationState).size;
-      const verifiedSnapshot = await firestoreMod.getDocs(refs.records);
-      const verified = mapSnapshotRecords(verifiedSnapshot);
-      if (verified.size !== expectedCount) throw new Error("migration-record-count-mismatch");
-      const roundTrip = materializeValidatedRecords(verified);
-      if (!areFinanceStatesEquivalent(migrationState, roundTrip)) throw new Error("migration-round-trip-mismatch");
-
-      await firestoreMod.setDoc(refs.meta, {
-        status: "active",
-        migrationId: claimedMigrationId,
-        migrationSourceHash: sourceHash,
-        ownerDeviceId: deviceId,
-        syncSchemaVersion: SYNC_SCHEMA_VERSION,
-        stateSchemaVersion: CURRENT_SCHEMA_VERSION,
-        recordCount: verified.size,
-        updatedAt: firestoreMod.serverTimestamp(),
-      });
-    };
-
     const notifyConflict = (uid, remoteRecords, localState, conflictKeys, mutationKeys) => {
       conflictContext = { uid, remoteRecords, localState, conflictKeys, mutationKeys };
       onStatus("conflict");
@@ -424,7 +179,14 @@ export async function createRecordCloudSync({
         if (!isCurrent(uid, generation) || conflictContext) return;
         if (syncMode === "migration") {
           writeOutbox(uid, { pending: true, mode: "migration", savedAt: new Date().toISOString() });
-          await activateMigration(uid, generation, state, refs);
+          await recordAdapter.activateMigration({
+            uid,
+            generation,
+            state,
+            refs,
+            isCurrent,
+            initialLegacyFingerprint,
+          });
           writeOutbox(uid, null);
           if (isCurrent(uid, generation)) await attachActiveRecords(uid, generation, refs);
           return;
@@ -432,7 +194,7 @@ export async function createRecordCloudSync({
 
         const mutations = buildRecordMutations(state, workingRecords, {
           updatedBy: deviceId,
-          updatedAt: firestoreMod.serverTimestamp(),
+          updatedAt: recordAdapter.serverTimestamp(),
         });
         if (!mutations.length) return;
         writeOutbox(uid, {
@@ -445,14 +207,13 @@ export async function createRecordCloudSync({
         pendingMutationGroup = { state: cloneState(state), mutations };
         workingRecords = applyMutations(workingRecords, mutations);
         try {
-          await writeMutationGroup(refs.records, mutations);
+          await recordAdapter.writeMutationGroup(refs, mutations);
           writeOutbox(uid, null);
           if (!isCurrent(uid, generation)) return;
           baselineRecords = applyMutations(baselineRecords, mutations);
           pendingMutationGroup = null;
         } catch (error) {
-          const latestSnapshot = await firestoreMod.getDocs(refs.records);
-          const latestRecords = mapSnapshotRecords(latestSnapshot);
+          const latestRecords = await recordAdapter.readRecords(refs);
           if (isCurrent(uid, generation)) {
             baselineRecords = mergeRecordMapsByRevision(baselineRecords, latestRecords);
             workingRecords = baselineRecords;
@@ -513,21 +274,12 @@ export async function createRecordCloudSync({
       saveQueue = createQueue(uid, generation, refs);
       let initialSnapshot = true;
 
-      unsubscribeRecords = firestoreMod.onSnapshot(
-        refs.records,
-        { includeMetadataChanges: true },
-        (snapshot) => {
+      unsubscribeRecords = recordAdapter.listenRecords(
+        refs,
+        (incoming, metadata) => {
           if (!isCurrent(uid, generation)) return;
-          if (snapshot.metadata?.hasPendingWrites) {
-            onStatus("syncing", snapshot.metadata);
-            return;
-          }
-          let incoming;
-          try {
-            incoming = mapSnapshotRecords(snapshot);
-          } catch (error) {
-            console.warn("Cloud record snapshot validation failed.", error);
-            onStatus("error");
+          if (metadata.hasPendingWrites) {
+            onStatus("syncing", metadata);
             return;
           }
           if (initialSnapshot) {
@@ -552,7 +304,7 @@ export async function createRecordCloudSync({
               initial: true,
               hasPendingOutbox: Boolean(pendingOutbox),
             });
-            onStatus(isBrowserOnline() ? "online" : "offline", snapshot.metadata);
+            onStatus(isBrowserOnline() ? "online" : "offline", metadata);
             return;
           }
           if (saveQueue?.isActive() || pendingMutationGroup) {
@@ -560,7 +312,7 @@ export async function createRecordCloudSync({
             return;
           }
           if (mapsEquivalent(baselineRecords, incoming)) {
-            onStatus(isBrowserOnline() ? "online" : "offline", snapshot.metadata);
+            onStatus(isBrowserOnline() ? "online" : "offline", metadata);
             return;
           }
           let reconciled;
@@ -578,19 +330,21 @@ export async function createRecordCloudSync({
           if (!areFinanceStatesEquivalent(getState(), remoteState)) {
             onRemoteState(remoteState, { source: "records", initial: false });
           }
-          onStatus(isBrowserOnline() ? "online" : "offline", snapshot.metadata);
+          onStatus(isBrowserOnline() ? "online" : "offline", metadata);
         },
-        () => {
-          if (isCurrent(uid, generation)) onStatus("error");
+        (error) => {
+          if (!isCurrent(uid, generation)) return;
+          console.warn("Cloud record snapshot validation or listener failed.", error);
+          onStatus("error");
         },
       );
     };
 
     const initializeUser = async (uid, generation) => {
-      const refs = refsFor(uid);
+      const refs = recordAdapter.refsFor(uid);
       onStatus("syncing");
       try {
-        const metaSnapshot = await firestoreMod.getDoc(refs.meta);
+        const metaSnapshot = await recordAdapter.readMeta(refs);
         if (!isCurrent(uid, generation)) return;
         if (metaSnapshot.exists() && metaSnapshot.data()?.status === "active") {
           await attachActiveRecords(uid, generation, refs);
@@ -598,7 +352,7 @@ export async function createRecordCloudSync({
         }
         syncMode = "migration";
         saveQueue = createQueue(uid, generation, refs);
-        const legacySnapshot = await firestoreMod.getDoc(refs.legacy);
+        const legacySnapshot = await recordAdapter.readLegacy(refs);
         if (!isCurrent(uid, generation)) return;
         saveReady = true;
         const initialLegacyState = legacySnapshot.exists() ? legacySnapshot.data() : createInitialState();
@@ -651,8 +405,7 @@ export async function createRecordCloudSync({
       await authMod.signOut(auth);
       currentUser = null;
       userId = "";
-      await firestoreMod.terminate(db);
-      await firestoreMod.clearIndexedDbPersistence(db);
+      await recordAdapter.clearPersistence();
       return { cleared: true, uid: status.uid };
     };
 

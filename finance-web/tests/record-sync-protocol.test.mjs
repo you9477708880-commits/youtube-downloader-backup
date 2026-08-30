@@ -2,9 +2,16 @@ import assert from "node:assert/strict";
 import { createInitialState } from "../src/state/initial-state.js";
 import { buildRecordMutations, stateToRecordSpecs } from "../src/services/record-codec.js";
 import {
-  __recordCloudTestUtils,
   cloudOutboxStorageKey,
-} from "../src/services/storage-cloud-records.js";
+  getDeviceId,
+} from "../src/services/record-sync-local-store.js";
+import {
+  buildConflictResolutionState,
+  mapsEquivalent,
+  mergeRecordMapsByRevision,
+  serializeOutboxMutations,
+  sourceFingerprint,
+} from "../src/services/record-sync-protocol.js";
 
 function stateWithTransaction(id, amount) {
   const state = createInitialState();
@@ -32,15 +39,6 @@ function recordsFromState(state, revisionSource = new Map()) {
   mutations.forEach(({ key, envelope }) => records.set(key, envelope));
   return records;
 }
-
-const {
-  buildConflictResolutionState,
-  getDeviceId,
-  mapsEquivalent,
-  mergeRecordMapsByRevision,
-  serializeOutboxMutations,
-  sourceFingerprint,
-} = __recordCloudTestUtils;
 
 const initial = stateWithTransaction("tx-1", 100);
 const initialRecords = recordsFromState(initial);

@@ -111,13 +111,25 @@ function createServer() {
       if (ext === ".html" && requestUrl.searchParams.get("__smoke_runner") === "1") {
         const productionEntry = '<script type="module" src="./src/main.js"></script>';
         const smokeEntry = '<script type="module" src="./tests/smoke-entry.js"></script>';
+        const productionRuntime = 'mode: "production", cloudEnabled: true, pwaEnabled: true';
+        const smokeRuntime = 'mode: "production", cloudEnabled: false, pwaEnabled: false';
         const html = data.toString("utf8");
         if (!html.includes(productionEntry)) {
           res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
           res.end("Smoke runner could not locate the production module entry.");
           return;
         }
-        data = Buffer.from(html.replace(productionEntry, smokeEntry), "utf8");
+        if (!html.includes(productionRuntime)) {
+          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("Smoke runner could not isolate the production runtime.");
+          return;
+        }
+        data = Buffer.from(
+          html
+            .replace(productionRuntime, smokeRuntime)
+            .replace(productionEntry, smokeEntry),
+          "utf8",
+        );
       }
 
       res.writeHead(200, {
@@ -378,11 +390,18 @@ async function testScenario(baseUrl, scenario) {
     return { ok: false, scenario, url, stderr: "No Chrome or Edge executable found." };
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "finance-web-smoke-"));
   const errors = [];
-  try {
-    for (const browserPath of candidates) {
-      for (const plan of launchPlans(browserPath, tempRoot, url)) {
+  for (const browserPath of candidates) {
+    const planTemplates = launchPlans(browserPath, "__SMOKE_PROFILE__", url);
+    for (const planTemplate of planTemplates) {
+      const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "finance-web-smoke-"));
+      const plan = {
+        ...planTemplate,
+        args: planTemplate.args.map((arg) => arg === "--user-data-dir=__SMOKE_PROFILE__"
+          ? `--user-data-dir=${tempRoot}`
+          : arg),
+      };
+      try {
         if (verbose) console.log(`Trying ${path.basename(browserPath)} / ${plan.label}`);
         const result = await runBrowser(plan);
         if (!result.ok) {
@@ -412,13 +431,13 @@ async function testScenario(baseUrl, scenario) {
           browserPath,
           planLabel: plan.label,
         };
+      } finally {
+        try {
+          fs.rmSync(tempRoot, { recursive: true, force: true });
+        } catch (error) {
+          errors.push(`Unable to remove temporary browser profile: ${error.message}`);
+        }
       }
-    }
-  } finally {
-    try {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
-    } catch (error) {
-      errors.push(`Unable to remove temporary browser profile: ${error.message}`);
     }
   }
 

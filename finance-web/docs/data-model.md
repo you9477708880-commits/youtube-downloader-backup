@@ -479,7 +479,7 @@ Only rule metadata is persisted. Occurrence dates and status are always derived 
 - 初次登入會先正規化並遞迴排序物件欄位後比較本機與雲端 state；語意相同的資料不顯示衝突、不建立復原紀錄，也不下載 JSON。陣列順序或帳務值真正不同時仍視為衝突。此語意由兩個隔離瀏覽器與 Auth／Firestore Emulators 端到端驗證。
 - 衝突復原中心每個 scope 最多保留最近 10 份、最長 30 天。使用者可以看逐筆差異摘要、勾選紀錄、手動匯出或刪除。復原會經正常 `commitState()` 寫成新的本機／雲端 revision，不會倒轉 Firestore revision，也不做欄位級自動合併。
 - 復原準備事件時會確保母準備項目一併存在；復原刪除準備項目時會同步移除其事件，避免留下不可見的孤兒紀錄。
-- 一般 mutation group 使用單一 Firestore batch；超過 400 筆差異會拒絕而保留本機資料，不做可能部分成功的分批覆蓋。
+- 每個 Firestore batch 最多處理 400 筆 mutation；超過時在同一個 UID outbox 保護下依序分批。只有全部批次完成才清除 outbox；中途失敗會保留待送標記，下一次先重新比對 revision，再只送仍未完成的差異。因此整組寫入不宣稱跨 batch 原子性，但不會因重試而盲目重送已成功的 revision。
 - 舊 `finance_v6` 雲端文件只作遷移來源。v7 records 完成數量及 round-trip 驗證後，meta 才會切為 `active`；原文件不刪除。若使用者選擇本機版本後，舊雲端文件在切換期間又有變動，遷移會停在 `preparing` 並要求重新載入確認，不會錯誤啟用。
 - 「清除此裝置」只刪目前 `local`／Firebase UID scope 的 snapshot、rollback、UID outbox 與衝突復原紀錄。登入狀態還會先停止同步、登出、終止 Firestore 並呼叫官方離線快取清除；不會建立空 state、tombstone 或任何雲端 delete。
 - Firestore IndexedDB cache 無法依 UID 分開，因此登入狀態的裝置清理會清除此 Firebase app 在該網站來源下的離線快取；其他帳號的雲端資料不受影響。其他 UID localStorage、legacy v6 keys、migration marker 與共用 device-id 刻意保留。
@@ -505,7 +505,7 @@ Current model:
 - Different records merge naturally. A same-record revision conflict pauses and presents explicit Keep cloud, Keep local, and Not now buttons; field-level guessing is not used. Before overwrite, the losing version is stored in a UID-scoped local IndexedDB recovery center instead of triggering an automatic download. Emergency JSON is downloaded only if internal recovery storage fails.
 - Initial sign-in compares normalized states with recursively sorted object keys. Equivalent data creates no prompt, recovery entry, or JSON download; actual accounting-value or array-order differences still conflict. A two-profile browser test verifies this against the Auth and Firestore Emulators.
 - Recovery history is limited to 10 entries per scope and 30 days. Selected records are restored through the normal commit pipeline as new revisions; fund parent-child integrity is preserved.
-- Normal mutation groups are one atomic batch and are rejected above 400 changed records.
+- Each Firestore batch contains at most 400 mutations. Larger groups are sent sequentially under the same UID-scoped outbox. The outbox is cleared only after every batch succeeds; after a partial failure, the next attempt re-compares revisions and sends only the remaining differences. The group therefore does not claim cross-batch atomicity.
 - The legacy `finance_v6` document remains an untouched migration source until v7 records pass count and round-trip verification.
 - Device clearing is current-scope only: it stops sync, signs out, terminates Firestore, clears the app persistence cache, and then removes current recovery/rollback/outbox/snapshot data without writing cloud deletes or empty-state tombstones.
 - Life-cycle routine rules are persisted as `lifeRoutine` records. Dates, intervals, status, and result rows remain derived and are never duplicated.

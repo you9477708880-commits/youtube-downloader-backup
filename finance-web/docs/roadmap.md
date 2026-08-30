@@ -105,7 +105,7 @@ Since 2026-08-29, new work follows a maintenance-first gate: every feature needs
 - 交易搜尋週期間隔檢查已演進為 schema v3 的本機「生活週期提醒」候選：保存名稱、關鍵字、預期間隔、提前提醒與啟用狀態；最近事件、平均間隔、預計日期仍完全由 `txs` 推導，同日多筆只算一次，不複製交易明細。提供站內到期摘要、查看既有搜尋、編輯／停用／刪除；暫不做背景通知或專業建議。
 - 裝置資料清理安全候選：只清目前 local／UID scope，兩段式確認、未同步資料明確 acknowledgement、Firebase persistence 與 recovery fail-closed、snapshot 最後刪除；不刪正式 Firestore 雲端資料。
 - v7 管理 Functions 候選：summary 以 active v7 非 tombstone records 為權威、preparing 可回退 v6，data/full 對單一 UID app scope recursive delete；只在 `demo-finance-web` Auth／Firestore／Functions Emulator 驗證，Functions 維持不部署。
-- 維護性整理：`bootstrap.js` 已由 920 行收斂至約 307 行，UI coordinator、render coordinator 與 controller composition 已抽離；`transaction-controller.js` 已由 641 行收斂至約 413 行，純交易 commands 可脫離 DOM 單測。smoke seed 集中，unit runner 維持自動發現測試。
+- 維護性整理：`bootstrap.js` 已由 920 行收斂至約 307 行，UI coordinator、render coordinator 與 controller composition 已抽離；`transaction-controller.js` 已由 641 行收斂至約 413 行，純交易 commands 可脫離 DOM 單測；`storage-cloud-records.js` 已由 793 行收斂至約 549 行，record protocol、UID outbox local store 與 Firestore SDK adapter 分離，公開 API 與同步語意不變。smoke seed 集中，unit runner 維持自動發現測試。
 - PWA 更新與同步衝突自動化：JavaScript／CSS 改為 network-first；新版 Service Worker 只在使用者按「立即更新」後切換並重新載入一次。兩個隔離瀏覽器透過 `demo-finance-web` Auth／Firestore Emulators 驗證相同資料零提示，以及真實衝突只提示一次、落敗版本進 IndexedDB、成功時不下載 JSON。
 
 以下其他項目已於 2026-08-10 完成、推送並部署：
@@ -220,23 +220,22 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 
 立即工作順序與目前提交狀態集中維護在 `docs/current-status.md`。目前建議：
 
-1. **完成整併後的一次人工驗收，再發布 Hosting 候選**
-   - 2026-08-29 已完成完整 `npm test`、Emulators 20/20、UI smoke 15/15 與桌機／390px 手機瀏覽器整合檢查。
-   - 使用強制離線 acceptance bundle，依 `release-candidate-acceptance-2026-08-29.md` 複驗人工回報後的四項修正；其餘帳戶中心、月度回顧、退休候選與安全提示已由使用者標記通過。
-   - 裝置清理只在 acceptance namespace 或可丟棄測試帳號驗證，不以唯一正式資料測試。
-   - Functions 先保留本機 Emulator 證據；除非另行授權部署、設定管理員白名單與 `/api/**` rewrite，否則不發布。
-   - Tombstone GC 與管理刪除停寫 fence 保留為下一個資料安全設計題目。
+1. **先恢復本機 Emulator 證據，再進入下一個發布候選**
+   - 2026-08-29 的正式候選曾完成 Emulators 20/20、UI smoke 15/15 與桌機／390px 手機整合檢查；2026-08-30 record-sync 邊界拆分後，unit、release、acceptance 與 smoke 15/15 通過，但本機 Rules 管理端點 503 阻止本次 Emulator 復驗。
+   - 在完整 `npm test` 與雙瀏覽器衝突測試重新通過前，不推送或發布 record-sync 重構。
+   - 下一個結構性整理是按產品區分拆 smoke scenarios；不得和 schema、migration 或新功能混成同一批。
+   - Functions 仍不發布；裝置清理仍只在 acceptance namespace 或可丟棄帳號驗證。
 
 ### English
 
 The immediate work order and current commit status are maintained in
 `docs/current-status.md`. The current recommendation is:
 
-1. **Run one integrated acceptance pass before publishing the Hosting candidate**
-   - The full automated suite, 20/20 Emulator cases, 15/15 UI smoke scenarios, and desktop/mobile browser integration checks passed on 2026-08-29.
-   - Use the forced-offline acceptance bundle and `release-candidate-acceptance-2026-08-29.md` for the remaining human review.
-   - Test device clearing only in the acceptance namespace or a disposable account, never against the only production copy.
-   - Keep management Functions local unless deployment, administrator allowlisting, and a production recovery plan are separately authorized.
+1. **Restore local Emulator evidence before preparing another release candidate**
+   - The 2026-08-29 candidate passed 20/20 Emulator cases, 15/15 UI smoke scenarios, and desktop/mobile checks. After the 2026-08-30 record-sync boundary extraction, unit, release, acceptance, and all 15 smoke scenarios pass, but a local Rules administration endpoint 503 blocks the current Emulator rerun.
+   - Do not push or release the record-sync refactor until the full suite and two-profile conflict test pass again.
+   - Split smoke scenarios by product area next; do not combine that cleanup with schema, migration, or feature work.
+   - Keep management Functions undeployed and test device clearing only in the acceptance namespace or a disposable account.
 
 ## 5. 中期重構 / Mid-Term Refactors
 

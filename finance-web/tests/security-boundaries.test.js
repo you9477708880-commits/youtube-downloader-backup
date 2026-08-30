@@ -115,6 +115,8 @@ function testConflictRecoveryIsScopedAndDoesNotAutoDownload() {
 
 function testFirestoreRecordBoundaries() {
   const rules = fs.readFileSync(path.join(projectRoot, "firestore.rules"), "utf8");
+  const recordCloud = fs.readFileSync(path.join(projectRoot, "src", "services", "storage-cloud-records.js"), "utf8");
+  const recordAdapter = fs.readFileSync(path.join(projectRoot, "src", "services", "firestore-record-adapter.js"), "utf8");
   assert.match(rules, /request\.auth\.uid == userId/);
   assert.match(rules, /sync\/\{syncId\}\/records\/\{recordKey\}/);
   assert.match(rules, /request\.resource\.data\.revision == resource\.data\.revision \+ 1/);
@@ -125,17 +127,27 @@ function testFirestoreRecordBoundaries() {
   assert.match(rules, /allow write: if ownsUserData\(userId\)\s*&& !exists\(v7MetaPath\(appId, userId\)\)/);
   assert.match(rules, /allow delete: if false/);
   assert.match(rules, /get\(v7MetaPath\(appId, userId\)\)\.data\.status == 'active'/);
+  assert.doesNotMatch(
+    recordCloud,
+    /firestoreMod\.(?:writeBatch|getDoc|getDocs|setDoc|onSnapshot|runTransaction|serverTimestamp|terminate|clearIndexedDbPersistence)/,
+  );
+  assert.match(recordAdapter, /firestoreMod\.writeBatch/);
+  assert.match(recordAdapter, /firestoreMod\.runTransaction/);
+  assert.match(recordAdapter, /firestoreMod\.onSnapshot/);
 }
 
 function testDeviceClearCannotWriteCloudOrBroadlyEraseBrowserStorage() {
   const deviceClear = fs.readFileSync(path.join(projectRoot, "src", "services", "device-data-clear.js"), "utf8");
   const recordCloud = fs.readFileSync(path.join(projectRoot, "src", "services", "storage-cloud-records.js"), "utf8");
+  const recordAdapter = fs.readFileSync(path.join(projectRoot, "src", "services", "firestore-record-adapter.js"), "utf8");
 
   assert.doesNotMatch(deviceClear, /localStorage\.clear\s*\(/);
   assert.doesNotMatch(deviceClear, /indexedDB\.deleteDatabase|firebaseLocalStorageDb/);
   assert.doesNotMatch(deviceClear, /commitState|deleteDoc|writeBatch|setDoc/);
-  assert.match(recordCloud, /clearDevicePersistence[\s\S]*signOut\(auth\)[\s\S]*terminate\(db\)[\s\S]*clearIndexedDbPersistence\(db\)/);
+  assert.match(recordCloud, /clearDevicePersistence[\s\S]*signOut\(auth\)[\s\S]*recordAdapter\.clearPersistence\(\)/);
+  assert.match(recordAdapter, /clearPersistence:\s*async\s*\(\)\s*=>\s*\{[\s\S]*terminate\(db\)[\s\S]*clearIndexedDbPersistence\(db\)/);
   assert.doesNotMatch(recordCloud, /clearDevicePersistence[\s\S]*deleteDoc/);
+  assert.doesNotMatch(recordAdapter, /clearPersistence:\s*async[\s\S]*deleteDoc/);
 }
 
 try {

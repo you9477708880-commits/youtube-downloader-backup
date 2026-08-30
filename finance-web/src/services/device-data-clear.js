@@ -1,5 +1,5 @@
 import { localScopeStorageKeys } from "./storage-local.js";
-import { cloudOutboxStorageKey } from "./storage-cloud-records.js";
+import { cloudOutboxStorageKey } from "./record-sync-local-store.js";
 
 function normalizeTarget({ scope, uid = "" }) {
   const normalizedScope = String(scope || "").trim();

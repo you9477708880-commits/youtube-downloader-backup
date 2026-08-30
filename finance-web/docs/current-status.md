@@ -47,14 +47,16 @@
 
 ## 維護性結論
 
-專案不需要換框架或全面重寫。`actions.js` 已收斂為 27 行，既有 domain／controller／view 與 `commitState()` 邊界可繼續沿用。2026-08-30 已完成維護計畫第一、第二批：
+專案不需要換框架或全面重寫。`actions.js` 已收斂為 27 行，既有 domain／controller／view 與 `commitState()` 邊界可繼續沿用。2026-08-30 已完成維護計畫第一、第二批，並完成第三批程式拆分：
 
 1. `src/app/bootstrap.js`：920 → 約 307 行；UI、render 與 controller composition 已抽離。
 2. `src/app/controllers/transaction-controller.js`：641 → 約 413 行；純帳務 commands 已移到 `src/domain/transaction-commands.js`。
 3. 新增 `ui-coordinator.js`、`render-coordinator.js`、`controller-composition.js`，沒有新增全域 state。
 4. 新增不依賴 DOM 的 transaction command tests，既有交易結果、介面與同步語意不變。
+5. `src/services/storage-cloud-records.js`：793 → 約 549 行；純 record protocol、UID 本機 outbox 與 Firestore SDK adapter 已分檔。Facade 不再直接處理 Firestore path、讀寫、listener snapshot、server timestamp 或 persistence。
+6. `createRecordCloudSync()` 公開介面、Firestore v7 路徑、record codec、revision、tombstone、migration fence 與整筆衝突選擇均未改變。
 
-目前剩餘熱點是 `storage-cloud-records.js` 約 793 行，以及 `smoke-scenarios.js` 約 1307 行。下一批應獨立處理 record sync 邊界，不能和新功能、migration 或部署混在同一批。
+目前主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行。下一批適合按產品區分拆 smoke scenario modules；record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
 
 ## 目前驗證
 
@@ -68,16 +70,19 @@
 - transaction commands：4 項直接測試通過，涵蓋 transfer／advance 驗證、fund allocation、detail edit、provenance、刪除 cascade 與 repayment 關聯。
 - 原本 20 項 transaction controller characterization tests 保持通過。
 - 聚焦 browser smoke：準備金不足、解除準備、代墊修改、還款修改、搜尋、帳戶中心及 AndroMoney 匯入通過。
-- 完整 `npm test`：通過；包含 unit、release artifact、驗收隔離、20 項 Emulator 測試與 15 條瀏覽器 smoke 情境。
-- 已知非阻擋警告：Functions 使用的 `firebase-functions` 版本較舊；Emulator 暫以主機 Node 24 執行，而 `functions/package.json` 指定 Node 20。依本批限制不升級依賴，另列維護批次處理。
+- 本批 unit、release artifact、驗收隔離及 15 條瀏覽器 smoke 情境：通過。smoke 功能情境固定關閉 cloud／PWA，且每個瀏覽器 fallback 使用獨立 profile，避免背景驗證或崩潰後的鎖檔污染結果。
+- 本批新增的同步 characterization tests：通過；涵蓋 revision merge、同版衝突、tombstone、UID outbox、等價 state、UID switch、450 筆分批重試與 migration owner fence。
+- Firestore adapter 另有 5 項直接測試，鎖定 v7 路徑、SDK snapshot 轉換與錯誤邊界、400 筆分批上限、server timestamp 及 terminate-before-clear 順序；安全測試禁止 facade 重新引入 Firestore IO。
+- 官方 portable Node 20.20.2 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過。
+- 本機 `npm run test:rules`／`npm run test:emulators`：尚未通過。Firestore Emulator 雖能啟動，但 Rules 管理端點在測試案例開始前回傳 503 `Network closed for unknown reason`；Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4、Node 20.20.2／24.15.0 結果均相同。因此已排除 Node／Java 主版本不一致，但本次仍不能宣稱完整 `npm test` 通過，雙瀏覽器 Emulator 衝突測試也仍待同一環境問題排除。
+- 其他既有警告：Functions 使用的 `firebase-functions` 版本較舊。依本批限制不升級依賴。
 
 ## 發布前剩餘步驟
 
-1. 完整 `npm test`、`git diff --check`。
+1. 先排除本機 Firestore Emulator Rules 管理端點 503，重跑完整 `npm test` 與雙瀏覽器同步衝突測試。
 2. 本機驗收版檢查桌機／手機：新增、編輯、停用、查看、刪除與重載後保留。
 3. 人工確認提醒用途與資訊密度。
-4. 若要發布：先合併／推送並確認 CI，再部署 Firestore Rules，最後才部署 Hosting。
-5. 發布後只讀檢查；Functions 維持不部署。
+4. Emulator 證據恢復後，才評估合併、推送與 Rules／Hosting 發布；Functions 維持不部署。
 
 ## 人工驗收最小清單
 
