@@ -94,7 +94,7 @@ Sub-agent usage:
 
 ## 6. Testing Commands
 
-Pinned release-grade suite (requires Node `20.20.2`, Java 21, and `npm ci`):
+Pinned release-grade suite (requires Node `24.15.0`, Java 21, and `npm ci`):
 
 ```powershell
 npm test
@@ -147,7 +147,7 @@ npm run test:functions
 npm run test:emulators
 ```
 
-The authoritative Emulator gate runs on the fixed `ubuntu-24.04` GitHub Actions image with Node `20.20.2`, Temurin 21, and project-local `firebase-tools@15.22.4`. A local Windows Emulator infrastructure failure does not count as a code pass, but it must be reported as an environment failure rather than a sync or Rules regression.
+The authoritative Emulator gate runs on the fixed `ubuntu-24.04` GitHub Actions image with Node `24.15.0`, Temurin 21, and project-local `firebase-tools@15.22.4`. This matches the normal Windows development shell. The undeployed `functions/package.json` keeps Node 20 only as its separate Firebase Functions cloud-runtime target because Firebase does not currently offer a Node 24 Functions runtime. A local Windows Emulator infrastructure failure does not count as a code pass, but it must be reported as an environment failure rather than a sync or Rules regression.
 
 Project-local smoke runner:
 

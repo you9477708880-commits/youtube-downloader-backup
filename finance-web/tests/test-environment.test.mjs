@@ -22,7 +22,7 @@ function validEnvironment(overrides = {}) {
 
 test("test environment contract accepts only the pinned toolchain", () => {
   assert.equal(evaluateTestEnvironment(validEnvironment()).ok, true);
-  assert.match(evaluateTestEnvironment(validEnvironment({ nodeVersion: "v24.15.0" })).errors.join("\n"), /Node must be/);
+  assert.match(evaluateTestEnvironment(validEnvironment({ nodeVersion: "v20.20.2" })).errors.join("\n"), /Node must be/);
   assert.match(evaluateTestEnvironment(validEnvironment({ javaOutput: 'openjdk version "17.0.1"' })).errors.join("\n"), /Java must be/);
   assert.match(evaluateTestEnvironment(validEnvironment({ firebaseToolsVersion: "15.15.0" })).errors.join("\n"), /firebase-tools/);
   assert.equal(parseJavaMajor('openjdk version "21.0.12"'), 21);

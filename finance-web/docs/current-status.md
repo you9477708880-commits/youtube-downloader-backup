@@ -55,7 +55,7 @@
 4. 新增不依賴 DOM 的 transaction command tests，既有交易結果、介面與同步語意不變。
 5. `src/services/storage-cloud-records.js`：793 → 約 549 行；純 record protocol、UID 本機 outbox 與 Firestore SDK adapter 已分檔。Facade 不再直接處理 Firestore path、讀寫、listener snapshot、server timestamp 或 persistence。
 6. `createRecordCloudSync()` 公開介面、Firestore v7 路徑、record codec、revision、tombstone、migration fence 與整筆衝突選擇均未改變。
-7. 驗證環境已標準化：Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4`、跨平台 Chromium 路徑與固定 `ubuntu-24.04` CI；本機不再依賴全域 Firebase CLI。
+7. 驗證環境已統一：Windows、`.nvmrc`、package engine、環境檢查與固定 `ubuntu-24.04` CI 全部使用 Node `24.15.0`，搭配 Java 21、專案內 `firebase-tools@15.22.4` 與跨平台 Chromium 路徑；本機不再依賴全域 Firebase CLI。未部署 Functions 的 Node 20 只代表 Firebase 支援的雲端 runtime 目標。
 
 record-sync 邊界拆分已由固定 Ubuntu CI 完整復驗。現在主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行；下一批適合按產品區分拆 smoke scenario modules。record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
 
@@ -74,13 +74,13 @@ record-sync 邊界拆分已由固定 Ubuntu CI 完整復驗。現在主要剩餘
 - 本批 unit、release artifact、驗收隔離及 15 條瀏覽器 smoke 情境：通過。smoke 功能情境固定關閉 cloud／PWA，且每個瀏覽器 fallback 使用獨立 profile，避免背景驗證或崩潰後的鎖檔污染結果。
 - 本批新增的同步 characterization tests：通過；涵蓋 revision merge、同版衝突、tombstone、UID outbox、等價 state、UID switch、450 筆分批重試與 migration owner fence。
 - Firestore adapter 另有 5 項直接測試，鎖定 v7 路徑、SDK snapshot 轉換與錯誤邊界、400 筆分批上限、server timestamp 及 terminate-before-clear 順序；安全測試禁止 facade 重新引入 Firestore IO。
-- 官方 portable Node 20.20.2 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過。
-- 新增 4 項驗證環境測試：鎖定版本契約、專案 CLI 路徑、503／埠占用分類及 Linux 瀏覽器偵測；目前系統 Node 24 會在發布級入口快速中止，仍可用 `test:fast` 做非 Emulator 回歸。
-- 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；Node 20.20.2、Temurin 21.0.12、專案 CLI 15.22.4 與 Emulator 1.21.0 已再次重現。runner 現在正確分類為 `infrastructure-firestore-admin-503` 並保存 `.test-artifacts/emulators/latest`，不再把 21 個取消／失敗案例誤報為 record-sync 程式回歸。
-- 固定 `ubuntu-24.04` GitHub CI 已在候選分支完整通過 `test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器同步衝突測試，耗時約 1 分 20 秒。這確認 Windows 503 是目前電腦的 Emulator 基礎設施問題，不是 record-sync、Rules 或 Functions 程式回歸。
-- GitHub Actions 的 `checkout`／`setup-node` 已升至使用 Node 24 runtime 的 v5，以移除舊 action runtime 棄用警告；受測應用仍固定使用 Node 20.20.2。
+- Windows 現有 Node 24.15.0 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過；版本契約已與實際開發環境對齊。
+- 4 項驗證環境測試鎖定 Node 24.15.0、Java 21、專案 CLI 路徑、503／埠占用分類及 Linux 瀏覽器偵測；`npm test` 現在可直接在正常 Windows shell 進入完整發布級流程。
+- 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；統一後的 Node 24.15.0、Temurin 21.0.12、專案 CLI 15.22.4 與 Emulator 1.21.0 已再次重現。runner 正確分類為 `infrastructure-firestore-admin-503` 並保存 `.test-artifacts/emulators/latest`，不再把 21 個取消／失敗案例誤報為 record-sync 程式回歸。歷史診斷也曾在 Node 20.20.2 重現，因此不是 Node 版本分歧造成。
+- 固定 `ubuntu-24.04` GitHub CI 已在工具鏈對齊前完整通過 `test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器同步衝突測試；工作流程現已改用 Node 24.15.0，需在推送本批後重新取得同版本 CI 證據。
+- GitHub Actions 的 `checkout`／`setup-node` 已升至 v5，受測應用也固定使用 Node 24.15.0；action runtime、Windows 開發版本與 CI 受測版本不再分岔。
 - 其他既有警告：Functions 使用的 `firebase-functions` 版本較舊。依本批限制不升級依賴。
-- `firebase-tools@15.22.4` 的兩個非核心轉接相依套件在 Node 20 安裝時產生 Node 22 engine warning；目前 CLI 與 Emulator 可啟動，先由固定 CI 判定，不在本批盲目升級 Functions 或其他套件。
+- `firebase-tools@15.22.4` 支援 Node 24；先前 Node 20 下的非核心相依套件 engine warning 已由工具鏈升級消除。Functions 雲端 runtime 仍維持官方支援的 Node 20，且本批不部署 Functions。
 
 ## 發布前剩餘步驟
 

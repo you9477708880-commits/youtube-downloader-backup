@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const EXPECTED_TEST_ENVIRONMENT = Object.freeze({
-  node: "20.20.2",
+  node: "24.15.0",
   javaMajor: 21,
   firebaseTools: "15.22.4",
 });

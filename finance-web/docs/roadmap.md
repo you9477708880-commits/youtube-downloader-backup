@@ -1,6 +1,6 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-08-29
+最後更新 / Last updated: 2026-08-30
 正式穩定分支 / Production stable branch: `main` at `67ed8fc`
 本機候選分支 / Local candidate branch: `codex/maintenance-life-cycle`
 最新已部署安全點 / Latest deployed safety point: `67ed8fc 修正 Windows 正式部署啟動器`
@@ -113,7 +113,7 @@ Since 2026-08-29, new work follows a maintenance-first gate: every feature needs
 - 資料安全邊界已補強並部署：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。
 - 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。
 - 第三、四階段同步整理已完成並部署：localStorage 改為 `local` / Firebase `uid` 單一 snapshot 分區；舊 `fin_v6_*` 只搬到未綁定 local；Firestore v7 已啟用 meta、record-level documents、revision rules、deletion tombstones、UID outbox、整筆衝突選擇與 v6 驗證遷移。
-- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 15 個 UI smoke scenarios；smoke runner 由系統分配可用埠；GitHub Actions 使用 Node 20、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
+- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 15 個 UI smoke scenarios；smoke runner 由系統分配可用埠；Windows 開發環境與 GitHub Actions 統一使用 Node 24.15.0、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
 - 維護性 controller 拆分第一批已在本機完成：資產負債 CRUD、編輯狀態與 emergency toggle 已從 `actions.js` 搬到獨立 controller，bootstrap 保留組裝與原 actions facade；characterization tests 會驗證歷史交易不變、取消無副作用及每次成功操作只 save/render 一次。
 
 ### English
@@ -222,7 +222,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 
 1. **標準化 CI 已恢復 Emulator 證據；完成產品驗收後再準備發布**
    - 2026-08-29 的正式候選曾完成 Emulators 20/20、UI smoke 15/15 與桌機／390px 手機整合檢查；2026-08-30 record-sync 邊界拆分後，unit、release、acceptance 與 smoke 15/15 通過，固定 Ubuntu CI 也已補回 Rules、Functions 與雙隔離瀏覽器 Emulator 證據。本機 Windows Rules 管理端點 503 改列為環境診斷。
-   - 驗證環境固定為 Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4` 與 `ubuntu-24.04` CI；不再依賴本機全域 Firebase CLI。
+   - 驗證環境固定為 Node `24.15.0`、Java 21、專案內 `firebase-tools@15.22.4` 與 `ubuntu-24.04` CI；Windows 開發環境使用相同 Node 版本，不再依賴本機全域 Firebase CLI。
    - 固定 Ubuntu CI 已完整通過 `npm run test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器衝突測試；record-sync 邊界拆分的程式復驗已完成。本機 `test:fast` 仍只算快速回歸證據。
    - Emulator 失敗需保留 artifact 並區分環境故障與測試斷言，避免再把本機 503 誤判成程式拆分失敗。
    - 下一個結構性整理是按產品區分拆 smoke scenarios；不得和 schema、migration 或新功能混成同一批。

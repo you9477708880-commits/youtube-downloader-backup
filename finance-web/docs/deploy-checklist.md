@@ -102,7 +102,7 @@ npm ci
 npm test
 ```
 
-`npm test` 是發布級 `test:ci`：要求 `.nvmrc` 指定的 Node `20.20.2`、Java 21，以及 lockfile 內的 `firebase-tools@15.22.4`。若目前 shell 尚未切換 Node，可先執行 `npm run test:fast` 做非 Emulator 回歸，但它不能取代發布級測試。
+`npm test` 是發布級 `test:ci`：要求 `.nvmrc` 指定的 Node `24.15.0`、Java 21，以及 lockfile 內的 `firebase-tools@15.22.4`。這與目前 Windows 開發環境及固定 CI 一致。若其他電腦的 shell 尚未切換 Node，可先執行 `npm run test:fast` 做非 Emulator 回歸，但它不能取代發布級測試。`functions/package.json` 的 Node 20 是未部署 Functions 的雲端 runtime 目標，不是網站開發與測試工具鏈。
 
 Firestore / Functions Emulator：
 

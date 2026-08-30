@@ -52,7 +52,7 @@
 
 ### 批次四：測試與文件整理
 
-- 先完成驗證環境標準化：Node `20.20.2`、Java 21、專案內 `firebase-tools@15.22.4`、固定 Ubuntu CI 與 Emulator 失敗診斷；維持一鍵 `npm test`。
+- 先完成驗證環境標準化：Windows、專案契約與固定 Ubuntu CI 統一為 Node `24.15.0`，搭配 Java 21、專案內 `firebase-tools@15.22.4` 與 Emulator 失敗診斷；維持一鍵 `npm test`。未部署 Functions 的 Node 20 只代表 Firebase 雲端 runtime 目標。
 - 分拆 smoke scenario 檔，但維持 runner 契約與既有 15 條情境。
 - `current-status.md` 只保留現在真相；歷史證據移入 archive 或 Git 歷史，避免交接文件反覆自相矛盾。
 - 每次發布同步更新 `current-status.md`、`roadmap.md`、`deploy-checklist.md`。
