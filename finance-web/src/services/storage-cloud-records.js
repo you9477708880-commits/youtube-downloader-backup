@@ -788,6 +788,9 @@ export async function createRecordCloudSync({
 export const __recordCloudTestUtils = {
   outboxKey,
   getDeviceId,
+  mapsEquivalent,
   buildConflictResolutionState,
   mergeRecordMapsByRevision,
+  serializeOutboxMutations,
+  sourceFingerprint,
 };
