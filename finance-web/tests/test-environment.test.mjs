@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   EXPECTED_TEST_ENVIRONMENT,
   evaluateTestEnvironment,
   parseJavaMajor,
 } from "../scripts/verify-test-environment.mjs";
-import { buildFirebaseArgs, classifyEmulatorFailure } from "../scripts/run-emulator-tests.mjs";
+import {
+  buildFirebaseArgs,
+  classifyEmulatorFailure,
+  clearEmulatorDiagnostics,
+} from "../scripts/run-emulator-tests.mjs";
 import browserCandidateModule from "./browser-candidates.js";
 
 const { browserCandidates } = browserCandidateModule;
@@ -43,6 +50,37 @@ test("emulator failures distinguish infrastructure 503 from test failures", () =
   );
   assert.equal(classifyEmulatorFailure("EADDRINUSE: address already in use"), "infrastructure-port-in-use");
   assert.equal(classifyEmulatorFailure("AssertionError: expected 2 to equal 1"), "test-or-emulator-failure");
+});
+
+test("Firebase CLI config permission errors take priority over stale 503 text", () => {
+  assert.equal(
+    classifyEmulatorFailure([
+      "EPERM: operation not permitted, open 'C:\\\\Users\\\\tester\\\\.config\\\\configstore\\\\firebase-tools.json'",
+      "old log: HTTP Error: 503 UNAVAILABLE: Network closed for unknown reason",
+    ].join("\n")),
+    "infrastructure-cli-config-permission",
+  );
+});
+
+test("emulator runner clears stale logs and latest diagnostics before a new run", () => {
+  const root = mkdtempSync(join(tmpdir(), "finance-web-emulator-diagnostics-"));
+  const outputRoot = join(root, "artifacts", "latest");
+  try {
+    mkdirSync(outputRoot, { recursive: true });
+    for (const filename of ["firebase-debug.log", "firestore-debug.log", "ui-debug.log"]) {
+      writeFileSync(join(root, filename), "stale 503 diagnostic\n");
+    }
+    writeFileSync(join(outputRoot, "summary.json"), "{}\n");
+
+    clearEmulatorDiagnostics({ logRoot: root, outputRoot });
+
+    assert.equal(existsSync(outputRoot), false);
+    assert.equal(existsSync(join(root, "firebase-debug.log")), false);
+    assert.equal(existsSync(join(root, "firestore-debug.log")), false);
+    assert.equal(existsSync(join(root, "ui-debug.log")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("browser candidates cover configured paths and fixed Linux runner paths", () => {

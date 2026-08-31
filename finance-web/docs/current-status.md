@@ -75,8 +75,8 @@ record-sync 邊界拆分已由固定 Ubuntu CI 完整復驗。現在主要剩餘
 - 本批新增的同步 characterization tests：通過；涵蓋 revision merge、同版衝突、tombstone、UID outbox、等價 state、UID switch、450 筆分批重試與 migration owner fence。
 - Firestore adapter 另有 5 項直接測試，鎖定 v7 路徑、SDK snapshot 轉換與錯誤邊界、400 筆分批上限、server timestamp 及 terminate-before-clear 順序；安全測試禁止 facade 重新引入 Firestore IO。
 - Windows 現有 Node 24.15.0 下的 unit、release artifact、驗收隔離及 15 條 smoke：全部通過；版本契約已與實際開發環境對齊。
-- 4 項驗證環境測試鎖定 Node 24.15.0、Java 21、專案 CLI 路徑、503／埠占用分類及 Linux 瀏覽器偵測；`npm test` 現在可直接在正常 Windows shell 進入完整發布級流程。
-- 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；統一後的 Node 24.15.0、Temurin 21.0.12、專案 CLI 15.22.4 與 Emulator 1.21.0 已再次重現。runner 正確分類為 `infrastructure-firestore-admin-503` 並保存 `.test-artifacts/emulators/latest`，不再把 21 個取消／失敗案例誤報為 record-sync 程式回歸。歷史診斷也曾在 Node 20.20.2 重現，因此不是 Node 版本分歧造成。
+- 6 項驗證環境測試鎖定 Node 24.15.0、Java 21、專案 CLI 路徑、503／埠占用分類、Linux 瀏覽器偵測，以及每次執行前的舊 Emulator 日誌清理；Firebase CLI 設定檔 EPERM 會獨立分類為 `infrastructure-cli-config-permission`，不再被舊 503 日誌誤導。
+- 本機 `npm run test:emulators` 仍受 Windows Firestore Emulator 503 阻擋；Node 24.15.0、Temurin 21.0.12、Microsoft OpenJDK 21.0.12.1、專案 CLI 15.22.4 與 Emulator 1.21.0 均已重現。runner 正確分類為 `infrastructure-firestore-admin-503` 並只保存當次 `.test-artifacts/emulators/latest`，不再把取消案例或舊日誌誤報為 record-sync 程式回歸。歷史診斷也曾在 Node 20.20.2 重現，因此不是 Node 版本或 Java 發行商差異造成。
 - 固定 `ubuntu-24.04` GitHub CI 已在工具鏈對齊前完整通過 `test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器同步衝突測試；工作流程現已改用 Node 24.15.0，需在推送本批後重新取得同版本 CI 證據。
 - GitHub Actions 的 `checkout`／`setup-node` 已升至 v5，受測應用也固定使用 Node 24.15.0；action runtime、Windows 開發版本與 CI 受測版本不再分岔。
 - 其他既有警告：Functions 使用的 `firebase-functions` 版本較舊。依本批限制不升級依賴。

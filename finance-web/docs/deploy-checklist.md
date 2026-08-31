@@ -113,7 +113,7 @@ npm run test:functions
 npm run test:emulators
 ```
 
-Emulator runner 只呼叫專案內 Firebase CLI。失敗時會把分類與 debug log 保存到 `.test-artifacts/emulators/latest`；GitHub CI 使用固定 `ubuntu-24.04` 並在失敗時上傳 14 天診斷 artifact。`infrastructure-firestore-admin-503` 表示 Emulator 環境故障，不應誤報為 Rules 或同步程式回歸，但仍不得視為發布通過。
+Emulator runner 只呼叫專案內 Firebase CLI。每次啟動前會刪除上一輪根目錄 debug log 與 `latest` artifact；失敗時只把當次分類與日誌保存到 `.test-artifacts/emulators/latest`。Firebase CLI 設定檔權限錯誤會標成 `infrastructure-cli-config-permission`，Firestore Rules 管理端點 503 則標成 `infrastructure-firestore-admin-503`，兩者都不得誤報為 Rules 或同步程式回歸，也不得視為發布通過。GitHub CI 使用固定 `ubuntu-24.04`，並在失敗時上傳 14 天診斷 artifact。
 
 Emulator 測試固定使用 `demo-finance-web`，不得改成正式 Firebase project ID。Firestore 規則測試需驗證未登入、錯誤 UID、legacy fence、migration ID、revision、tombstone 與實體 delete；Functions 最小測試需驗證 HTTP function 能啟動且未授權要求被拒絕。
 

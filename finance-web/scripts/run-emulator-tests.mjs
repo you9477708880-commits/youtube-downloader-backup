@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyTestEnvironment } from "./verify-test-environment.mjs";
@@ -26,6 +26,9 @@ export const EMULATOR_MODES = Object.freeze({
 
 export function classifyEmulatorFailure(output) {
   const text = String(output || "");
+  if (/EPERM[\s\S]{0,300}(?:configstore[\\/]firebase-tools\.json|firebase-tools\.json)|(?:configstore[\\/]firebase-tools\.json|firebase-tools\.json)[\s\S]{0,300}EPERM/i.test(text)) {
+    return "infrastructure-cli-config-permission";
+  }
   if (/503[\s\S]{0,200}(Network closed for unknown reason|UNAVAILABLE)|Network closed for unknown reason|UNAVAILABLE:\s*Network closed/i.test(text)) {
     return "infrastructure-firestore-admin-503";
   }
@@ -56,6 +59,13 @@ function retainChunk(buffer, chunk, limit = 2_000_000) {
   return next.length > limit ? next.slice(-limit) : next;
 }
 
+export function clearEmulatorDiagnostics({ logRoot = projectRoot, outputRoot = artifactRoot } = {}) {
+  rmSync(outputRoot, { recursive: true, force: true });
+  for (const filename of debugLogs) {
+    rmSync(resolve(logRoot, filename), { force: true });
+  }
+}
+
 function saveDiagnostics({ mode, exitCode, classification, output, environment }) {
   mkdirSync(artifactRoot, { recursive: true });
   const copiedLogs = [];
@@ -79,6 +89,7 @@ function saveDiagnostics({ mode, exitCode, classification, output, environment }
 export async function runEmulatorTests(mode = "all") {
   const environment = verifyTestEnvironment();
   const args = buildFirebaseArgs(mode);
+  clearEmulatorDiagnostics();
   let combinedOutput = "";
   const child = spawn(process.execPath, args, {
     cwd: projectRoot,
