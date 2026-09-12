@@ -16,7 +16,7 @@
     "test:emulators": "node scripts/run-emulator-tests.mjs all",
     "test:rules": "node scripts/run-emulator-tests.mjs rules",
     "test:functions": "node scripts/run-emulator-tests.mjs functions",
-    "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center,account-center --port=0",
+    "test:smoke": "node tests/smoke-runner.js --scenario=fund-shortfall-choice,transaction-edit-unlinks,fund-edit-recalculates,transaction-subcategory,andro-money-import,category-budget-cleanup,advance-edit-guards,repayment-edit,editing-completeness,desktop-core-layout,monthly-review,wish-fund-prefill,transaction-search,conflict-recovery-center,account-center,list-performance --port=0",
     "preview:acceptance": "node scripts/prepare-acceptance.js && node scripts/serve-acceptance.mjs --port=4186",
     "deploy:hosting:production": "node scripts/deploy-production.mjs"
   },

@@ -1,6 +1,6 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-08-30
+最後更新 / Last updated: 2026-09-12
 正式穩定分支 / Production stable branch: `main` at `67ed8fc`
 本機候選分支 / Local candidate branch: `codex/maintenance-life-cycle`
 最新已部署安全點 / Latest deployed safety point: `67ed8fc 修正 Windows 正式部署啟動器`
@@ -225,7 +225,7 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
    - 驗證環境固定為 Node `24.15.0`、Java 21、專案內 `firebase-tools@15.22.4` 與 `ubuntu-24.04` CI；Windows 開發環境使用相同 Node 版本，不再依賴本機全域 Firebase CLI。
    - 固定 Ubuntu CI 已完整通過 `npm run test:ci`、Rules／Functions Emulators 與雙隔離瀏覽器衝突測試；record-sync 邊界拆分的程式復驗已完成。本機 `test:fast` 仍只算快速回歸證據。
    - Emulator 失敗需保留 artifact 並區分環境故障與測試斷言，避免再把本機 503 誤判成程式拆分失敗。
-   - 下一個結構性整理是按產品區分拆 smoke scenarios；不得和 schema、migration 或新功能混成同一批。
+   - 2026-09-12 本機候選已按產品區拆分 smoke scenarios，加入列表分頁、退休局部更新及單次 render 共用計算；下一步是核對本輪驗收證據，不再為拆檔而拆檔。
    - Functions 仍不發布；裝置清理仍只在 acceptance namespace 或可丟棄帳號驗證。
 
 ### English
@@ -233,10 +233,10 @@ The following other batch was completed, pushed, and deployed on 2026-08-10:
 The immediate work order and current commit status are maintained in
 `docs/current-status.md`. The current recommendation is:
 
-1. **Restore local Emulator evidence before preparing another release candidate**
-   - The 2026-08-29 candidate passed 20/20 Emulator cases, 15/15 UI smoke scenarios, and desktop/mobile checks. After the 2026-08-30 record-sync boundary extraction, unit, release, acceptance, and all 15 smoke scenarios pass, but a local Rules administration endpoint 503 blocks the current Emulator rerun.
-   - Do not push or release the record-sync refactor until the full suite and two-profile conflict test pass again.
-   - Split smoke scenarios by product area next; do not combine that cleanup with schema, migration, or feature work.
+1. **Validate the current candidate before requesting release authority**
+   - Record-sync extraction has historical fixed Ubuntu CI evidence. Windows Rules administration 503 is a known environment limitation, not a passing test and not grounds for repeated Java changes.
+   - New unpushed commits still require a fresh fixed Node 24.15.0 / Java 21 CI run, including Rules, Functions and two-profile conflict tests, before release.
+   - The 2026-09-12 local batch splits smoke scenarios, bounds list DOM, narrows retirement rendering and shares per-render calculations. It does not change dependencies, schema, migration or financial rules. See current-status and the batch report for current evidence.
    - Keep management Functions undeployed and test device clearing only in the acceptance namespace or a disposable account.
 
 ## 5. 中期重構 / Mid-Term Refactors
@@ -251,7 +251,7 @@ The immediate work order and current commit status are maintained in
 
 2. **本機儲存錯誤隔離**
    - 合併前已完成逐欄位解析。
-   - 後續若資料量變大，可再評估儲存防抖或更完整的本機資料修復工具。
+   - 2026-09-12 已量測保存流程，暫不取消防護性 clone／normalize，也不延後本機持久化；大量資料下若要調整儲存技術，必須另立資料安全契約。
 
 3. **大額準備計畫變更規則**
    - 短期已採安全版本：保留目前直接重算整段規劃的計算方式，並用 UI / 文件提醒使用者。
@@ -337,7 +337,7 @@ Mid-term work:
 
 2. **Local storage error isolation**
    - Per-field parsing is complete.
-   - If local data grows large later, consider debounced saving or a more complete local data repair tool.
+   - The save pipeline was measured on 2026-09-12. Keep defensive cloning/normalization and local durability before UI/cloud; any future storage redesign needs a separate data-safety contract.
 
 3. **Fund plan-change rules**
    - The short-term safe version is adopted: keep the current whole-plan recalculation behavior and explain it in UI / docs.

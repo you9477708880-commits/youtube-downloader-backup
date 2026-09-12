@@ -55,7 +55,7 @@ function checkArtifact() {
   const allowedTopLevel = new Set(["index.html", "404.html", "manifest.webmanifest", "sw.js", "assets", "src", "admin"]);
   files.forEach((file) => assert.ok(allowedTopLevel.has(file.split("/")[0]), `Unexpected Hosting artifact file: ${file}`));
 
-  const forbiddenPatterns = [/^docs\//, /^tests\//, /^functions\//, /smoke-scenarios\.js$/, /\.md$/i, /\.epub$/i, /firestore\.rules$/];
+  const forbiddenPatterns = [/^docs\//, /^tests\//, /^functions\//, /smoke-scenarios(?:\/|\.js$)/, /\.md$/i, /\.epub$/i, /firestore\.rules$/];
   files.forEach((file) => forbiddenPatterns.forEach((pattern) => assert.doesNotMatch(file, pattern, `Forbidden Hosting artifact file: ${file}`)));
 
   files.filter((file) => extname(file) === ".html").forEach((file) => {
@@ -126,6 +126,7 @@ async function checkRemote() {
     fetchChecked("/src/services/pwa.js"),
     fetchChecked("/manifest.webmanifest"),
     fetchChecked("/src/smoke-scenarios.js", 404),
+    fetchChecked("/tests/smoke-scenarios/index.js", 404),
   ]);
   console.log(`Remote release health check passed: ${remoteUrl}`);
 }

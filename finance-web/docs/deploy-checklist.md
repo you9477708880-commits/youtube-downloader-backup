@@ -2,6 +2,10 @@
 
 這份文件協助確認目前部署的是正確資料夾、正確 Firebase 專案，以及核心檢查都已通過。
 
+2026-09-12 效能／維護批次只授權本機提交，沒有推送或部署授權。驗收與量測見
+`performance-maintenance-2026-09-12.md`。歷史 CI 綠燈不可代替本批提交的 CI；Windows
+已知 Emulator 503 也不是測試通過。發布前仍須取得固定 CI 的最新完整證據。
+
 ## 正式部署來源
 
 正式網站資料夾：
@@ -210,7 +214,7 @@ node .\scripts\production-deploy-guard.mjs
 node .\scripts\prepare-hosting.js
 ```
 
-這個步驟會重新建立 `.firebase-public`，而 Firebase Hosting 只會發布該目錄。正式發布內容採允許清單，只包含 `index.html`、`404.html`、`assets/`、正式 `src/` 與 `admin/`；`src/smoke-scenarios.js` 會被排除。
+這個步驟會重新建立 `.firebase-public`，而 Firebase Hosting 只會發布該目錄。正式發布內容採允許清單，只包含 `index.html`、`404.html`、`assets/`、正式 `src/` 與 `admin/`；smoke fixtures 已移至 `tests/smoke-scenarios/`，整個 tests 目錄不得入包，舊 `src/smoke-scenarios.js` 路徑仍保留排除防護。
 
 若這次有修改 `firestore.rules`，請先部署規則並確認成功，再部署相容 Hosting：
 

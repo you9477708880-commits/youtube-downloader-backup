@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  const scenarios = await import("../src/smoke-scenarios.js");
+  const scenarios = await import("./smoke-scenarios/index.js");
   const prepareName = toScenarioExportName("prepare", smokeScenario);
   const runName = toScenarioExportName("run", smokeScenario);
 

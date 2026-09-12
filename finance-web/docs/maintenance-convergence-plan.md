@@ -1,6 +1,6 @@
 # 維護收斂計畫
 
-最後更新：2026-08-30
+最後更新：2026-09-12
 
 ## 結論
 
@@ -15,7 +15,7 @@
 | 已完成 | `src/app/bootstrap.js` | 920 → 約 307 行 | 原本初始化、render 與 controller 組裝集中 | 已抽出 `ui-coordinator`、`render-coordinator` 與 `controller-composition`；bootstrap 只保留 runtime、store、sync、事件與啟動組裝 |
 | 已完成並由固定 CI 復驗 | `src/services/storage-cloud-records.js` | 793 → 約 549 行 | migration、revision、outbox、conflict 與 Firebase adapter 原本同檔；錯誤可能影響資料安全 | 純協定、UID 本機 outbox 與 Firestore SDK IO 已抽離；schema、路徑、revision、tombstone、migration 與衝突選擇不變 |
 | 已完成 | `src/app/controllers/transaction-controller.js` | 641 → 約 413 行 | 原本表單、驗證、交易建構、準備金連結、代墊與還款集中 | 純驗證、fund allocation、detail edit、刪除 cascade 與 repayment command 已移入約 299 行的 `domain/transaction-commands.js`；controller 保留表單與互動編排 |
-| P3 | `src/smoke-scenarios.js` | 約 1305 行 | 測試情境越多越難定位，但不直接影響正式 runtime | 按產品區拆 scenario modules，runner 契約保持不變 |
+| 本機完成 | `tests/smoke-scenarios/` | 原 1307 行已按功能分檔 | fixtures 與正式 runtime 分離 | 保留原 15 情境的 prepare/run 契約，新增列表效能互動情境；不追求每檔固定行數 |
 
 ## 新功能維護閘門
 
@@ -50,7 +50,7 @@
 - 把純 record merge／migration protocol 與 Firebase SDK IO 分開。
 - 完成標準：Emulator 證據不變，跨裝置衝突與復原中心行為不變，Functions／Rules 不因重構而部署。
 
-### 批次四：測試與文件整理
+### 批次四：測試與文件整理（2026-09-12 本機完成）
 
 - 先完成驗證環境標準化：Windows、專案契約與固定 Ubuntu CI 統一為 Node `24.15.0`，搭配 Java 21、專案內 `firebase-tools@15.22.4` 與 Emulator 失敗診斷；維持一鍵 `npm test`。未部署 Functions 的 Node 20 只代表 Firebase 雲端 runtime 目標。
 - 分拆 smoke scenario 檔，但維持 runner 契約與既有 15 條情境。
@@ -72,7 +72,16 @@
 - 功能 smoke 固定關閉 cloud／PWA，避免背景匿名驗證污染 UI 情境；每個瀏覽器 fallback 使用獨立暫存 profile。15 個 smoke scenarios 已完整通過。
 - 本機 Windows Firestore Emulator 的 Rules 管理端點在 Temurin 21.0.8／21.0.12、Emulator 1.20.2／1.20.4／1.21.0 與 Node 20.20.2／24.15.0 皆回傳 503；runner 現在將它分類為基礎設施故障。固定 Ubuntu CI 已完整通過同一套 Rules、Functions 與雙隔離瀏覽器測試，因此批次三程式復驗完成。
 
-標準化 Linux CI 已恢復 Emulator 證據，record-sync 重構完成復驗。下一個結構性工作才是批次四 smoke scenario 分檔；本機 Windows 503 保留為環境診斷，不再阻擋或冒充程式驗收結果。
+標準化 Linux CI 已恢復歷史 Emulator 證據，record-sync 重構完成復驗。2026-09-12 已完成批次四分檔與 runner 收斂；本輪未推送修改仍須取得新 CI 證據，本機 Windows 503 保留為環境診斷，不再冒充程式驗收結果。
+
+## 2026-09-12 效能與互動收斂
+
+- 已實作 ledger 分頁、帳戶交易 lazy render、退休局部更新與表單選值保留。
+- `render-models.js` 只提供單次 render 的惰性計算，下一次 state／範圍更新全部重建；禁止把它保存成跨 UID 的全域快取。
+- 代墊還款與 CSV 外部鍵建立索引，first-match、duplicate repair、update、provenance 與連結準備金的既有語意需保持 regression coverage。
+- 測試 runner 有界並行並集中輸出；新增寫共用 artifact 的測試必須列入 `exclusiveUnitTests`。故障時停止啟動新工作並等待在途程序結束。
+- 保存 pipeline 僅量測，不移除 clone／normalize，不把持久化延後；20,000 筆的保存成本列為未來有實際需要才處理的熱點。
+- 詳細測量與驗收見 `performance-maintenance-2026-09-12.md`。不要以大量新功能作為這批維護的後續預設工作。
 
 ## 這次生活週期提醒的邊界
 

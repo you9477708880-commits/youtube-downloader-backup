@@ -1,6 +1,6 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-08-30
+- 最後更新：2026-09-12
 - 正式分支：`main` at `67ed8fc`
 - 遠端正式點：`origin/main` at `67ed8fc`
 - 正式 Hosting 已知部署點：`67ed8fc`
@@ -57,9 +57,23 @@
 6. `createRecordCloudSync()` 公開介面、Firestore v7 路徑、record codec、revision、tombstone、migration fence 與整筆衝突選擇均未改變。
 7. 驗證環境已統一：Windows、`.nvmrc`、package engine、環境檢查與固定 `ubuntu-24.04` CI 全部使用 Node `24.15.0`，搭配 Java 21、專案內 `firebase-tools@15.22.4` 與跨平台 Chromium 路徑；本機不再依賴全域 Firebase CLI。未部署 Functions 的 Node 20 只代表 Firebase 支援的雲端 runtime 目標。
 
-record-sync 邊界拆分已由固定 Ubuntu CI 完整復驗。現在主要剩餘熱點是 `smoke-scenarios.js` 約 1307 行；下一批適合按產品區分拆 smoke scenario modules。record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
+record-sync 邊界拆分已有歷史固定 Ubuntu CI 復驗證據。本輪尚未推送的修改不能沿用該次綠燈作為最新發布證據。record sync 若再拆，只能由新的失敗證據驅動，不以行數為理由繼續切碎。
 
-## 目前驗證
+## 2026-09-12 本機效能與維護收斂
+
+- 記帳明細每頁 50 筆；日期小計、交易筆數與報表仍使用完整符合資料。搜尋不再替換總覽最近交易。
+- 帳戶相關交易收合時不建立明細 DOM，展開才索引與分頁；一般重新渲染保留頁碼、展開狀態及未送出的對帳輸入，整份 state／UID 切換會清除這些暫存。
+- 退休控制項只更新退休頁，不重建交易、帳戶表單或月報；帳戶選項更新與明細渲染分離。
+- 代墊還款與 CSV 重複配對採單次索引；每次完整 render 共用 budget／balances／balanceSheet，沒有跨更新快取。
+- smoke fixtures 已搬到 `tests/smoke-scenarios/` 按功能分檔；unit／語法 runner 預設最多 4 個工作程序，可用 `--jobs=1` 復現序列執行，會寫入共用打包目錄的測試獨立執行。
+- 保存流程完成量測但不改動：維持先本機成功保存，再替換 state、畫面更新及雲端排隊的安全順序。
+- 本批不變更 dependencies、lockfile、schema、帳務規則、migration、Firestore Rules 或 Functions；不推送、不部署、不操作正式或使用者瀏覽器資料。
+- 測試證據、量測範圍及集中人工驗收清單見 `performance-maintenance-2026-09-12.md`。
+- 本輪最終分項：全部 unit／syntax、release 打包與啟動、驗收隔離與啟動通過，完整 smoke 複驗 16/16。曾有一次 CSV 瀏覽器未回報導致該輪 `test:fast` exit 1；已保留失敗紀錄，未改斷言後完整 smoke 重跑通過，詳見批次報告。Emulators／遠端 CI 本輪未執行。
+
+## 前批歷史驗證（截至 2026-08-30）
+
+以下為前批紀錄，不代表 2026-09-12 候選提交已通過遠端 CI；本輪結果見上述批次報告。
 
 - 語法與全部 unit tests：通過。
 - 生活提醒 domain：包含無紀錄、即將到期、逾期、停用、排序、同日去重與不修改交易。
