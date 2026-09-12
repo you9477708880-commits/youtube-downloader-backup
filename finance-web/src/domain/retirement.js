@@ -5,8 +5,7 @@ function finiteNumberOrDefault(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs }) {
-  const balances = calculateAccountBalances(state);
+export function calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs, balances = calculateAccountBalances(state) }) {
 
   let totalWorth = 0;
   let emergencyFund = 0;

@@ -32,6 +32,7 @@ function createHarness() {
     getFilterRange: () => ({ start: "2026-08-01", end: "2026-08-31" }),
     getFilteredTransactions: () => [{ id: "tx-1" }],
     views,
+    refreshAccounts: () => {},
   });
   return { calls, coordinator, dom, state };
 }
@@ -51,6 +52,22 @@ test("render coordinator owns the complete render order and ledger fallback", ()
   ]);
   assert.equal(calls[0][1].state, state);
   assert.deepEqual(calls[0][1].filteredTxs, [{ id: "tx-1" }]);
+});
+
+test("retirement-only inputs do not rebuild reports, ledger or form options", () => {
+  const { calls, coordinator } = createHarness();
+  coordinator.renderRetirementOnly();
+  assert.deepEqual(calls.map(([name]) => name), ["renderRetirement"]);
+});
+
+test("one full render shares models but the next render starts fresh", () => {
+  const { calls, coordinator } = createHarness();
+  coordinator.renderAll();
+  const first = calls.find(([name]) => name === "renderMonthlyReview")[1].readModels;
+  assert.equal(calls.find(([name]) => name === "renderRetirement")[1].readModels, first);
+  calls.length = 0;
+  coordinator.renderAll();
+  assert.notEqual(calls.find(([name]) => name === "renderMonthlyReview")[1].readModels, first);
 });
 
 test("bound search and reminder controllers replace only their owned render slots", () => {

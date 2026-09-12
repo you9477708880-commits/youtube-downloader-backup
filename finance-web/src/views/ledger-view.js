@@ -1,16 +1,38 @@
 import { getLinkedFundSpendAmount } from "../domain/sinking-funds.js";
-import { formatTransactionCategory, getAdvanceOutstanding, getOpenAdvances, groupTransactionsByDate, isBudgetSpreadTx } from "../domain/transactions.js";
+import { buildAdvanceRepaymentIndex, formatTransactionCategory, getOpenAdvances, groupTransactionsByDate, isBudgetSpreadTx } from "../domain/transactions.js";
+import { DEFAULT_PAGE_SIZE, focusListPageControl, paginateList, renderListPagination } from "./list-pagination.js";
 
-export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
-  const accountOptions = state.accounts
-    .map((account) => `<option value="${utils.escapeHTML(account.id)}">${utils.escapeHTML(account.name)}${account.isEm ? " 🛡️緊急備用" : ""}</option>`)
-    .join("");
+const ledgerViews = new WeakMap();
 
-  document.querySelectorAll(".acc-opts").forEach((node) => {
-    node.innerHTML = accountOptions;
-  });
+export function resetLedgerView(dom) {
+  const view = ledgerViews.get(dom.aTx);
+  if (view) dom.aTx.removeEventListener?.("click", view.handlePage);
+  ledgerViews.delete(dom.aTx);
+}
 
-  const findAccountName = (id) => state.accounts.find((account) => account.id === id)?.name || "未知帳戶";
+export function renderLedger({ state, filteredTxs, reportTxs = filteredTxs, constants, utils, dom, paginationKey = "", pageSize = DEFAULT_PAGE_SIZE, readModels }) {
+  let view = ledgerViews.get(dom.aTx);
+  if (!view) {
+    view = { page: 0, paginationKey };
+    view.handlePage = (event) => {
+      const button = event.target.closest?.("[data-list-page]");
+      if (!button || !dom.aTx.contains(button) || button.disabled) return;
+      const direction = button.dataset.listPage;
+      view.page += direction === "next" ? 1 : -1;
+      view.renderPage();
+      focusListPageControl(dom.aTx, direction);
+    };
+    dom.aTx.addEventListener?.("click", view.handlePage);
+    ledgerViews.set(dom.aTx, view);
+  }
+  if (view.paginationKey !== paginationKey) view.page = 0;
+  view.paginationKey = paginationKey;
+
+  const accountNames = new Map();
+  for (const account of state.accounts) {
+    if (!accountNames.has(account.id)) accountNames.set(account.id, account.name);
+  }
+  const findAccountName = (id) => accountNames.get(id) || "未知帳戶";
   const findFund = (id) => state.sinkingFunds?.find((fund) => fund.id === id);
   const findFundName = (id) => state.sinkingFunds?.find((fund) => fund.id === id)?.name || "";
 
@@ -23,19 +45,26 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
     return { sign: "", color: "text-trn", value: tx.amount };
   };
 
-  const buildHtml = (txList, showDelete) => {
+  const repayments = buildAdvanceRepaymentIndex(state.txs);
+  const openAdvances = readModels?.openAdvances ?? getOpenAdvances(state.txs, repayments);
+  const hasOutstanding = (tx) => Math.max(0, (tx.receivableAmount || 0) - (repayments.has(String(tx.id)) ? repayments.get(String(tx.id)) : 0)) > 0;
+  const allGroups = groupTransactionsByDate(filteredTxs);
+  const sortedTransactions = [...allGroups.values()].flatMap((group) => group.txs);
+
+  const buildHtml = (txList, showDelete, fullDateTotals = false) => {
     if (!txList.length) return "";
 
     const grouped = groupTransactionsByDate(txList);
     let html = "";
 
     for (const [date, group] of grouped) {
+      const totals = fullDateTotals ? allGroups.get(date) : group;
       const dateObj = new Date(date);
       const dayString = Number.isNaN(dateObj.getTime()) ? "" : ` (${constants.days[dateObj.getDay()]})`;
       let summary = "";
 
-      if (group.inc > 0) summary += `<span class="text-inc">+${utils.formatMoney(group.inc)}</span>`;
-      if (group.exp > 0) summary += `${summary ? " " : ""}<span class="text-exp">-${utils.formatMoney(group.exp)}</span>`;
+      if (totals.inc > 0) summary += `<span class="text-inc">+${utils.formatMoney(totals.inc)}</span>`;
+      if (totals.exp > 0) summary += `${summary ? " " : ""}<span class="text-exp">-${utils.formatMoney(totals.exp)}</span>`;
 
       html += `<div class="tx-date-hdr"><span>${date}${dayString}</span><span class="tx-date-sum">${summary}</span></div>`;
 
@@ -83,7 +112,7 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
               <div class="flex-col align-end gap-1">
                 <div class="tx-amt ${amount.color}">${amount.sign}${utils.formatMoney(amount.value)}</div>
                 <div class="tx-acc">${utils.escapeHTML(accountLabel)}</div>
-                ${advance && getAdvanceOutstanding(state.txs, tx) > 0 ? `<button type="button" class="sbtn outline compact" data-action="repay-advance" data-id="${txId}">登記收款</button>` : ""}
+                ${advance && hasOutstanding(tx) ? `<button type="button" class="sbtn outline compact" data-action="repay-advance" data-id="${txId}">登記收款</button>` : ""}
               </div>
               ${
                 showDelete
@@ -108,7 +137,6 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
     return html;
   };
 
-  const openAdvances = getOpenAdvances(state.txs);
   dom.advList.innerHTML = openAdvances.length
     ? openAdvances
         .map((tx) => `
@@ -126,7 +154,13 @@ export function renderLedger({ state, filteredTxs, constants, utils, dom }) {
         .join("")
     : '<div class="empty">目前沒有尚未收回的代墊。</div>';
 
-  dom.oTx.innerHTML = buildHtml(filteredTxs.slice(0, 10), false) || '<div class="empty">本期沒有交易。</div>';
-  dom.aTx.innerHTML = buildHtml(filteredTxs, true) || '<div class="empty">目前還沒有任何交易。</div>';
+  dom.oTx.innerHTML = buildHtml(reportTxs.slice(0, 10), false) || '<div class="empty">本期沒有交易。</div>';
+  view.renderPage = () => {
+    const pagination = paginateList(sortedTransactions, view.page, pageSize);
+    view.page = pagination.page;
+    const note = pagination.pageCount > 1 ? '<div class="text-xs text-gray mb-2">日期小計包含當日所有符合紀錄；分頁不影響報表總額。</div>' : "";
+    dom.aTx.innerHTML = renderListPagination(pagination) + note + (buildHtml(pagination.items, true, true) || '<div class="empty">目前還沒有任何交易。</div>');
+  };
+  view.renderPage();
   dom.txCount.textContent = `${filteredTxs.length} 筆`;
 }

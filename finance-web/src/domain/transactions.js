@@ -149,14 +149,28 @@ export function getAdvanceOutstanding(txs, advanceTx) {
   return Math.max(0, (advanceTx.receivableAmount || 0) - repaid);
 }
 
-export function getOpenAdvances(txs) {
-  return txs
-    .filter((tx) => tx.type === "advance" && getAdvanceOutstanding(txs, tx) > 0)
-    .map((tx) => ({
-      ...tx,
-      repaidAmount: getAdvanceRepaidAmount(txs, tx.id),
-      outstandingAmount: getAdvanceOutstanding(txs, tx),
-    }));
+export function buildAdvanceRepaymentIndex(txs) {
+  const repaidByAdvanceId = new Map();
+  for (const tx of txs) {
+    // Match getAdvanceRepaidAmount's default excluded ID and string ID comparison.
+    if (tx.type !== "advance_repayment" || String(tx.id) === "") continue;
+    const key = String(tx.advanceId);
+    const previous = repaidByAdvanceId.has(key) ? repaidByAdvanceId.get(key) : 0;
+    repaidByAdvanceId.set(key, previous + tx.amount);
+  }
+  return repaidByAdvanceId;
+}
+
+export function getOpenAdvances(txs, repaidByAdvanceId = buildAdvanceRepaymentIndex(txs)) {
+  const openAdvances = [];
+  for (const tx of txs) {
+    if (tx.type !== "advance") continue;
+    const key = String(tx.id);
+    const repaidAmount = repaidByAdvanceId.has(key) ? repaidByAdvanceId.get(key) : 0;
+    const outstandingAmount = Math.max(0, (tx.receivableAmount || 0) - repaidAmount);
+    if (outstandingAmount > 0) openAdvances.push({ ...tx, repaidAmount, outstandingAmount });
+  }
+  return openAdvances;
 }
 
 export function groupTransactionsByDate(txs) {

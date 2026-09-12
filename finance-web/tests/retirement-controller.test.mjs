@@ -64,7 +64,7 @@ function createHarness({ linked = false, manualAsset = 120000 } = {}) {
       store.update(mutator);
       updateUi(store.getState());
     },
-    renderAll: () => { calls.render += 1; },
+    renderRetirement: () => { calls.render += 1; },
     formatMoney: (value) => `money:${Number(value)}`,
     toMoneyInt: (value) => Math.round(Number(value) || 0),
   });

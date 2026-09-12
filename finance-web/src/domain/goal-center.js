@@ -2,8 +2,8 @@ import { calculateBudgetData } from "./budget.js";
 import { getFundTargetPlanStatus } from "./sinking-funds.js";
 import { buildWishPlan } from "./wishes.js";
 
-export function buildGoalCenterData(state, range) {
-  const budget = calculateBudgetData(state, range);
+export function buildGoalCenterData(state, range, shared = {}) {
+  const budget = shared.budget ?? calculateBudgetData(state, range);
   const activeFundGoals = budget.funds.map((fund) => {
     const planStatus = fund.targetMonth ? getFundTargetPlanStatus(fund) : null;
     return {

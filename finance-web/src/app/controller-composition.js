@@ -307,12 +307,13 @@ export function createControllerComposition({
     },
     store,
     commitState,
-    renderAll,
+    renderRetirement: renderCoordinator.renderRetirementOnly,
     formatMoney,
     toMoneyInt,
   });
 
   const resettableControllers = [
+    renderCoordinator,
     balanceSheetController,
     accountCenterController,
     wishlistController,

@@ -40,11 +40,11 @@ export function calculateAccountBalances(state) {
   return balances;
 }
 
-export function calculateBalanceSheet(state) {
-  const balances = calculateAccountBalances(state);
+export function calculateBalanceSheet(state, shared = {}) {
+  const balances = shared.balances ?? calculateAccountBalances(state);
   const assets = state.bsI.filter((item) => item.cat === "asset");
   const liabilities = state.bsI.filter((item) => item.cat === "liability");
-  const receivables = getOpenAdvances(state.txs);
+  const receivables = shared.receivables ?? getOpenAdvances(state.txs);
   const receivableTotal = receivables.reduce((sum, tx) => sum + tx.outstandingAmount, 0);
   const fallbackBalance = balances[DELETED_ACCOUNT_FALLBACK_ID] || 0;
 

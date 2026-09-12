@@ -88,12 +88,12 @@ function describeBudgetSourceType(type) {
   return "其他";
 }
 
-export function calculateMonthlyReviewData(state, range) {
+export function calculateMonthlyReviewData(state, range, shared = {}) {
   const txsInRange = (state.txs || []).filter((tx) => isDateInRange(tx.date, range));
   const overview = summarizeOverview(txsInRange);
   const cashFlow = summarizeCashFlow(txsInRange);
-  const budget = calculateBudgetData(state, range);
-  const balanceSheet = calculateBalanceSheet(state);
+  const budget = shared.budget ?? calculateBudgetData(state, range);
+  const balanceSheet = shared.balanceSheet ?? calculateBalanceSheet(state);
   const fundSpend = budget.funds.reduce((sum, fund) => sum + fund.spendAmount, 0);
   const fundNetChange = budget.fundContribution + budget.manualTopups - fundSpend;
   const requiredBudgetUse = budget.livingExpense + budget.fundContribution + budget.manualTopups;

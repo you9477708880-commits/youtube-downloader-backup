@@ -70,8 +70,8 @@ function renderLinkedFundTransactions(fund, state, utils) {
   `;
 }
 
-export function renderWishlist({ state, filterRange, constants, utils, dom }) {
-  const budget = calculateBudgetData(state, filterRange);
+export function renderWishlist({ state, filterRange, constants, utils, dom, readModels }) {
+  const budget = readModels?.budget ?? calculateBudgetData(state, filterRange);
 
   const renderSourceItems = (items) =>
     items.length

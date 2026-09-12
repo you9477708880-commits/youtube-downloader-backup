@@ -68,10 +68,10 @@ function renderComparison(review, utils) {
   `;
 }
 
-export function renderMonthlyReview({ state, filterRange, utils, dom }) {
+export function renderMonthlyReview({ state, filterRange, utils, dom, readModels }) {
   if (!dom.monthlyReview) return;
 
-  const review = calculateMonthlyReviewData(state, filterRange);
+  const review = calculateMonthlyReviewData(state, filterRange, readModels);
   const period = review.range.start && review.range.end ? `${review.range.start} ~ ${review.range.end}` : "目前篩選範圍";
   const budgetTone = review.budget.budgetShortfall > 0 ? "text-exp" : "text-inc";
   const netTone = review.ledgerNet >= 0 ? "text-inc" : "text-exp";

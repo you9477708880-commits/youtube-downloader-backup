@@ -2,7 +2,7 @@ export function createRetirementController({
   elements,
   store,
   commitState,
-  renderAll,
+  renderRetirement,
   formatMoney,
   toMoneyInt,
 }) {
@@ -77,13 +77,13 @@ export function createRetirementController({
     }, {
       updateUi: () => {
         toggleLinkedUi();
-        renderAll();
+        renderRetirement();
       },
     });
   };
 
-  const updateAge = () => renderAll();
-  const updateGuardrail = () => renderAll();
+  const updateAge = () => renderRetirement();
+  const updateGuardrail = () => renderRetirement();
 
   const updateInput = (inputKey, event) => {
     const [output, formatter] = inputDefinitions[inputKey];
@@ -91,10 +91,10 @@ export function createRetirementController({
     if (inputKey === "retireAsset" && !store.getState().settings.retLinked) {
       commitState((state) => {
         state.settings.retManualAsset = toMoneyInt(event.target.value);
-      }, { updateUi: renderAll });
+      }, { updateUi: renderRetirement });
       return;
     }
-    renderAll();
+    renderRetirement();
   };
 
   const presetRet = (returnRate, inflationRate) => {
@@ -104,7 +104,7 @@ export function createRetirementController({
     contributionReturnValue.textContent = `${returnRate.toFixed(1)}%`;
     inflation.value = inflationRate;
     inflationValue.textContent = `${inflationRate.toFixed(1)}%`;
-    renderAll();
+    renderRetirement();
   };
 
   const toggleTable = () => {

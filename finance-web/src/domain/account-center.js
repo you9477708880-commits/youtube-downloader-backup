@@ -45,8 +45,8 @@ export function getCreditCardSchedule(account, today = new Date()) {
   };
 }
 
-export function calculateAccountCenter(state, today = new Date()) {
-  const balances = calculateAccountBalances(state);
+export function calculateAccountCenter(state, today = new Date(), shared = {}) {
+  const balances = shared.balances ?? calculateAccountBalances(state);
   const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
   const todayText = localDateString(today);
   const accounts = state.accounts.map((account) => {

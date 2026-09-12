@@ -529,6 +529,52 @@ test("CSV update preserves the local transaction ID and atomically removes its o
   assert.match(harness.calls.toasts.at(-1)[0], /已新增 1 筆、更新 1 筆/);
 });
 
+test("CSV matching and replacement retain the first existing and first imported duplicate", async () => {
+  for (const mode of ["update", "repair-accounts"]) {
+    const harness = createHarness();
+    harness.store.update((state) => {
+      state.txs.push({ ...state.txs[0], id: "second-local", amount: 88 });
+    });
+    harness.setImportedTransactions([
+      { ...harness.importedTransactions[0], externalId: 6542, amount: 111 },
+      { ...harness.importedTransactions[0], amount: 222, sourceAccountName: "現金" },
+    ]);
+    await harness.controller.openAndroMoneyImport({});
+    harness.elements.androMoneyDuplicateMode.value = mode;
+    await harness.controller.confirmAndroMoneyImport();
+    const [first, second] = harness.store.getState().txs;
+    assert.equal(first.id, "local-6542");
+    assert.equal(first.acc, "bank");
+    assert.equal(first.amount, mode === "update" ? 111 : 99);
+    assert.equal(second.id, "second-local");
+    assert.equal(second.acc, "cash");
+    assert.equal(second.amount, 88);
+  }
+});
+
+test("CSV matching keeps source and external ID boundaries, empty IDs, and input-only duplicates", async () => {
+  const harness = createHarness();
+  const base = harness.importedTransactions[0];
+  harness.store.update((state) => {
+    state.txs = [
+      { ...base, id: "local-colon", externalSource: "a:b", externalId: "c" },
+      { ...base, id: "local-zero", externalId: 0 },
+    ];
+  });
+  harness.setImportedTransactions([
+    { ...base, id: "new-colon", externalSource: "a", externalId: "b:c" },
+    { ...base, id: "new-zero", externalId: 0 },
+    { ...base, id: "new-first", externalId: "fresh" },
+    { ...base, id: "new-second", externalId: "fresh" },
+  ]);
+  await harness.controller.openAndroMoneyImport({});
+  harness.elements.androMoneyDuplicateMode.value = "update";
+  await harness.controller.confirmAndroMoneyImport();
+  assert.deepEqual(harness.store.getState().txs.map((tx) => tx.id), [
+    "new-colon", "new-zero", "new-first", "new-second", "local-colon", "local-zero",
+  ]);
+});
+
 test("CSV import reports local durability when cloud save is unavailable", async () => {
   const harness = createHarness();
   harness.setCloudSaveResult(false);

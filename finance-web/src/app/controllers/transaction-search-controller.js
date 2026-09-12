@@ -51,10 +51,10 @@ export function createTransactionSearchController({
     });
   }
 
-  function render() {
+  function render({ readModels } = {}) {
     const model = getModel();
     renderTransactionSearch({ model, elements });
-    renderTransactions(model.matches);
+    renderTransactions(model.matches, { readModels, paginationKey: JSON.stringify([model.query, model.range]) });
     return model;
   }
 

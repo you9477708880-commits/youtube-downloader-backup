@@ -56,10 +56,10 @@ function renderWishCandidates(wishes, utils) {
   }).join("");
 }
 
-export function renderGoalCenter({ state, filterRange, utils, dom }) {
+export function renderGoalCenter({ state, filterRange, utils, dom, readModels }) {
   if (!dom.goalCenter) return;
   const detailsWereOpen = !!dom.goalCenter.querySelector?.(".goal-center-details")?.open;
-  const model = buildGoalCenterData(state, filterRange);
+  const model = buildGoalCenterData(state, filterRange, readModels);
   const filter = normalizeFilter(dom.goalCenter.dataset.filter);
   dom.goalCenter.dataset.filter = filter;
   const showActive = filter !== "considering";

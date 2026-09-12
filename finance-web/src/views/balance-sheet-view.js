@@ -1,12 +1,15 @@
 import { calculateBalanceSheet } from "../domain/accounts.js";
 import { calculateAccountCenter } from "../domain/account-center.js";
-import { getTransactionAccountIds, renderTransactionDetailList } from "./transaction-detail-view.js";
+import { prepareAccountHistory, resetAccountHistory } from "./account-history-view.js";
 
-export function renderBalanceSheet({ state, utils, dom }) {
-  const data = calculateBalanceSheet(state);
-  const accountCenter = calculateAccountCenter(state);
-  const getAccountName = (id) => state.accounts.find((account) => account.id === id)?.name || "未知帳戶";
-  const getAccountTxs = (accountId) => state.txs.filter((tx) => getTransactionAccountIds(tx).includes(accountId));
+export function resetBalanceSheetView(dom) {
+  resetAccountHistory(dom.accountCenter);
+}
+
+export function renderBalanceSheet({ state, utils, dom, readModels, pageSize }) {
+  const data = readModels?.balanceSheet ?? calculateBalanceSheet(state);
+  const accountCenter = calculateAccountCenter(state, new Date(), { balances: readModels?.balances });
+  const historyView = prepareAccountHistory({ container: dom.accountCenter, state, utils, pageSize });
   const emergencyIcon = (enabled) => (enabled ? "🛡️" : '<span class="opacity-30">🛡️</span>');
 
   const accountRows = state.accounts
@@ -64,8 +67,9 @@ export function renderBalanceSheet({ state, utils, dom }) {
   `;
 
   dom.accountCenter.innerHTML = accountCenter.accounts.length
-    ? accountCenter.accounts.map((account) => {
+    ? accountCenter.accounts.map((account, index) => {
       const accountId = utils.escapeHTML(account.id);
+      const accountKey = historyView.accountKeys[index];
       const isCard = account.type === "liability";
       const schedule = account.schedule;
       const metrics = isCard
@@ -83,7 +87,7 @@ export function renderBalanceSheet({ state, utils, dom }) {
         : `<div class="account-metrics"><div><span>目前餘額</span><strong class="${account.balance >= 0 ? "text-inc" : "text-exp"}">${utils.formatMoney(account.balance)}</strong></div><div><span>本月流入</span><strong class="text-inc">${utils.formatMoney(account.monthInflow)}</strong></div><div><span>本月流出</span><strong class="text-exp">${utils.formatMoney(account.monthOutflow)}</strong></div><div><span>相關紀錄</span><strong>${account.transactionCount} 筆</strong></div></div>`;
 
       return `
-        <details class="account-card">
+        <details class="account-card" data-account-card="${accountId}" data-account-key="${utils.escapeHTML(accountKey)}" ${historyView.openAccounts.has(accountKey) ? "open" : ""}>
           <summary>
             <span><strong>${utils.escapeHTML(account.name)}</strong><span class="bdg ${isCard ? "bdg-r" : "bdg-g"}">${isCard ? "負債／信用卡" : "資產帳戶"}</span></span>
             <span class="font-mono ${account.balance < 0 ? "text-exp" : "text-inc"}">${utils.formatMoney(account.balance)}</span>
@@ -97,14 +101,15 @@ export function renderBalanceSheet({ state, utils, dom }) {
           <div class="account-reconcile">
             <label class="flb">對帳實際餘額${isCard ? "（欠款請輸入負數）" : ""}</label>
             <div class="account-reconcile-row">
-              <input type="number" step="1" data-reconcile-input="${accountId}" placeholder="金融機構顯示的餘額">
+              <input type="number" step="1" data-reconcile-input="${accountId}" data-account-key="${utils.escapeHTML(accountKey)}" placeholder="金融機構顯示的餘額">
               <button type="button" class="sbtn outline compact" data-action="reconcile-account" data-id="${accountId}">比對並建立調整</button>
             </div>
             <div class="text-xs text-gray mt-1">只有你確認後才建立調整；調整不列入收入、支出或預算，刪除該紀錄即可撤銷。</div>
           </div>
-          <details class="account-transactions"><summary>查看相關交易（${account.transactionCount}）</summary>${renderTransactionDetailList({ txs: getAccountTxs(account.id), utils, getAccountName, accountId: account.id })}</details>
+          <details class="account-transactions" data-account-transactions="${accountId}" data-account-key="${utils.escapeHTML(accountKey)}" ${historyView.openHistories.has(accountKey) ? "open" : ""}><summary>查看相關交易（${account.transactionCount}）</summary><div data-account-history></div></details>
         </details>
       `;
     }).join("")
     : '<div class="empty">尚無帳戶；可先在左側新增現金、銀行或信用卡。</div>';
+  historyView.restore();
 }

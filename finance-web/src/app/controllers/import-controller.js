@@ -20,23 +20,33 @@ function findMatchingAccount(accounts, name) {
   return accounts.find((account) => accountNameKey(account.name) === key) || null;
 }
 
-function sameExternalTransaction(left, right) {
-  return Boolean(
-    left?.externalSource &&
-    right?.externalSource &&
-    left.externalSource === right.externalSource &&
-    String(left.externalId || "") !== "" &&
-    String(left.externalId || "") === String(right.externalId || ""),
-  );
+function indexExternalTransactions(transactions) {
+  const bySource = new Map();
+  for (const transaction of transactions) {
+    const source = transaction?.externalSource;
+    const id = String(transaction?.externalId || "");
+    if (!source || !id) continue;
+    if (!bySource.has(source)) bySource.set(source, new Map());
+    const byId = bySource.get(source);
+    // Array.find previously chose the first row, even with repeated external IDs.
+    if (!byId.has(id)) byId.set(id, transaction);
+  }
+  return (transaction) => bySource.get(transaction?.externalSource)
+    ?.get(String(transaction?.externalId || "")) || null;
+}
+
+function indexFirstTransactionById(transactions) {
+  const byId = new Map();
+  for (const transaction of transactions) {
+    const id = String(transaction.id);
+    if (!byId.has(id)) byId.set(id, transaction);
+  }
+  return byId;
 }
 
 function externalTransactionKey(transaction) {
   if (!transaction?.externalSource || !transaction?.externalId) return "";
   return `${transaction.externalSource}:${transaction.externalId}`;
-}
-
-function findExternalTransaction(existingTransactions, importedTransaction) {
-  return existingTransactions.find((transaction) => sameExternalTransaction(transaction, importedTransaction)) || null;
 }
 
 function findDuplicateExternalTransactions(existingTransactions, importedTransactions) {
@@ -297,15 +307,16 @@ export function createImportController({
       return;
     }
     const existingTransactions = store.getState().txs;
+    const findExistingTransaction = indexExternalTransactions(existingTransactions);
     const duplicateMode = androMoneyDuplicateMode.value || "skip";
     const duplicateCount = findDuplicateExternalTransactions(existingTransactions, parsed.transactions).length;
     const newTransactions = parsed.transactions.filter(
-      (transaction) => !existingTransactions.some((item) => sameExternalTransaction(item, transaction)),
+      (transaction) => !findExistingTransaction(transaction),
     );
     const updateTransactions = duplicateMode === "update"
       ? parsed.transactions
           .map((transaction) => {
-            const existingTransaction = findExternalTransaction(existingTransactions, transaction);
+            const existingTransaction = findExistingTransaction(transaction);
             return existingTransaction ? { ...transaction, id: existingTransaction.id } : null;
           })
           .filter(Boolean)
@@ -313,7 +324,7 @@ export function createImportController({
     const repairTransactions = duplicateMode === "repair-accounts"
       ? parsed.transactions
           .map((transaction) => {
-            const existingTransaction = findExternalTransaction(existingTransactions, transaction);
+            const existingTransaction = findExistingTransaction(transaction);
             const repaired = repairTransactionAccount(existingTransaction, transaction);
             return repaired ? { ...repaired, id: existingTransaction.id } : null;
           })
@@ -321,7 +332,7 @@ export function createImportController({
       : [];
     const repairConflictCount = duplicateMode === "repair-accounts"
       ? parsed.transactions.filter((transaction) => {
-          const existingTransaction = findExternalTransaction(existingTransactions, transaction);
+          const existingTransaction = findExistingTransaction(transaction);
           return existingTransaction && existingTransaction.type !== transaction.type;
         }).length
       : 0;
@@ -342,6 +353,8 @@ export function createImportController({
       return;
     }
 
+    const updatesById = indexFirstTransactionById(updateTransactions);
+    const repairsById = indexFirstTransactionById(repairTransactions);
     commitState((draft) => {
       draft.accounts.push(...newAccounts);
       const updateIds = new Set(updateTransactions.map((transaction) => String(transaction.id)));
@@ -354,8 +367,8 @@ export function createImportController({
         ...newTransactions,
         ...draft.txs.map(
           (transaction) =>
-            updateTransactions.find((item) => String(item.id) === String(transaction.id)) ||
-            repairTransactions.find((item) => String(item.id) === String(transaction.id)) ||
+            updatesById.get(String(transaction.id)) ||
+            repairsById.get(String(transaction.id)) ||
             transaction,
         ),
       ];

@@ -20,7 +20,7 @@ function guardrailActionMeta(action) {
   }[action];
 }
 
-export function renderRetirement({ state, utils, dom }) {
+export function renderRetirement({ state, utils, dom, readModels }) {
   const currentAge = parseInt(dom.currentAge.value, 10) || 30;
   const retirementAge = parseInt(dom.retirementAge.value, 10) || 65;
   const deathAge = parseInt(dom.deathAge.value, 10) || 90;
@@ -34,7 +34,7 @@ export function renderRetirement({ state, utils, dom }) {
     monthlyWithdraw: toMoneyInt(dom.retireWithdraw.value) || 40000,
     targetAsset: toMoneyInt(dom.retireTarget.value) || 20000000,
   };
-  const scenarios = calculateRetirementScenarios({ state, currentAge, retirementAge, deathAge, inputs });
+  const scenarios = calculateRetirementScenarios({ state, currentAge, retirementAge, deathAge, inputs, balances: readModels?.balances });
   const projection = scenarios[0].projection;
 
   dom.retireLinkedValue.textContent = `可連動資產：${utils.formatMoney(projection.retirementReadyAsset)}`;

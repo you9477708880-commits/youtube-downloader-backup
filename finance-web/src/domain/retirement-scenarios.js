@@ -1,7 +1,8 @@
 import { calculateRetirementProjection } from "./retirement.js";
+import { calculateAccountBalances } from "./accounts.js";
 
-export function calculateRetirementScenarios({ state, currentAge, retirementAge, deathAge, inputs }) {
-  const baseline = calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs });
+export function calculateRetirementScenarios({ state, currentAge, retirementAge, deathAge, inputs, balances = calculateAccountBalances(state) }) {
+  const baseline = calculateRetirementProjection({ state, currentAge, retirementAge, deathAge, inputs, balances });
   const delayedRetirementAge = Math.min(retirementAge + 3, Math.max(retirementAge, deathAge - 1));
   const lowerWithdrawInputs = {
     ...inputs,
@@ -27,6 +28,7 @@ export function calculateRetirementScenarios({ state, currentAge, retirementAge,
         retirementAge: delayedRetirementAge,
         deathAge,
         inputs,
+        balances,
       }),
     },
     {
@@ -39,6 +41,7 @@ export function calculateRetirementScenarios({ state, currentAge, retirementAge,
         retirementAge,
         deathAge,
         inputs: lowerWithdrawInputs,
+        balances,
       }),
     },
   ];
