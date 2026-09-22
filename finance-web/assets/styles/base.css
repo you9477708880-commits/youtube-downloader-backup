@@ -26,6 +26,7 @@ fieldset {
 input[type="text"],
 input[type="number"],
 input[type="date"],
+#i-desc,
 select {
   width: 100%;
   min-width: 0;
@@ -42,16 +43,22 @@ select {
 }
 
 input:focus,
+#i-desc:focus,
 select:focus {
   border-color: var(--acc);
   background: var(--sur);
 }
 
 input:focus-visible,
+#i-desc:focus-visible,
 select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--acc);
   outline-offset: 2px;
+}
+
+#i-desc {
+  resize: vertical;
 }
 
 input[type="range"] {

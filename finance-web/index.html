@@ -216,7 +216,7 @@
 
         <div>
           <label class="flb" for="i-desc">說明（選填）</label>
-          <input type="text" id="i-desc" placeholder="輸入備註或品項名稱...">
+          <textarea id="i-desc" rows="2" placeholder="輸入備註或品項名稱..."></textarea>
         </div>
         <div>
           <label class="flb" for="i-date">日期</label>
@@ -614,6 +614,7 @@
     <div class="transaction-detail-footer mt-3">
       <button type="button" id="transaction-detail-delete" class="sbtn danger d-none" data-action="delete-transaction-detail">刪除這筆帳戶調整</button>
       <button type="button" id="transaction-detail-edit" class="sbtn d-none" data-action="edit-transaction-detail">編輯這筆交易</button>
+      <button type="button" id="transaction-detail-repeat" class="sbtn outline d-none" data-action="repeat-transaction-detail">再記一筆</button>
       <button type="button" id="transaction-detail-close" class="sbtn outline" data-action="close-transaction-detail">關閉</button>
     </div>
   </div>

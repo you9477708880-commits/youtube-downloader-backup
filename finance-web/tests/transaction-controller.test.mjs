@@ -148,6 +148,7 @@ function createHarness(t, stateOverrides = {}) {
       return calls.confirmResponses.length ? calls.confirmResponses.shift() : true;
     },
     promptInput: () => calls.promptResponses.length ? calls.promptResponses.shift() : null,
+    now: () => new Date(2026, 8, 22, 12),
   });
   return { actions: controller, calls, controller, dom, store };
 }
@@ -165,6 +166,134 @@ function fillTransaction(dom, overrides = {}) {
   dom.inputAdvancePerson.value = overrides.person ?? "";
   dom.inputFund.value = overrides.linkedFundId ?? "";
 }
+
+test("deleting the active main editor clears it and saving does not recreate the record", async (t) => {
+  const tx = { id: "deleted", type: "expense", amount: 100, date: "2026-08-15", category: "餐飲", acc: "cash", desc: "午餐" };
+  const { actions, dom, calls, store } = createHarness(t, { txs: [tx] });
+  actions.beginEditTx(tx.id);
+  actions.delTx(tx.id);
+  assert.equal(dom.inputAmount.value, "");
+  assert.deepEqual(calls.editModes.at(-1), { active: false });
+  await actions.addTx();
+  assert.equal(store.getState().txs.length, 0);
+});
+
+test("deleting an unrelated row leaves the active editor and its draft unchanged", (t) => {
+  const txs = ["a", "b"].map((id) => ({ id, type: "expense", amount: 100, date: "2026-08-15", category: "餐飲", acc: "cash", desc: id }));
+  const { actions, dom, calls } = createHarness(t, { txs });
+  actions.beginEditTx("a");
+  dom.inputDesc.value = "草稿";
+  actions.delTx("b");
+  assert.equal(dom.inputDesc.value, "草稿");
+  assert.equal(calls.editModes.at(-1).active, true);
+});
+
+test("a missing remotely removed editing target never becomes an insert", async (t) => {
+  const tx = { id: "remote-deleted", type: "expense", amount: 100, date: "2026-08-15", category: "餐飲", acc: "cash" };
+  const { actions, store, calls } = createHarness(t, { txs: [tx] });
+  actions.beginEditTx(tx.id);
+  store.replace({ ...store.getState(), txs: [] });
+  await actions.addTx();
+  assert.equal(calls.save, 0);
+  assert.equal(store.getState().txs.length, 0);
+  assert.match(calls.toasts.at(-1)[0], /已不存在/);
+});
+
+function repeatSource(overrides = {}) {
+  return { id: "source", type: "expense", amount: 180, date: "2026-08-15", category: "餐飲", subcategory: "午餐", acc: "cash", desc: "常吃便當\n加蛋", externalSource: "andromoney", externalId: "450", externalUid: "import-uid", externalTime: "12:00", revision: 8, ...overrides };
+}
+
+test("repeat prefills today's draft, cancel writes nothing, save makes one new clean identity", async (t) => {
+  const original = repeatSource();
+  const { actions, store, dom, calls } = createHarness(t, { txs: [original] });
+  assert.equal(actions.beginRepeatTx(original.id), true);
+  assert.equal(calls.save, 0);
+  assert.equal(dom.inputDate.value, "2026-09-22");
+  assert.equal(dom.inputSubcategory.value, "午餐");
+  assert.equal(dom.inputDesc.value, original.desc);
+  assert.deepEqual(calls.editModes.at(-1), { active: false, repeatDraft: true });
+  actions.cancelEditTx();
+  assert.equal(calls.save, 0);
+  assert.deepEqual(store.getState().txs, [original]);
+  actions.beginRepeatTx(original.id);
+  await Promise.all([actions.addTx(), actions.addTx()]);
+  assert.equal(store.getState().txs.length, 2);
+  const next = store.getState().txs[0];
+  assert.notEqual(next.id, original.id);
+  assert.equal(next.date, "2026-09-22");
+  for (const key of ["externalSource", "externalId", "externalUid", "externalTime", "revision", "linkedFundId", "advanceId"]) assert.equal(next[key], undefined);
+  assert.deepEqual(store.getState().txs[1], original);
+  assert.equal(calls.save, 1);
+});
+
+test("repeat protects both meaningful input and selection-only drafts", (t) => {
+  const { actions, dom, calls, store } = createHarness(t, { txs: [repeatSource()] });
+  dom.inputDesc.value = "未儲存";
+  calls.confirmResponses.push(false);
+  assert.equal(actions.beginRepeatTx("source"), false);
+  assert.equal(dom.inputDesc.value, "未儲存");
+  actions.reset();
+  dom.inputAccount.value = "bank";
+  actions.markDraftDirty();
+  calls.confirmResponses.push(false);
+  assert.equal(actions.beginRepeatTx("source"), false);
+  assert.equal(dom.inputAccount.value, "bank");
+  calls.confirmResponses.push(true);
+  assert.equal(actions.beginRepeatTx("source"), true);
+  assert.equal(dom.inputAccount.value, "cash");
+  assert.equal(calls.save, 0);
+  assert.equal(store.getState().txs.length, 1);
+});
+
+test("repeat missing or disabled account and unavailable category require explicit reselection", async (t) => {
+  const original = repeatSource({ acc: "deleted", category: "已移除分類" });
+  const { actions, dom, calls, store } = createHarness(t, { txs: [original] });
+  actions.beginRepeatTx("source");
+  assert.equal(dom.inputAccount.value, "");
+  assert.equal(dom.inputCategory.value, "");
+  await actions.addTx();
+  assert.equal(calls.save, 0);
+  dom.inputAccount.value = "bank";
+  dom.inputCategory.value = "餐飲";
+  actions.markDraftDirty({ target: dom.inputAccount });
+  actions.markDraftDirty({ target: dom.inputCategory });
+  store.update((state) => { state.accounts.find((account) => account.id === "bank").enabled = false; });
+  await actions.addTx();
+  assert.equal(calls.save, 0);
+  dom.inputAccount.value = "cash";
+  actions.markDraftDirty({ target: dom.inputAccount });
+  await actions.addTx();
+  assert.equal(calls.save, 1);
+  assert.equal(store.getState().txs[0].acc, "cash");
+});
+
+test("repeat refuses implicit account fallback after a render; an explicit choice is required", async (t) => {
+  const { actions, dom, calls, store } = createHarness(t, { txs: [repeatSource()] });
+  actions.beginRepeatTx("source");
+  store.update((state) => { state.accounts = state.accounts.filter((account) => account.id !== "cash"); });
+  dom.inputAccount.value = "bank";
+  await actions.addTx();
+  assert.equal(calls.save, 0);
+  actions.markDraftDirty({ target: dom.inputAccount });
+  await actions.addTx();
+  assert.equal(calls.save, 1);
+  assert.equal(store.getState().txs[0].acc, "bank");
+});
+
+test("deletion during the asynchronous fund choice cancels the pending edited save", async (t) => {
+  const tx = repeatSource();
+  const { actions, calls, dom, store } = createHarness(t, { txs: [tx], sinkingFunds: [fund({ monthlyContribution: 0 })] });
+  actions.beginEditTx(tx.id);
+  dom.inputFund.value = "fund-1";
+  let finish;
+  calls.shortfallChoices.push(new Promise((resolve) => { finish = resolve; }));
+  const pending = actions.addTx();
+  actions.delTx(tx.id);
+  finish("unlink");
+  await pending;
+  assert.deepEqual(store.getState().txs, []);
+  assert.equal(calls.save, 1);
+});
 
 function fund(overrides = {}) {
   return {

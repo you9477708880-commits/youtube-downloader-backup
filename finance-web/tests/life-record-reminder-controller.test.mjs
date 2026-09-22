@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createLifeRecordReminderController } from "../src/app/controllers/life-record-reminder-controller.js";
+import { createTransactionSearchController } from "../src/app/controllers/transaction-search-controller.js";
 
 function createHarness() {
   let state = {
@@ -28,6 +29,7 @@ function createHarness() {
     commitState,
     toast: { show: (message, type) => calls.push(["toast", message, type]) },
     renderSearch: () => calls.push("search"),
+    showSearchHistory: (query) => { elements.query.value = query; calls.push(["history", query]); },
     now: () => new Date("2026-08-29T12:00:00.000Z"),
     createId: () => "routine-1",
     renderCenter: ({ model }) => calls.push(["render", model.total]),
@@ -56,6 +58,7 @@ test("creates, edits, toggles, views, and deletes one saved routine through comm
   harness.controller.view("routine-1");
   assert.equal(harness.elements.query.value, "洗牙");
   assert.ok(harness.calls.includes("search"));
+  assert.ok(harness.calls.some((call) => call[0] === "history" && call[1] === "洗牙"));
   harness.controller.remove("routine-1");
   assert.deepEqual(harness.getState().lifeRoutines, []);
 });
@@ -71,4 +74,56 @@ test("rejects missing query and invalid intervals without committing", () => {
   harness.elements.dueSoon.value = "400";
   assert.equal(harness.controller.save(), false);
   assert.equal(harness.calls.includes("commit"), false);
+});
+
+test("viewing different reminders finds year-old records and never changes report dates or writes state", () => {
+  const now = () => new Date(2026, 8, 22);
+  const state = {
+    accounts: [], sinkingFunds: [],
+    txs: [
+      { id: "dental", type: "expense", amount: 100, date: "2025-07-01", desc: "洗牙" },
+      { id: "oil", type: "expense", amount: 200, date: "2025-08-01", desc: "機油" },
+    ],
+    lifeRoutines: [
+      { id: "dental-rule", query: "洗牙" },
+      { id: "oil-rule", query: "機油" },
+      { id: "missing-rule", query: "輪胎" },
+    ],
+  };
+  const before = structuredClone(state);
+  const reportDates = { start: "2026-09-01", end: "2026-09-30" };
+  const reportBefore = { ...reportDates };
+  const input = (value = "") => ({ value });
+  const searchElements = {
+    query: input(), preset: input("6m"), start: input(), end: input(),
+    summary: {}, empty: {}, clear: {}, status: {}, customRange: {},
+  };
+  let displayed = [];
+  const search = createTransactionSearchController({
+    elements: searchElements, store: { getState: () => state }, now,
+    getReportTransactions: () => state.txs.filter((tx) => tx.date >= reportDates.start && tx.date <= reportDates.end),
+    renderTransactions: (txs) => { displayed = txs; },
+  });
+  const reminder = createLifeRecordReminderController({
+    elements: { query: searchElements.query, name: input(), interval: input(), dueSoon: input(), list: {} },
+    store: { getState: () => state }, now,
+    commitState: () => assert.fail("viewing must not save"),
+    renderSearch: search.render, showSearchHistory: search.showHistory, renderCenter() {},
+  });
+  searchElements.query.value = "洗牙";
+  assert.equal(search.getModel().matchCount, 0);
+  reminder.view("dental-rule");
+  assert.equal(searchElements.preset.value, "all");
+  assert.deepEqual(displayed.map((tx) => tx.id), ["dental"]);
+  reminder.view("oil-rule");
+  assert.deepEqual(displayed.map((tx) => tx.id), ["oil"]);
+  reminder.view("missing-rule");
+  assert.deepEqual(displayed, []);
+  assert.equal(searchElements.empty.hidden, false);
+  reminder.view("deleted-rule");
+  assert.equal(searchElements.query.value, "輪胎");
+  assert.deepEqual(reportDates, reportBefore);
+  assert.deepEqual(state, before);
+  search.clear();
+  assert.deepEqual(displayed, []);
 });

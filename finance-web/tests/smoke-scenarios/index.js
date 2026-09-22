@@ -5,3 +5,4 @@ export { prepareDesktopCoreLayoutScenario, runDesktopCoreLayoutScenario, prepare
 export { prepareCategoryBudgetCleanupScenario, runCategoryBudgetCleanupScenario, prepareEditingCompletenessScenario, runEditingCompletenessScenario, prepareConflictRecoveryCenterScenario, runConflictRecoveryCenterScenario, prepareAccountCenterScenario, runAccountCenterScenario } from "./management.js";
 export { prepareTransactionSearchScenario, runTransactionSearchScenario } from "./search.js";
 export { prepareListPerformanceScenario, runListPerformanceScenario } from "./list-performance.js";
+export { prepareDailyOperationsScenario, runDailyOperationsScenario, prepareDailyOperationsMobileScenario, runDailyOperationsMobileScenario } from "./daily-operations.js";

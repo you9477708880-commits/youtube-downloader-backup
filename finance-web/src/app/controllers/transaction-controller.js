@@ -15,6 +15,7 @@ import {
   sameTransactionId,
 } from "../../domain/transaction-commands.js";
 import { DEFAULT_SUBCATEGORY } from "../../config/constants.js";
+import { prepareRepeatTransaction } from "../../domain/transaction-repeat.js";
 import { localDateStr, toMoneyInt } from "../../utils/format.js";
 
 function createClientId(prefix) {
@@ -42,6 +43,7 @@ export function createTransactionController({
   askFundShortfallChoice,
   constants,
   confirmDelete = (message) => globalThis.window.confirm(message),
+  confirmDiscard = (message) => globalThis.window.confirm(message),
   promptInput = (message, defaultValue) => globalThis.window.prompt(message, defaultValue),
   now = () => new Date(),
 }) {
@@ -61,10 +63,19 @@ export function createTransactionController({
   } = elements;
   let editingTxId = null;
   let editingOriginalLinkedFundId = "";
+  let repeatDraft = false;
+  let repeatSelection = null;
+  let draftDirty = false;
+  let draftGeneration = 0;
+  let saving = false;
 
   const sameId = sameTransactionId;
 
   const reset = () => {
+    draftGeneration += 1;
+    repeatDraft = false;
+    repeatSelection = null;
+    draftDirty = false;
     editingTxId = null;
     editingOriginalLinkedFundId = "";
     amount.value = "";
@@ -77,7 +88,8 @@ export function createTransactionController({
   };
 
   const setTxType = (type) => {
-    if (editingTxId) return;
+    if (editingTxId !== null) return;
+    if (store.getState().txType !== type) draftDirty = true;
     store.update((state) => {
       state.txType = type;
     });
@@ -107,13 +119,20 @@ export function createTransactionController({
         populateCategoryBudgetOptions();
         category.value = cleanName;
         populateTransactionSubcategoryOptions({ reset: true });
+        markDraftDirty({ target: category });
       },
     });
     toast.show(`已新增分類：${cleanName}`);
   };
 
-  const addTx = async () => {
+  const saveTx = async (generation) => {
     const state = store.getState();
+    if (repeatDraft && (repeatSelection?.accountId !== account.value || repeatSelection?.category !== category.value
+      || !state.accounts.some((item) => sameId(item.id, account.value) && item.enabled !== false)
+      || !category.value || ![...category.options].some((option) => option.value === category.value && !option.disabled))) {
+      toast.show("請重新選擇有效帳戶與分類", "error");
+      return;
+    }
     const prepared = prepareMainTransaction({
       state,
       editingTxId,
@@ -139,6 +158,11 @@ export function createTransactionController({
     let allocation = planFundAllocation(prepared);
     if (allocation.needsChoice) {
       const choice = await askFundShortfallChoice(allocation.request);
+      if (generation !== draftGeneration) return;
+      if (editingTxId !== null && !store.getState().txs.some((item) => sameId(item.id, editingTxId))) {
+        toast.show("這筆交易已不存在，無法儲存編輯，也不會重新新增。", "error");
+        return;
+      }
       allocation = planFundAllocation({ ...prepared, choice });
     }
     if (!allocation.ok) {
@@ -178,6 +202,50 @@ export function createTransactionController({
     }
     navigate("ov");
   };
+
+  const addTx = async () => {
+    if (saving) return;
+    saving = true;
+    try {
+      await saveTx(draftGeneration);
+    } finally {
+      saving = false;
+    }
+  };
+
+  const markDraftDirty = (event) => {
+    draftDirty = true;
+    if (repeatSelection && event?.target === account) repeatSelection.accountId = account.value;
+    if (repeatSelection && event?.target === category) repeatSelection.category = category.value;
+  };
+  const beginRepeatTx = (id) => {
+    const prepared = prepareRepeatTransaction({ state: store.getState(), id, date: localDateStr(now()) });
+    if (!prepared.ok) { toast.show(prepared.message, "error"); return false; }
+    const hasDraft = draftDirty || editingTxId !== null || repeatDraft
+      || [amount, description, ownAmount, advancePerson, fund].some((element) => String(element?.value || "").trim());
+    if (hasDraft && !confirmDiscard("目前有尚未儲存的交易草稿。要放棄草稿並帶入這筆內容嗎？")) return false;
+    reset();
+    repeatDraft = true;
+    const input = prepared.input;
+    store.update((draft) => { draft.txType = input.type; });
+    navigate("lg");
+    syncTxType();
+    renderTransactionCategorySelect({ resetSubcategory: true });
+    populateFundOptions();
+    amount.value = input.amount;
+    description.value = input.desc;
+    date.value = input.date;
+    category.value = [...category.options].some((option) => option.value === input.category && !option.disabled) ? input.category : "";
+    populateTransactionSubcategoryOptions();
+    if (subcategory) subcategory.value = input.subcategory;
+    account.value = input.accountId;
+    repeatSelection = { accountId: account.value, category: category.value };
+    setEditMode({ active: false, repeatDraft: true });
+    if (!input.accountId || !category.value) toast.show("原帳戶或分類已不可用，請重新選擇後再儲存", "error");
+    root.getElementById("form-tx")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    amount.focus?.();
+    return true;
+  };
   const beginEditTx = (id) => {
     const state = store.getState();
     const tx = state.txs.find((item) => sameId(item.id, id));
@@ -191,6 +259,9 @@ export function createTransactionController({
     }
 
     editingTxId = tx.id;
+    draftGeneration += 1;
+    repeatDraft = false;
+    repeatSelection = null;
     editingOriginalLinkedFundId = tx.linkedFundId || "";
     const linkedFundName = editingOriginalLinkedFundId
       ? state.sinkingFunds.find((item) => item.id === editingOriginalLinkedFundId)?.name || ""
@@ -234,11 +305,12 @@ export function createTransactionController({
   };
 
   const cancelEditTx = () => {
+    const wasRepeat = repeatDraft;
     reset();
     syncTxType();
     renderTransactionCategorySelect();
     populateFundOptions();
-    toast.show("已取消編輯");
+    toast.show(wasRepeat ? "已取消新增，原交易未變更" : "已取消編輯");
   };
 
   const updateTransactionFromDetail = async (id, input) => {
@@ -254,7 +326,7 @@ export function createTransactionController({
       toast.show(command.message, "error");
       return false;
     }
-    const clearsActiveMainEditor = editingTxId && sameId(editingTxId, original.id);
+    const clearsActiveMainEditor = editingTxId !== null && sameId(editingTxId, original.id);
     commitState((draft) => {
       applyDetailTransaction(draft, command);
     }, {
@@ -290,7 +362,10 @@ export function createTransactionController({
     if (!confirmDelete(message)) return false;
     commitState((draft) => {
       applyDeleteTransaction(draft, target);
-    }, { updateUi: renderAll });
+    }, { updateUi: () => {
+      if (editingTxId !== null && !store.getState().txs.some((tx) => sameId(tx.id, editingTxId))) reset();
+      renderAll();
+    } });
     toast.show(target.type === "balance_adjustment" ? "已刪除帳戶調整，帳戶餘額已重新計算" : "已刪除交易");
     return true;
   };
@@ -403,6 +478,8 @@ export function createTransactionController({
     addCustomCat,
     addTx,
     beginEditTx,
+    beginRepeatTx,
+    markDraftDirty,
     cancelEditTx,
     delTx,
     repayAdvance,

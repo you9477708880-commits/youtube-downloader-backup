@@ -77,12 +77,12 @@ export function renderBalanceSheet({ state, utils, dom, readModels, pageSize }) 
           <div class="account-metrics">
             <div><span>目前欠款</span><strong class="text-exp">${utils.formatMoney(account.debt)}</strong></div>
             <div><span>可用額度</span><strong>${account.creditLimit ? utils.formatMoney(account.availableCredit) : "未設定"}</strong></div>
-            <div><span>本期新增刷卡</span><strong>${schedule ? utils.formatMoney(account.periodCharges) : "設定結帳日後顯示"}</strong></div>
-            <div><span>本期信用卡繳款</span><strong>${schedule ? utils.formatMoney(account.periodPayments) : "設定結帳日後顯示"}</strong></div>
+            <div><span>本期新增刷卡</span><strong>${schedule?.periodStart ? utils.formatMoney(account.periodCharges) : "設定結帳日後顯示"}</strong></div>
+            <div><span>本期信用卡繳款</span><strong>${schedule?.periodStart ? utils.formatMoney(account.periodPayments) : "設定結帳日後顯示"}</strong></div>
           </div>
-          <div class="account-cycle-note">${schedule
-            ? `本期 ${utils.escapeHTML(schedule.periodStart)} 起｜下次結帳 ${utils.escapeHTML(schedule.nextStatementDate)}${schedule.nextPaymentDueDate ? `｜下次繳款日 ${utils.escapeHTML(schedule.nextPaymentDueDate)}` : ""}`
-            : "尚未設定結帳日；仍可正常記錄信用卡支出與繳款。"}</div>
+          <div class="account-cycle-note">${schedule?.periodStart
+            ? `本期 ${utils.escapeHTML(schedule.periodStart)} 起｜下次結帳 ${utils.escapeHTML(schedule.nextStatementDate)}`
+            : "結帳日：未設定"}｜最近預定繳款日：${schedule?.nextPaymentDueDate ? utils.escapeHTML(schedule.nextPaymentDueDate) : "未設定"}<br>日期依設定推算；不代表銀行實際帳單或尚未繳清，未計假日順延。</div>
         `
         : `<div class="account-metrics"><div><span>目前餘額</span><strong class="${account.balance >= 0 ? "text-inc" : "text-exp"}">${utils.formatMoney(account.balance)}</strong></div><div><span>本月流入</span><strong class="text-inc">${utils.formatMoney(account.monthInflow)}</strong></div><div><span>本月流出</span><strong class="text-exp">${utils.formatMoney(account.monthOutflow)}</strong></div><div><span>相關紀錄</span><strong>${account.transactionCount} 筆</strong></div></div>`;
 

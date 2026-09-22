@@ -12,6 +12,7 @@ export function createLifeRecordReminderController({
   commitState,
   toast,
   renderSearch,
+  showSearchHistory,
   now = () => new Date(),
   createId = defaultCreateId,
   renderCenter = renderLifeRoutineCenter,
@@ -20,7 +21,7 @@ export function createLifeRecordReminderController({
     throw new Error("life-record-reminder-elements-required");
   }
   if (!store || typeof store.getState !== "function") throw new Error("life-record-reminder-store-required");
-  if (typeof commitState !== "function" || typeof renderSearch !== "function") {
+  if (typeof commitState !== "function" || typeof renderSearch !== "function" || typeof showSearchHistory !== "function") {
     throw new Error("life-record-reminder-actions-required");
   }
 
@@ -144,8 +145,7 @@ export function createLifeRecordReminderController({
   function view(id) {
     const routine = store.getState().lifeRoutines.find((item) => String(item.id) === String(id));
     if (!routine) return;
-    elements.query.value = routine.query;
-    renderSearch();
+    showSearchHistory(routine.query);
     elements.query.scrollIntoView?.({ behavior: "smooth", block: "center" });
     elements.query.focus?.();
   }

@@ -59,6 +59,25 @@ function mainInput(overrides = {}) {
   };
 }
 
+test("missing edit identity is rejected instead of creating a new transaction", () => {
+  const state = createState();
+  const result = prepareMainTransaction({ state, editingTxId: "deleted", input: mainInput() });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "missing_edit_transaction");
+  assert.deepEqual(state.txs, []);
+});
+
+test("an edit removed after preparation is rejected at the apply boundary", () => {
+  const tx = { id: 0, type: "expense", amount: 100, date: "2026-08-15", acc: "cash", category: "餐飲" };
+  const state = createState({ txs: [tx] });
+  const command = prepareMainTransaction({ state, editingTxId: 0, input: mainInput() });
+  assert.equal(command.editingTx.id, 0);
+  state.txs = [];
+  const before = structuredClone(state);
+  assert.throws(() => applyMainTransaction(state, command, () => "unused"), /已不存在/);
+  assert.deepEqual(state, before);
+});
+
 test("main transaction command validates transfer and advance invariants without mutating state", () => {
   const transferState = createState({ txType: "transfer" });
   const transferBefore = structuredClone(transferState);

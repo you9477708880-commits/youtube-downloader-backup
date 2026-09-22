@@ -98,6 +98,7 @@ export async function bootstrapFinanceApp(doc = document) {
     "signed-out-to-local": "已登出；目前使用本機模式。",
     "google-sign-in-failed": "登入失敗，請稍後再試。",
     "sign-out-failed": "登出失敗，請稍後再試。",
+    "cloud-save-failed": "資料已保存於本機，但尚未備份至雲端；請查看同步狀態並重試同步，不需重新記帳。",
   };
 
   syncCoordinator = createSyncCoordinator({
@@ -130,16 +131,19 @@ export async function bootstrapFinanceApp(doc = document) {
 
   const persistCommittedLocalState = (state) => syncCoordinator.persistCommittedLocalState(state);
   const enqueueCloudState = () => syncCoordinator.enqueueCloudState();
-  const saveState = () => {
-    persistCommittedLocalState(store.getState());
-    enqueueCloudState();
-  };
 
   const commitState = createCommitState({
     store,
     normalizeState: normalizeFinanceStateMoney,
     persistLocal: persistCommittedLocalState,
     enqueueCloud: enqueueCloudState,
+    getContext: () => syncCoordinator.getContext(),
+    onPostCommitIssue: ({ phase }) => {
+      if (phase === "cloud") ui.updateCloudStatus("error");
+      toast.show(phase === "ui" || phase === "store"
+        ? "資料已保存於本機，但畫面更新失敗；請重新載入，勿重複新增。雲端進度請查看同步狀態。"
+        : "資料已保存於本機，但雲端排隊失敗；請重試同步，不需重新記帳。", "error");
+    },
   });
 
   const composition = createControllerComposition({
@@ -154,7 +158,6 @@ export async function bootstrapFinanceApp(doc = document) {
     syncCoordinator,
     conflictRecoveryStore,
     getCloudSync: () => cloudSync,
-    saveState,
     enqueueCloudState,
     getFilteredTransactions: getFiltered,
     win: window,
@@ -203,7 +206,9 @@ export async function bootstrapFinanceApp(doc = document) {
       confirmAndroMoneyImport: () => {
         importController.confirmAndroMoneyImport().catch((error) => {
           console.warn("AndroMoney import failed.", error);
-          toast.show("AndroMoney 匯入失敗，請確認 CSV 內容", "error");
+          toast.show(error.message === "stale-import-context"
+            ? "資料或帳號已切換，這次匯入已取消；請重新選取檔案。"
+            : "AndroMoney 匯入失敗，請確認 CSV 內容", "error");
         });
       },
       normalizeMoneyInput: (node) => {
@@ -243,7 +248,12 @@ export async function bootstrapFinanceApp(doc = document) {
         try {
           await importController.importBackupFile(event.target.files[0]);
         } catch (error) {
-          toast.show(error.message === "invalid-schema" ? "匯入失敗：檔案格式不符合目前資料模型" : "匯入失敗，請確認 JSON 內容", "error");
+          const message = error.code === "duplicate-record-id" ? error.userMessage
+            : error.message === "stale-import-context" ? "資料或帳號已切換，這次匯入已取消；請重新選取檔案。"
+            : error.message === "invalid-schema" ? "匯入失敗：檔案格式不符合目前資料模型"
+            : error.name === "QuotaExceededError" ? "本機儲存空間不足，未匯入；原資料仍保留。"
+            : "匯入未完成，原資料仍保留；請確認 JSON 內容與本機儲存權限。";
+          toast.show(message, "error");
         } finally {
           event.target.value = "";
         }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createSyncCoordinator } from "../src/app/sync-coordinator.js";
+import { test } from "node:test";
 
 function state(marker = "") {
   return {
@@ -105,6 +106,35 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
     bind() { coordinator.bindWholeStateReplacer((next) => store.replace(next)); },
   };
 }
+
+test("cloud enqueue reports synchronous and asynchronous errors as local-only durability", async () => {
+  for (const save of [() => { throw Error("queue"); }, () => Promise.reject(Error("queue"))]) {
+    const fx = createFixture();
+    fx.bind();
+    fx.coordinator.attachCloudSync({ ...fx.cloud, save });
+    fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+    assert.equal(await fx.coordinator.enqueueCloudState(), false);
+    assert.equal(fx.statuses.at(-1), "error");
+    assert.deepEqual(fx.notifications.at(-1), ["cloud-save-failed", "error"]);
+  }
+});
+
+test("delayed cloud failure and ABA auth switches cannot notify the new session", async () => {
+  const fx = createFixture();
+  fx.bind();
+  let reject;
+  fx.coordinator.attachCloudSync({ ...fx.cloud, save: () => new Promise((_, fail) => { reject = fail; }) });
+  fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+  const context = fx.coordinator.getContext();
+  const pending = fx.coordinator.enqueueCloudState();
+  fx.coordinator.onUserChange({ uid: "b", isAnonymous: false });
+  fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+  assert.notEqual(fx.coordinator.getContext(), context);
+  reject(Error("late"));
+  assert.equal(await pending, false);
+  assert.deepEqual(fx.statuses, []);
+  assert.deepEqual(fx.notifications, []);
+});
 
 {
   const fx = createFixture();
@@ -348,3 +378,42 @@ function createFixture({ choices = [], confirmations = [], rollback = true } = {
 }
 
 console.log("Sync coordinator tests passed");
+
+test("an auth change while preserving initial conflict recovery never applies old data to a new UID", async () => {
+  for (const choice of ["cloud", "local"]) {
+    for (const saved of [true, false]) {
+      let resolve;
+      const fx = createFixture({ choices: [choice], rollback: () => new Promise((done) => { resolve = done; }) });
+      fx.bind();
+      fx.coordinator.attachCloudSync(fx.cloud);
+      fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+      fx.setState(state("a-local"));
+      const pending = fx.coordinator.onRemoteState(state("a-remote"), { initial: true, source: "records" });
+      await Promise.resolve();
+      fx.coordinator.onUserChange({ uid: "b", isAnonymous: false });
+      const before = clone(fx.getState());
+      resolve(saved);
+      assert.equal(await pending, "stale-user");
+      await fx.flushScheduled();
+      assert.deepEqual(fx.getState(), before);
+      assert.equal(fx.saves.some((write) => write.scope === "uid:b"), false);
+      assert.equal(fx.cloudCalls.save, 0);
+      assert.equal(fx.coordinator.getConflictDecision(), "");
+    }
+  }
+});
+
+test("record conflict resolution and scheduled saves are fenced by auth generation", async () => {
+  const fx = createFixture({ choices: ["cloud"] });
+  fx.bind();
+  fx.coordinator.attachCloudSync(fx.cloud);
+  fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+  await fx.coordinator.onConflict({ localState: state("a"), remoteState: state("r"), keys: ["k"] });
+  fx.setState(state("a"));
+  await fx.coordinator.onRemoteState(state(), { initial: true });
+  fx.coordinator.onUserChange({ uid: "b", isAnonymous: false });
+  fx.coordinator.onUserChange({ uid: "a", isAnonymous: false });
+  await fx.flushScheduled();
+  assert.deepEqual(fx.cloudCalls.resolve, []);
+  assert.equal(fx.cloudCalls.save, 0);
+});

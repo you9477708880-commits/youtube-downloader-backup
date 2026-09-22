@@ -60,6 +60,7 @@ export function createSyncCoordinator({
   let pendingUnboundLocalState = null;
   let cloudConflictDecision = "";
   let cloudConflictUserId = "";
+  let contextGeneration = 0;
 
   const requireReplacer = () => {
     if (!replaceWholeState) throw new Error("sync-coordinator-replacer-not-bound");
@@ -115,18 +116,26 @@ export function createSyncCoordinator({
       return Promise.resolve(false);
     }
 
-    return Promise.resolve(cloudSync.save()).then(
-      (saved) => saved !== false,
-      (error) => {
-        onWarn("Cloud save failed.", error);
-        onStatus("error");
-        return false;
-      },
+    const generation = contextGeneration;
+    const failed = (error) => {
+      if (generation !== contextGeneration) return false;
+      onWarn("Cloud save failed.", error);
+      onStatus("error");
+      onNotify("cloud-save-failed", "error");
+      return false;
+    };
+    let pending;
+    try { pending = cloudSync.save(); }
+    catch (error) { return Promise.resolve(failed(error)); }
+    return Promise.resolve(pending).then(
+      (saved) => generation === contextGeneration && saved !== false,
+      failed,
     );
   };
 
   const requestCloudSave = () => {
-    runScheduled(() => enqueueCloudState());
+    const generation = contextGeneration;
+    runScheduled(() => generation === contextGeneration && enqueueCloudState());
   };
 
   const switchLocalScope = (user) => {
@@ -154,6 +163,7 @@ export function createSyncCoordinator({
   };
 
   const onUserChange = (user) => {
+    contextGeneration++;
     currentUser = user || null;
     switchLocalScope(currentUser);
 
@@ -166,12 +176,14 @@ export function createSyncCoordinator({
   };
 
   const onConflict = async ({ localState, remoteState, keys = [] }) => {
+    const generation = contextGeneration;
     const requestedChoice = await promptSyncChoice({
       type: "record-conflict",
       keys: [...keys],
       message: `${keys.length} cloud record conflict(s). Choose cloud, local, or cancel.`,
       user: currentUser,
     });
+    if (generation !== contextGeneration) return false;
     const choice = ["cloud", "local"].includes(requestedChoice) ? requestedChoice : "cancel";
 
     if (choice === "cloud" && !await preserveRollback(localState, "before-cloud-conflict", {
@@ -180,18 +192,22 @@ export function createSyncCoordinator({
       recordKeys: keys,
       winnerState: remoteState,
     })) return false;
+    if (generation !== contextGeneration) return false;
     if (choice === "local" && !await preserveRollback(remoteState, "before-local-conflict", {
       choice,
       conflictType: "record",
       recordKeys: keys,
       winnerState: localState,
     })) return false;
+    if (generation !== contextGeneration) return false;
 
     cloudConflictDecision = choice === "cancel" ? "cancel" : "";
     runScheduled(async () => {
+      if (generation !== contextGeneration) return;
       try {
         await cloudSync.resolveConflict(choice);
       } catch (error) {
+        if (generation !== contextGeneration) return;
         onWarn("Cloud conflict resolution failed.", error);
         onStatus("error");
         onNotify("cloud-conflict-resolution-failed", "error");
@@ -201,6 +217,7 @@ export function createSyncCoordinator({
   };
 
   const onRemoteState = async (remoteState, metadata = {}) => {
+    const generation = contextGeneration;
     requireReplacer();
     const localState = store.getState();
     const localHasData = hasMeaningfulData(localState);
@@ -248,7 +265,6 @@ export function createSyncCoordinator({
     }
 
     if ((localHasData || metadata.hasPendingOutbox) && !cloudConflictDecision) {
-      const decisionUserId = currentUser?.uid || "";
       cloudConflictDecision = "pending";
       const choice = await promptSyncChoice({
         type: "initial-state-conflict",
@@ -258,7 +274,7 @@ export function createSyncCoordinator({
         remoteState: cloneState(remoteState),
         hasPendingOutbox: Boolean(metadata.hasPendingOutbox),
       });
-      if ((currentUser?.uid || "") !== decisionUserId) return "stale-user";
+      if (generation !== contextGeneration) return "stale-user";
       cloudConflictDecision = ["cloud", "local"].includes(choice) ? choice : "cancel";
       if (cloudConflictDecision === "cancel") {
         onStatus("conflict");
@@ -268,11 +284,13 @@ export function createSyncCoordinator({
     }
 
     if ((!localHasData && !metadata.hasPendingOutbox) || cloudConflictDecision === "cloud") {
-      if (localHasData && !await preserveRollback(localState, "before-cloud-overwrite", {
+      const preserved = !localHasData || await preserveRollback(localState, "before-cloud-overwrite", {
         choice: "cloud",
         conflictType: "initial",
         winnerState: remoteState,
-      })) {
+      });
+      if (generation !== contextGeneration) return "stale-user";
+      if (!preserved) {
         cloudConflictDecision = "cancel";
         onStatus("conflict");
         return "rollback-failed";
@@ -284,11 +302,13 @@ export function createSyncCoordinator({
     }
 
     if (cloudConflictDecision === "local") {
-      if (!await preserveRollback(remoteState, "before-local-overwrite", {
+      const preserved = await preserveRollback(remoteState, "before-local-overwrite", {
         choice: "local",
         conflictType: "initial",
         winnerState: localState,
-      })) {
+      });
+      if (generation !== contextGeneration) return "stale-user";
+      if (!preserved) {
         cloudConflictDecision = "cancel";
         onStatus("conflict");
         return "rollback-failed";
@@ -355,6 +375,7 @@ export function createSyncCoordinator({
     performAuthAction,
     ensureLocalScopeIfDisabled,
     getCurrentUser: () => currentUser,
+    getContext: () => contextGeneration,
     getLocalScope: () => localScope,
     getPendingUnboundLocalState: () => pendingUnboundLocalState && cloneState(pendingUnboundLocalState),
     getConflictDecision: () => cloudConflictDecision,

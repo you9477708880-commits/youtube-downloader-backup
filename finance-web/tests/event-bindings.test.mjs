@@ -29,6 +29,15 @@ class FakeTarget {
   }
 }
 
+test("transaction input and select changes mark the draft and forward the changed field", () => {
+  const { doc, dom, actions, ui, handlers, forms, calls } = createHarness();
+  const unbind = bindAppEvents({ doc, win: new FakeTarget(), dom, actions, ui, handlers });
+  const input = forms["form-tx"].emit("input", { target: dom.inputCategory });
+  const change = forms["form-tx"].emit("change", { target: dom.inputCategory });
+  assert.deepEqual(calls, [["markTransactionDraftDirty", input], ["markTransactionDraftDirty", change]]);
+  unbind();
+});
+
 function createHarness() {
   const calls = [];
   const body = new FakeTarget();
@@ -94,6 +103,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
   dispatch("view-tx", { id: "tx-detail" });
   dispatch("view-budget-source", { id: "plan-fund", sourceType: "fund-plan" });
   dispatch("edit-transaction-detail");
+  dispatch("repeat-transaction-detail");
   dispatch("delete-transaction-detail");
   dispatch("save-transaction-detail");
   dispatch("cancel-transaction-detail-edit");
@@ -124,6 +134,7 @@ test("dispatchDataAction maps datasets to action, UI, and command boundaries", (
     ["openTransactionDetail", "tx-detail", { dataset: { action: "view-tx", id: "tx-detail" } }],
     ["openBudgetSourceDetail", "plan-fund", "fund-plan", { dataset: { action: "view-budget-source", id: "plan-fund", sourceType: "fund-plan" } }],
     ["editTransactionDetail"],
+    ["repeatTransactionDetail"],
     ["deleteTransactionDetail"],
     ["saveTransactionDetail"],
     ["cancelTransactionDetailEdit"],

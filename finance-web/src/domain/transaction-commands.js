@@ -27,7 +27,7 @@ function buildMonthRange(date) {
 }
 
 function editableBaseState(state, editingTxId) {
-  if (!editingTxId) return state;
+  if (editingTxId === null || editingTxId === undefined) return state;
   return {
     ...state,
     txs: state.txs.filter((tx) => !sameTransactionId(tx.id, editingTxId)),
@@ -36,12 +36,14 @@ function editableBaseState(state, editingTxId) {
 }
 
 export function prepareMainTransaction({ state, editingTxId = null, input }) {
+  const hasEditingId = editingTxId !== null && editingTxId !== undefined;
+  const editingTx = hasEditingId
+    ? state.txs.find((item) => sameTransactionId(item.id, editingTxId)) || null
+    : null;
+  if (hasEditingId && !editingTx) return failure("missing_edit_transaction", "這筆交易已不存在，請取消編輯後重新選擇；不會自動新增。");
   const normalizedAmount = toMoneyInt(input?.amount);
   if (normalizedAmount <= 0) return failure("invalid_amount", "金額必須大於 0");
 
-  const editingTx = editingTxId
-    ? state.txs.find((item) => sameTransactionId(item.id, editingTxId)) || null
-    : null;
   const baseState = editableBaseState(state, editingTxId);
   const linkedFundId = state.txType === "expense" ? String(input?.linkedFundId || "") : "";
   const linkedFund = linkedFundId
@@ -123,6 +125,9 @@ export function planFundAllocation({ baseState, tx, linkedFundId = "", linkedFun
 
 export function applyMainTransaction(draft, { tx, editingTx, effectiveLinkedFundId, topupAmount, fundSpendAmount }, createFundEventId) {
   if (editingTx) {
+    if (!draft.txs.some((item) => sameTransactionId(item.id, editingTx.id))) {
+      throw new Error("這筆交易已不存在，無法儲存編輯，也不會重新新增。");
+    }
     draft.txs = draft.txs.map((item) => (sameTransactionId(item.id, editingTx.id) ? tx : item));
     draft.sinkingFunds = withoutFundEventsLinkedToTransaction(draft.sinkingFunds, editingTx.id);
   } else {

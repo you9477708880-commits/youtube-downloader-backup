@@ -25,6 +25,7 @@ function setup() {
   const body = { innerHTML: "" };
   const remove = { classList: createClassList() };
   const edit = { classList: createClassList(), focused: false, focus() { this.focused = true; } };
+  const repeat = { classList: createClassList() };
   const close = { focused: false, focus() { this.focused = true; } };
   const trigger = { focused: false, focus() { this.focused = true; } };
   const state = {
@@ -54,16 +55,51 @@ function setup() {
     }],
   };
   const deleted = [];
+  const repeated = [];
+  const repeatResult = { allowed: true };
   const controller = createTransactionDetailController({
-    elements: { modal, title, body, delete: remove, edit, close },
+    elements: { modal, title, body, delete: remove, edit, repeat, close },
     store: { getState: () => state },
     formatMoney: (value) => `NT$ ${Number(value).toLocaleString("en-US")}`,
     escapeHTML: (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
     updateTransaction: async () => true,
     deleteTransaction: async (id) => { deleted.push(id); return true; },
+    repeatTransaction: (id) => { repeated.push(id); return repeatResult.allowed; },
   });
-  return { controller, modal, title, body, remove, edit, close, trigger, doc, first, last, state, deleted };
+  return { controller, modal, title, body, remove, edit, repeat, close, trigger, doc, first, last, state, deleted, repeated, repeatResult };
 }
+
+test("repeat is hidden for linked records; an ordinary record opens a draft once without restoring old focus", () => {
+  const fx = setup();
+  fx.controller.openTransaction("tx-1", fx.trigger);
+  assert.equal(fx.repeat.classList.contains("d-none"), true);
+  assert.equal(fx.controller.repeatActiveTransaction(), false);
+  delete fx.state.txs[0].linkedFundId;
+  fx.controller.openTransaction("tx-1", fx.trigger);
+  assert.equal(fx.repeat.classList.contains("d-none"), false);
+  fx.repeatResult.allowed = false;
+  assert.equal(fx.controller.repeatActiveTransaction(), false);
+  assert.equal(fx.modal.classList.contains("d-none"), false);
+  fx.repeatResult.allowed = true;
+  assert.equal(fx.controller.repeatActiveTransaction(), true);
+  assert.equal(fx.modal.classList.contains("d-none"), true);
+  assert.equal(fx.trigger.focused, false);
+  assert.equal(fx.controller.repeatActiveTransaction(), false);
+  assert.deepEqual(fx.repeated, ["tx-1", "tx-1"]);
+});
+
+test("detail editing and stale deleted records cannot be repeated", () => {
+  const fx = setup();
+  delete fx.state.txs[0].linkedFundId;
+  fx.controller.openTransaction("tx-1");
+  fx.controller.startEdit();
+  assert.equal(fx.repeat.classList.contains("d-none"), true);
+  assert.equal(fx.controller.repeatActiveTransaction(), false);
+  fx.controller.cancelEdit();
+  fx.state.txs = [];
+  assert.equal(fx.controller.repeatActiveTransaction(), false);
+  assert.deepEqual(fx.repeated, []);
+});
 
 test("opens a complete escaped transaction detail and restores focus when closed", () => {
   const fx = setup();

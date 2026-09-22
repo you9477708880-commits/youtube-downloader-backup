@@ -53,6 +53,7 @@ const storage = createMemoryStorage();
 const base = createInitialState();
 const scopeA = userStorageScope("user-a");
 const scopeB = userStorageScope("user-b");
+assert.throws(() => saveLocalState(base, scopeA, null), /storage-unavailable/);
 
 saveLocalState(stateWithMarker("local"), LOCAL_STORAGE_SCOPE, storage);
 saveLocalState(stateWithMarker("A"), scopeA, storage);

@@ -208,14 +208,16 @@ export function createUiCoordinator({ runtime, dom, store, toast, doc = document
         dom.transferWrap.classList.add("d-none");
       }
     },
-    setTransactionEditMode({ active, linkedFundName = "", advanceRepaidAmount = 0 } = {}) {
+    setTransactionEditMode({ active, repeatDraft = false, linkedFundName = "", advanceRepaidAmount = 0 } = {}) {
       dom.txFormTitle.textContent = active ? "編輯交易" : "新增交易";
-      dom.txSubmitButton.textContent = active ? "儲存修改" : "儲存記錄";
-      dom.txCancelButton.classList.toggle("d-none", !active);
+      dom.txSubmitButton.textContent = active ? "儲存修改" : repeatDraft ? "新增這筆交易" : "儲存記錄";
+      dom.txCancelButton.classList.toggle("d-none", !active && !repeatDraft);
+      dom.txCancelButton.textContent = repeatDraft ? "取消新增" : "取消編輯";
       const notes = [];
+      if (repeatDraft) notes.push("已帶入上一筆內容，尚未儲存；確認後才新增。");
       if (linkedFundName) notes.push(`這筆交易原本對應「${linkedFundName}」。儲存修改時會先移除舊的準備事件，請重新決定是否指定準備。`);
       if (advanceRepaidAmount > 0) notes.push(`這筆代墊已收回 ${formatMoney(advanceRepaidAmount)}；修改後的應收款不能低於已收金額。`);
-      dom.txEditNote.classList.toggle("d-none", !active || !notes.length);
+      dom.txEditNote.classList.toggle("d-none", (!active && !repeatDraft) || !notes.length);
       dom.txEditNote.textContent = notes.join(" ");
       [dom.incomeButton, dom.expenseButton, dom.transferButton, dom.advanceButton].forEach((button) => {
         button.disabled = !!active;

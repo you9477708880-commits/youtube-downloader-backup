@@ -105,7 +105,7 @@ export function loadLocalState(baseState, scope = LOCAL_STORAGE_SCOPE, storage =
 }
 
 export function saveLocalState(state, scope = LOCAL_STORAGE_SCOPE, storage = globalThis.localStorage) {
-  if (!storage) return;
+  if (!storage) throw new Error("storage-unavailable");
   const normalized = normalizeFinanceStateMoney(cloneState(state));
   storage.setItem(snapshotKey(scope), JSON.stringify(normalized));
 }

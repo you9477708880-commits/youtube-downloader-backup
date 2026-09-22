@@ -32,7 +32,6 @@ export function createControllerComposition({
   syncCoordinator,
   conflictRecoveryStore,
   getCloudSync,
-  saveState,
   enqueueCloudState,
   getFilteredTransactions,
   win = globalThis.window,
@@ -51,6 +50,7 @@ export function createControllerComposition({
   });
   const navigate = (tabId) => baseActions.switchTab(tabId);
   let replaceWholeState = null;
+  let resetWholeStateControllers = null;
 
   const balanceSheetController = createBalanceSheetController({
     elements: {
@@ -195,6 +195,7 @@ export function createControllerComposition({
     commitState,
     toast,
     renderSearch: () => transactionSearchController.render(),
+    showSearchHistory: (query) => transactionSearchController.showHistory(query),
   });
   const transactionDetailController = createTransactionDetailController({
     elements: {
@@ -204,12 +205,14 @@ export function createControllerComposition({
       delete: dom.transactionDetailDelete,
       edit: dom.transactionDetailEdit,
       close: dom.transactionDetailClose,
+      repeat: dom.transactionDetailRepeat,
     },
     store,
     formatMoney,
     escapeHTML,
     updateTransaction: (id, input) => transactionController.updateTransactionFromDetail(id, input),
     deleteTransaction: (id) => transactionController.delTx(id),
+    repeatTransaction: (id) => transactionController.beginRepeatTx(id),
   });
   const importController = createImportController({
     elements: {
@@ -223,8 +226,8 @@ export function createControllerComposition({
     },
     store,
     toast,
-    replaceWholeState: (state) => replaceWholeState(state),
-    persistWholeState: saveState,
+    resetWholeStateControllers: () => resetWholeStateControllers(),
+    getContext: () => syncCoordinator.getContext(),
     refreshWholeStateUi,
     commitState,
     waitForCloudSave: enqueueCloudState,
@@ -328,6 +331,7 @@ export function createControllerComposition({
     retirementController,
   ];
   replaceWholeState = createWholeStateReplacer({ store, controllers: resettableControllers });
+  resetWholeStateControllers = () => resettableControllers.forEach((controller) => controller.reset());
   syncCoordinator.bindWholeStateReplacer(replaceWholeState);
   renderCoordinator.bindFeatureControllers({
     transactionSearch: transactionSearchController,
@@ -362,6 +366,7 @@ export function createControllerComposition({
     addTx: transactionController.addTx,
     beginEditTx: transactionController.beginEditTx,
     cancelEditTx: transactionController.cancelEditTx,
+    markTransactionDraftDirty: transactionController.markDraftDirty,
     delTx: transactionController.delTx,
     repayAdvance: transactionController.repayAdvance,
     editAdvanceRepayment: transactionController.editAdvanceRepayment,
@@ -369,6 +374,7 @@ export function createControllerComposition({
     openTransactionDetail: transactionDetailController.openTransaction,
     openBudgetSourceDetail: transactionDetailController.openBudgetSource,
     editTransactionDetail: transactionDetailController.startEdit,
+    repeatTransactionDetail: transactionDetailController.repeatActiveTransaction,
     deleteTransactionDetail: transactionDetailController.removeActiveTransaction,
     cancelTransactionDetailEdit: transactionDetailController.cancelEdit,
     saveTransactionDetail: transactionDetailController.saveEdit,

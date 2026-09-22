@@ -92,8 +92,8 @@ export function createImportController({
   elements,
   store,
   toast,
-  replaceWholeState,
-  persistWholeState,
+  resetWholeStateControllers = () => {},
+  getContext = () => null,
   refreshWholeStateUi,
   commitState,
   waitForCloudSave = async () => false,
@@ -118,8 +118,10 @@ export function createImportController({
     androMoneyConfirm,
   } = elements;
   let pendingAndroMoneyText = "";
+  let importGeneration = 0;
 
   const reset = () => {
+    importGeneration++;
     pendingAndroMoneyText = "";
     androMoneyModal.classList.add("d-none");
     androMoneyAccounts.innerHTML = "";
@@ -266,11 +268,17 @@ export function createImportController({
   };
 
   const importBackupFile = async (file) => {
+    const context = getContext();
+    const generation = ++importGeneration;
     const nextState = await readBackupFile(file);
-    replaceWholeState(nextState);
-    persistWholeState();
-    refreshWholeStateUi();
-    toast.show("已匯入資料");
+    if (context !== getContext() || generation !== importGeneration) {
+      throw new Error("stale-import-context");
+    }
+    commitState(() => nextState, { updateUi: () => {
+      resetWholeStateControllers();
+      refreshWholeStateUi();
+    } });
+    if (context === getContext()) toast.show("已匯入資料並保存於本機；雲端進度請查看同步狀態");
   };
 
   const exportAndroMoney = () => {
@@ -285,13 +293,18 @@ export function createImportController({
   };
 
   const openAndroMoneyImport = async (file) => {
-    pendingAndroMoneyText = await readTextFile(file);
+    const context = getContext();
+    const generation = ++importGeneration;
+    const text = await readTextFile(file);
+    if (context !== getContext() || generation !== importGeneration) throw new Error("stale-import-context");
+    pendingAndroMoneyText = text;
     const parsed = parseAndroMoneyCsv(pendingAndroMoneyText);
     showAndroMoneyImportDialog(parsed);
   };
 
   const confirmAndroMoneyImport = async () => {
     if (!pendingAndroMoneyText) return;
+    const context = getContext();
 
     const initialParse = parseAndroMoneyCsv(pendingAndroMoneyText);
     const { accountMap, newAccounts: plannedAccounts } = buildAccountImportPlan(initialParse.accountNames);
@@ -381,6 +394,7 @@ export function createImportController({
 
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
     const cloudSaved = await waitForCloudSave();
+    if (context !== getContext()) return;
     const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${repairTransactions.length ? `，修正 ${repairTransactions.length} 筆帳戶` : ""}${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}${repairConflictCount ? `，${repairConflictCount} 筆類型不同未修改` : ""}`;
     toast.show(cloudSaved ? `${result}，已同步雲端` : `${result}，已保存於本機，尚未同步雲端`);
   };

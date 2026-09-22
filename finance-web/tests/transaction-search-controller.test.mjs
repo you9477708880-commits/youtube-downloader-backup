@@ -90,3 +90,24 @@ test("clear renders the report view while lifecycle reset clears state without r
   assert.equal(harness.elements.preset.value, "6m");
   assert.deepEqual(harness.calls, []);
 });
+
+test("showHistory clears pending/custom filters, includes old records and leaves the report view unchanged", () => {
+  const harness = createHarness();
+  harness.elements.preset.value = "custom";
+  harness.elements.start.value = "2026-08-01";
+  harness.elements.end.value = "2026-08-13";
+  harness.controller.handleQueryInput();
+  const model = harness.controller.showHistory("洗牙");
+  assert.equal(harness.elements.preset.value, "all");
+  assert.equal(harness.elements.start.value, "");
+  assert.equal(harness.elements.end.value, "");
+  assert.deepEqual(model.matches.map((item) => item.id), ["current", "older"]);
+  assert.deepEqual(harness.calls[0], ["cancel", "timer"]);
+  assert.match(harness.elements.status.textContent, /最早紀錄/);
+  assert.match(harness.elements.status.textContent, /不影響月度報表/);
+  assert.equal(harness.controller.showHistory("機油").matchCount, 0);
+  assert.equal(harness.elements.empty.hidden, false);
+  assert.equal(harness.controller.showHistory("洗牙").matchCount, 2);
+  harness.controller.clear();
+  assert.deepEqual(harness.calls.at(-2), ["render", ["current"]]);
+});

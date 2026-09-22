@@ -22,11 +22,13 @@ const names = [
   "ConflictRecoveryCenter",
   "AccountCenter",
   "TransactionSearch",
-  "ListPerformance"
+  "ListPerformance",
+  "DailyOperations",
+  "DailyOperationsMobile"
 ];
 
-test("the original 15 scenarios and list-performance retain their prepare/run contract", () => {
-  assert.equal(names.length, 16);
+test("the original scenarios and daily operations retain their prepare/run contract", () => {
+  assert.equal(names.length, 18);
   const expected = names.flatMap((name) => ["prepare" + name + "Scenario", "run" + name + "Scenario"]).sort();
   assert.deepEqual(Object.keys(scenarios).sort(), expected);
   for (const name of expected) assert.equal(typeof scenarios[name], "function");

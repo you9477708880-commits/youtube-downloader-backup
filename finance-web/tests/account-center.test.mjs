@@ -5,6 +5,7 @@ import { calculateAccountBalances } from "../src/domain/accounts.js";
 import { calculateAccountCenter, getCreditCardSchedule } from "../src/domain/account-center.js";
 import { summarizeOverview } from "../src/domain/transactions.js";
 import { createStore } from "../src/state/store.js";
+import { renderBalanceSheet } from "../src/views/balance-sheet-view.js";
 
 function sampleState() {
   return {
@@ -31,11 +32,64 @@ test("credit-card center derives debt, available credit, billing charges, and pa
   assert.equal(card.periodPayments, 300);
   assert.equal(card.schedule.periodStart, "2026-08-06");
   assert.equal(card.schedule.nextStatementDate, "2026-09-05");
-  assert.equal(card.schedule.nextPaymentDueDate, "2026-09-23");
+  assert.equal(card.schedule.nextPaymentDueDate, "2026-08-23");
   assert.equal(getCreditCardSchedule({}, new Date(2026, 7, 23)), null);
   const bank = data.accounts.find((item) => item.id === "bank");
   assert.equal(bank.monthInflow, 0);
   assert.equal(bank.monthOutflow, 300);
+});
+
+test("credit-card unset days never become the first day and partial settings stay independent", () => {
+  const today = new Date(2026, 8, 20, 23, 59);
+  for (const value of [undefined, null, "", " ", 0, "0", -1, 29, NaN]) {
+    assert.equal(getCreditCardSchedule({ statementDay: value, paymentDueDay: value }, today), null);
+  }
+  assert.deepEqual(getCreditCardSchedule({ statementDay: 0, paymentDueDay: 23 }, today), {
+    periodStart: "", periodEnd: "", nextStatementDate: "", nextPaymentDueDate: "2026-09-23",
+  });
+  assert.deepEqual(getCreditCardSchedule({ statementDay: 5, paymentDueDay: 0 }, today), {
+    periodStart: "2026-09-06", periodEnd: "2026-10-05", nextStatementDate: "2026-10-05", nextPaymentDueDate: "",
+  });
+  const state = sampleState();
+  state.accounts[1].statementDay = 0;
+  const card = calculateAccountCenter(state, today).accounts[1];
+  assert.equal(card.schedule.nextPaymentDueDate, "2026-09-23");
+  assert.equal(card.periodCharges, 0);
+  assert.equal(card.periodPayments, 0);
+});
+
+test("nearest scheduled payment includes today and crosses months or years without using the next statement", () => {
+  const cases = [
+    [new Date(2026, 8, 20), 5, 23, "2026-09-23"],
+    [new Date(2026, 8, 23, 23, 59, 59), 5, 23, "2026-09-23"],
+    [new Date(2026, 8, 24), 5, 23, "2026-10-23"],
+    [new Date(2026, 11, 29), 5, 23, "2027-01-23"],
+    [new Date(2026, 11, 31), 28, 1, "2027-01-01"],
+    [new Date(2026, 1, 28, 18), 28, 28, "2026-02-28"],
+    [new Date(2026, 1, 28), 23, 5, "2026-03-05"],
+  ];
+  for (const [today, statementDay, paymentDueDay, expected] of cases) {
+    assert.equal(getCreditCardSchedule({ statementDay, paymentDueDay }, today).nextPaymentDueDate, expected);
+  }
+});
+
+test("credit-card view labels missing days and calendar-only reminder without inventing billing totals", () => {
+  const state = sampleState();
+  const utils = { escapeHTML: (value) => String(value), formatMoney: (value) => String(value) };
+  const renderCard = (statementDay, paymentDueDay) => {
+    Object.assign(state.accounts[1], { statementDay, paymentDueDay });
+    const dom = { balanceSheetBody: {}, accountCenter: {} };
+    renderBalanceSheet({ state, utils, dom });
+    return dom.accountCenter.innerHTML;
+  };
+  const noDates = renderCard(0, 0);
+  assert.match(noDates, /結帳日：未設定/);
+  assert.match(noDates, /最近預定繳款日：未設定/);
+  assert.match(noDates, /日期依設定推算；不代表銀行實際帳單或尚未繳清/);
+  const dueOnly = renderCard(0, 23);
+  assert.match(dueOnly, /本期新增刷卡<\/span><strong>設定結帳日後顯示/);
+  assert.match(dueOnly, /最近預定繳款日：\d{4}-\d{2}-23/);
+  assert.match(renderCard(5, 0), /最近預定繳款日：未設定/);
 });
 
 test("confirmed reconciliation creates one traceable adjustment without changing reports", () => {

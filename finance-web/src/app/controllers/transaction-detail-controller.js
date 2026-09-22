@@ -1,5 +1,6 @@
 import { formatTransactionCategory, getAdvanceRepaidAmount } from "../../domain/transactions.js";
 import { getTransactionTitle } from "../../views/transaction-detail-view.js";
+import { canRepeatTransaction } from "../../domain/transaction-repeat.js";
 
 const TYPE_LABELS = {
   income: "收入",
@@ -19,7 +20,7 @@ function displayText(value, fallback = "未填寫") {
   return text || fallback;
 }
 
-export function createTransactionDetailController({ elements, store, formatMoney, escapeHTML, updateTransaction, deleteTransaction }) {
+export function createTransactionDetailController({ elements, store, formatMoney, escapeHTML, updateTransaction, deleteTransaction, repeatTransaction }) {
   if (!elements?.modal || !elements?.title || !elements?.body || !elements?.delete || !elements?.edit || !elements?.close) {
     throw new Error("transaction-detail-elements-required");
   }
@@ -43,13 +44,14 @@ export function createTransactionDetailController({ elements, store, formatMoney
   const money = (value) => formatMoney(Number(value) || 0);
   const findAccountName = (state, id) => state.accounts.find((account) => String(account.id) === String(id))?.name || "未知帳戶";
 
-  const show = ({ title, html, trigger, editable = false, deletable = false }) => {
+  const show = ({ title, html, trigger, editable = false, deletable = false, repeatable = false }) => {
     previousFocus = trigger?.focus ? trigger : null;
     editing = false;
     elements.title.textContent = title;
     elements.body.innerHTML = `<dl class="transaction-detail-grid">${html}</dl>`;
     elements.delete.classList.toggle("d-none", !deletable);
     elements.edit.classList.toggle("d-none", !editable);
+    elements.repeat?.classList.toggle("d-none", !repeatable);
     elements.modal.classList.remove("d-none");
     elements.close.focus?.();
     return true;
@@ -60,6 +62,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     elements.modal.classList.add("d-none");
     elements.delete.classList.add("d-none");
     elements.edit.classList.add("d-none");
+    elements.repeat?.classList.add("d-none");
     activeTransactionId = null;
     editing = false;
     const focusTarget = previousFocus;
@@ -100,6 +103,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     elements.title.textContent = "編輯交易";
     elements.delete.classList.add("d-none");
     elements.edit.classList.add("d-none");
+    elements.repeat?.classList.add("d-none");
     elements.body.innerHTML = `
       <form id="transaction-detail-form" class="transaction-detail-editor">
         <label class="transaction-detail-control">
@@ -235,6 +239,17 @@ export function createTransactionDetailController({ elements, store, formatMoney
     return true;
   };
 
+  const repeatActiveTransaction = () => {
+    if (editing || activeTransactionId === null || typeof repeatTransaction !== "function") return false;
+    const tx = store.getState().txs.find((item) => String(item.id) === String(activeTransactionId));
+    if (!canRepeatTransaction(store.getState(), tx)) return false;
+    if (!repeatTransaction(activeTransactionId)) return false;
+    // The new form already owns focus. Do not move it back to the old detail trigger.
+    previousFocus = null;
+    close();
+    return true;
+  };
+
   const trapFocus = (event) => {
     if (event?.key !== "Tab" || elements.modal.classList.contains("d-none")) return false;
     const focusable = [...(elements.modal.querySelectorAll?.(
@@ -290,6 +305,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
       trigger,
       editable: tx.type !== "balance_adjustment",
       deletable: tx.type === "balance_adjustment",
+      repeatable: typeof repeatTransaction === "function" && canRepeatTransaction(state, tx),
     });
   };
 
@@ -337,6 +353,7 @@ export function createTransactionDetailController({ elements, store, formatMoney
     cancelEdit,
     saveEdit,
     removeActiveTransaction,
+    repeatActiveTransaction,
     syncEditorType,
     close,
     trapFocus,

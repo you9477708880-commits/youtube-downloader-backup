@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createImportController } from "../src/app/controllers/import-controller.js";
 import { createStore } from "../src/state/store.js";
+import { createCommitState } from "../src/app/state-commit.js";
 
 function createClassList(initial = []) {
   const values = new Set(initial);
@@ -90,6 +91,10 @@ function createHarness() {
   let commitError = null;
   let cloudSaveResult = true;
   let nextAccountId = 1;
+  let context = 0;
+  let readGate = null;
+  let cloudGate = null;
+  let durableState = structuredClone(initialState);
 
   let importedTransactions = [
     {
@@ -155,29 +160,34 @@ function createHarness() {
     elements,
     store,
     toast: { show: (...args) => calls.toasts.push(args) },
-    replaceWholeState: (state) => {
+    resetWholeStateControllers: () => {
       calls.replace += 1;
-      store.replace(state);
     },
-    persistWholeState: () => { calls.persist += 1; },
+    getContext: () => context,
     refreshWholeStateUi: () => { calls.refreshWhole += 1; },
     commitState: (mutator, { updateUi }) => {
       calls.commit += 1;
-      if (commitError) throw commitError;
-      store.update(mutator);
-      updateUi(store.getState());
+      return createCommitState({ store, normalizeState: (s) => s,
+        persistLocal: (s) => {
+          if (commitError) throw commitError;
+          calls.persist++;
+          durableState = structuredClone(s);
+        }, enqueueCloud: () => {},
+      })(mutator, { updateUi });
     },
     waitForCloudSave: async () => {
       calls.cloudWaits += 1;
+      if (cloudGate) await cloudGate;
       return cloudSaveResult;
     },
     refreshTransactionUi: () => { calls.refreshTransactions += 1; },
     readBackupFile: async () => {
+      if (readGate) await readGate;
       if (backupError) throw backupError;
       return structuredClone(backupResult);
     },
     exportBackupFile: (state) => calls.backupExports.push(state),
-    readTextFile: async () => "csv-content",
+    readTextFile: async () => { if (readGate) await readGate; return "csv-content"; },
     parseAndroMoneyCsv,
     buildAndroMoneyCsv: (transactions, accounts) => `csv:${transactions.length}:${accounts.length}`,
     downloadTextFile: (details) => calls.downloads.push(details),
@@ -204,6 +214,10 @@ function createHarness() {
     setCommitError(error) { commitError = error; },
     setCloudSaveResult(value) { cloudSaveResult = value; },
     setImportedTransactions(value) { importedTransactions = value; },
+    switchContext() { context++; },
+    setReadGate(value) { readGate = value; },
+    setCloudGate(value) { cloudGate = value; },
+    get durableState() { return durableState; },
   };
 }
 
@@ -218,7 +232,63 @@ test("valid JSON backup replaces, persists, and refreshes the whole state once",
   assert.equal(harness.calls.replace, 1);
   assert.equal(harness.calls.persist, 1);
   assert.equal(harness.calls.refreshWhole, 1);
-  assert.deepEqual(harness.calls.toasts.at(-1), ["已匯入資料"]);
+  assert.match(harness.calls.toasts.at(-1)[0], /已匯入資料並保存於本機/);
+});
+
+test("JSON persistence failure preserves original store, durable snapshot and controller drafts", async () => {
+  const h = createHarness();
+  const before = structuredClone(h.store.getState());
+  h.setBackupResult({ ...before, txs: [] });
+  h.setCommitError(new DOMException("full", "QuotaExceededError"));
+  await assert.rejects(h.controller.importBackupFile({}), { name: "QuotaExceededError" });
+  assert.deepEqual(h.store.getState(), before);
+  assert.deepEqual(h.durableState, before);
+  assert.equal(h.calls.replace, 0);
+  assert.equal(h.calls.refreshWhole, 0);
+  assert.equal(h.calls.toasts.length, 0);
+});
+
+test("JSON read cannot apply after UID ABA switch or whole-state controller reset", async () => {
+  for (const invalidate of [(h) => { h.switchContext(); h.switchContext(); }, (h) => h.controller.reset()]) {
+    const h = createHarness();
+    let release;
+    h.setReadGate(new Promise((resolve) => { release = resolve; }));
+    const pending = h.controller.importBackupFile({});
+    invalidate(h);
+    release();
+    await assert.rejects(pending, /stale-import-context/);
+    assert.equal(h.calls.commit, 0);
+    assert.equal(h.calls.replace, 0);
+    assert.equal(h.calls.persist, 0);
+  }
+});
+
+test("CSV read is discarded after UID ABA switch or controller reset", async () => {
+  for (const invalidate of [(h) => { h.switchContext(); h.switchContext(); }, (h) => h.controller.reset()]) {
+    const h = createHarness();
+    let release;
+    h.setReadGate(new Promise((resolve) => { release = resolve; }));
+    const pending = h.controller.openAndroMoneyImport({});
+    invalidate(h);
+    release();
+    await assert.rejects(pending, /stale-import-context/);
+    assert.equal(h.calls.parseOptions.length, 0);
+    assert.equal(h.calls.persist, 0);
+    assert.equal(h.elements.androMoneyModal.classList.contains("d-none"), true);
+  }
+});
+
+test("CSV cloud completion from an old context cannot notify the new user", async () => {
+  const h = createHarness();
+  await h.controller.openAndroMoneyImport({});
+  let release;
+  h.setCloudGate(new Promise((resolve) => { release = resolve; }));
+  const pending = h.controller.confirmAndroMoneyImport();
+  assert.equal(h.calls.persist, 1);
+  h.switchContext();
+  release();
+  await pending;
+  assert.equal(h.calls.toasts.length, 0);
 });
 
 test("invalid JSON backup leaves state unchanged and performs no persistence or refresh", async () => {

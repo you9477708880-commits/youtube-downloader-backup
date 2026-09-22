@@ -25,6 +25,7 @@ const DATA_ACTIONS = {
   "view-tx": ({ button, actions }) => actions.openTransactionDetail(button.dataset.id, button),
   "view-budget-source": ({ button, actions }) => actions.openBudgetSourceDetail(button.dataset.id, button.dataset.sourceType, button),
   "edit-transaction-detail": ({ actions }) => actions.editTransactionDetail(),
+  "repeat-transaction-detail": ({ actions }) => actions.repeatTransactionDetail(),
   "delete-transaction-detail": ({ actions }) => actions.deleteTransactionDetail(),
   "cancel-transaction-detail-edit": ({ actions }) => actions.cancelTransactionDetailEdit(),
   "save-transaction-detail": ({ actions }) => { void actions.saveTransactionDetail(); },
@@ -113,6 +114,8 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   };
 
   bindForm("form-tx", actions.addTx);
+  on(doc.getElementById("form-tx"), "input", (event) => actions.markTransactionDraftDirty(event));
+  on(doc.getElementById("form-tx"), "change", (event) => actions.markTransactionDraftDirty(event));
   bindForm("form-cat-bud", actions.setCatBudget);
   bindForm("form-wish", actions.addWish);
   bindForm("form-bs", actions.addBs);

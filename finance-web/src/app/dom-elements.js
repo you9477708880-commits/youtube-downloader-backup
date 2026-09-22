@@ -196,6 +196,7 @@ export function collectDom(doc = document) {
     transactionDetailBody: $("transaction-detail-body", doc),
     transactionDetailDelete: $("transaction-detail-delete", doc),
     transactionDetailEdit: $("transaction-detail-edit", doc),
+    transactionDetailRepeat: $("transaction-detail-repeat", doc),
     transactionDetailClose: $("transaction-detail-close", doc),
   };
 }

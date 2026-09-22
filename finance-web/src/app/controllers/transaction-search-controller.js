@@ -86,6 +86,15 @@ export function createTransactionSearchController({
     elements.query.focus?.();
   }
 
+  function showHistory(query) {
+    cancelPendingRender();
+    elements.query.value = query;
+    elements.preset.value = "all";
+    elements.start.value = "";
+    elements.end.value = "";
+    return render();
+  }
+
   function reset() {
     cancelPendingRender();
     elements.query.value = "";
@@ -94,5 +103,5 @@ export function createTransactionSearchController({
     elements.end.value = "";
   }
 
-  return { render, handleQueryInput, handlePresetChange, clear, reset, getModel };
+  return { render, handleQueryInput, handlePresetChange, showHistory, clear, reset, getModel };
 }

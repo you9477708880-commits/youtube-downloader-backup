@@ -87,6 +87,16 @@ export async function runTransactionSearchScenario(app) {
       throw new Error("transaction-search-clear-mismatch");
     }
 
+    document.querySelector('#life-routine-list [data-action="view-life-routine"]')?.click();
+    if (
+      query.value !== "醫療 洗牙" || preset.value !== "all" ||
+      document.getElementById("tx-cnt")?.textContent !== "3 筆" ||
+      document.getElementById("f-start")?.value !== reportStart ||
+      document.getElementById("f-end")?.value !== reportEnd
+    ) {
+      throw new Error("life-routine-history-range-or-report-mismatch");
+    }
+
     writeSmokeResult("pass", "transaction search can save one synchronized life-cycle routine while reusing the existing result list and keeping report state isolated");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");

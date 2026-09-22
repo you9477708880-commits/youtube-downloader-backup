@@ -1,5 +1,6 @@
 import { cloneState } from "../state/initial-state.js";
 import { normalizeFinanceStateMoney } from "../utils/normalize-state.js";
+import { recordKey } from "./record-codec.js";
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const SAFE_STRING_MAX_LENGTH = 2000;
@@ -166,7 +167,7 @@ function isValidSettings(settings) {
   );
 }
 
-export function isValidImportShape(data) {
+function hasValidImportFields(data) {
   if (!isPlainObject(data) || hasDangerousKey(data)) return false;
   if ("schemaVersion" in data && !Number.isSafeInteger(Number(data.schemaVersion))) return false;
   if (!Array.isArray(data.txs) || !data.txs.every(isValidTransaction)) return false;
@@ -176,6 +177,54 @@ export function isValidImportShape(data) {
   if ("sinkingFunds" in data && (!Array.isArray(data.sinkingFunds) || !data.sinkingFunds.every(isValidSinkingFund))) return false;
   if ("lifeRoutines" in data && (!Array.isArray(data.lifeRoutines) || !data.lifeRoutines.every(isValidLifeRoutine))) return false;
   return isValidSettings(data.settings) && isValidUserCats(data.userCats);
+}
+
+function findDuplicateImportRecord(data) {
+  const positions = new Map();
+  const check = (kind, id, location) => {
+    // Use the sync codec's canonical identity, including numeric/string IDs.
+    const key = recordKey(kind, id);
+    if (positions.has(key)) return { kind, locations: [positions.get(key), location] };
+    positions.set(key, location);
+    return null;
+  };
+  for (const [kind, field] of [
+    ["transaction", "txs"], ["balanceSheetItem", "bsI"], ["wish", "wishes"],
+    ["account", "accounts"], ["lifeRoutine", "lifeRoutines"],
+  ]) {
+    for (const [index, item] of (data[field] || []).entries()) {
+      const duplicate = check(kind, item.id, `${field}[${index}]`);
+      if (duplicate) return duplicate;
+    }
+  }
+  for (const [index, fund] of (data.sinkingFunds || []).entries()) {
+    const location = `sinkingFunds[${index}]`;
+    const duplicate = check("sinkingFund", fund.id, location);
+    if (duplicate) return duplicate;
+    for (const [eventIndex, event] of (fund.events || []).entries()) {
+      // This compound identity intentionally matches stateToRecordSpecs, not
+      // an event-local Set: different parents can also produce the same key.
+      const eventDuplicate = check("fundEvent", `${fund.id}:${event.id}`, `${location}.events[${eventIndex}]`);
+      if (eventDuplicate) return eventDuplicate;
+    }
+  }
+  return null;
+}
+
+export function isValidImportShape(data) {
+  return hasValidImportFields(data) && !findDuplicateImportRecord(data);
+}
+
+function assertValidImport(data) {
+  if (!hasValidImportFields(data)) throw new Error("invalid-schema");
+  const duplicate = findDuplicateImportRecord(data);
+  if (!duplicate) return;
+  const error = new Error("duplicate-record-id");
+  error.code = "duplicate-record-id";
+  error.kind = duplicate.kind;
+  error.locations = duplicate.locations;
+  error.userMessage = `備份識別碼重複：${duplicate.locations.join(" 與 ")}（索引由 0 起算）無法分辨為不同紀錄。整份備份未匯入，原資料不變；請檢查備份來源，不要直接刪除或更換識別碼。`;
+  throw error;
 }
 
 export function exportData(state, filename = "finance_backup.json") {
@@ -204,10 +253,7 @@ export function importData(file) {
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target?.result || "{}");
-        if (!isValidImportShape(imported)) {
-          reject(new Error("invalid-schema"));
-          return;
-        }
+        assertValidImport(imported);
 
         const cloned = normalizeFinanceStateMoney(cloneState(imported));
         if (!Array.isArray(cloned.sinkingFunds)) cloned.sinkingFunds = [];
