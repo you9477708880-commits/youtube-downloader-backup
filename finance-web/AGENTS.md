@@ -45,6 +45,8 @@ During implementation:
 - Reuse existing modules and helper functions.
 - Do not add a new framework or dependency without explicit approval.
 - Do not refactor unrelated code.
+- JSON restore must persist to the current scope before replacing state or resetting drafts. Reject duplicate canonical record IDs before writing; do not silently repair identities.
+- Once local persistence succeeds, UI failures must not prevent valid-scope cloud scheduling. Fence async import/sync work across auth generations, including A-to-B-to-A switches.
 - Do not change neighboring formatting just because it looks nicer.
 - Do not silently change mobile UI, desktop layout, or visual density unless the request is specifically about UI layout.
 
@@ -100,7 +102,7 @@ Pinned release-grade suite (requires Node `24.15.0`, Java 21, and `npm ci`):
 npm test
 ```
 
-This is an alias for `npm run test:ci`. It first verifies the repository toolchain, then runs syntax checks, unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 15 UI smoke scenarios. It must not use a production Firebase project ID. Firebase CLI must come from the project lockfile, never from a global installation.
+This is an alias for `npm run test:ci`. It first verifies the repository toolchain, then runs syntax checks, unit/integration tests, Firestore and Functions Emulator tests against `demo-finance-web`, and all 18 UI smoke scenarios (including the 390px daily-operations viewport). It must not use a production Firebase project ID. Firebase CLI must come from the project lockfile, never from a global installation.
 
 Fast code-only suite when the current shell is not yet on the pinned Node version:
 

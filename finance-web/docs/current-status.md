@@ -1,6 +1,6 @@
 # 目前工作狀態與下一步
 
-- 最後更新：2026-09-12
+- 最後更新：2026-09-22
 - 正式分支：`main` at `67ed8fc`
 - 遠端正式點：`origin/main` at `67ed8fc`
 - 正式 Hosting 已知部署點：`67ed8fc`
@@ -14,13 +14,27 @@
 
 ## 正式版狀態
 
+以下正式／遠端部署點是既有紀錄，本批未連線查證、推送或部署；不得當作 2026-09-22 候選的 CI 證據。
+
 2026-08-29 已將先前 `codex/next` 的帳戶中心／信用卡、月度回顧 2.0、退休情境與護欄再平衡、交易搜尋週期間隔、裝置清理、PWA 更新與同步衝突保護整合至 `main`，推送 GitHub、通過 CI，並部署 Firebase Hosting。正式站：
 
 `https://financial-computer.web.app`
 
 正式發布只包含 Hosting。該次沒有部署 Functions，也沒有讀取、修改或刪除正式 Firestore 帳務資料。
 
-## 目前本機候選：維護收斂＋生活週期提醒
+## 2026-09-22 本機候選：資料可靠性與日常操作收斂
+
+- 以 `12e790a` 為工作基準，留在 `codex/maintenance-life-cycle`；未合併 main、推送或部署。
+- 程式與測試提交：`ca7adb6`。環境檢查、全套 unit／syntax、release、離線 acceptance 與全部 18/18 browser smoke 通過；兩位獨立子代理複核無阻擋。這不代表下列 Emulator 或遠端 CI 已通過。
+- JSON 還原先完成本機保存才替換資料／清除草稿；canonical ID 與同步 codec 一致，重複 ID 整份拒絕、不換 ID。
+- UI 更新失敗不再截斷有效 scope 的雲端排隊；同步／匯入回呼增加登入 generation 防護，包含 A→B→A 及等待復原保存時切換帳號。
+- 刪除正在編輯的交易不再變成新增；信用卡未設定日期不虛構每月 1 日，最近繳款日包含今天；提醒查看紀錄改為全部期間，不影響月度報表。
+- 交易詳情新增「再記一筆」：僅一般無特殊關聯收入／支出，確認才保存，不沿用原 ID／匯入身份；保護未保存草稿、無效帳戶／分類、長備註與重複送出。
+- 本批不變更 schema v3／migration／Rules／Functions／依賴，不讀寫正式資料。既有 schema v3 候選仍須另外處理 Rules 發布相容性，不能只把 Hosting 當作已可上線。
+- 實作、測試、審核與集中人工驗收見 [2026-09-22 批次報告](data-reliability-2026-09-22.md)。人工預覽尚未啟動。
+- 本機 Emulator 再現 Rules 管理端點 503，另外 Functions backend 探測逾時；完整 Emulator 套件未通過，不能以歷史 CI 抵替。需之後另行授權推送，取得固定 Ubuntu CI 的本批證據。
+
+## 既有本機候選：維護收斂＋生活週期提醒
 
 ### 使用者用途
 

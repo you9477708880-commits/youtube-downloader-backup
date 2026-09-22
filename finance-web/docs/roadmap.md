@@ -1,8 +1,10 @@
 ﻿# 理財網站產品與技術藍圖 / Finance Web Product And Technical Roadmap
 
-最後更新 / Last updated: 2026-09-12
+最後更新 / Last updated: 2026-09-22
 正式穩定分支 / Production stable branch: `main` at `67ed8fc`
 本機候選分支 / Local candidate branch: `codex/maintenance-life-cycle`
+
+本輪優先成果（2026-09-22，本機未發布）：完成「資料可靠性與日常操作收斂」A～F 與交易詳情「再記一筆」。重點是 JSON 本機保存邊界、匯入 canonical ID、UI 失敗不截斷同步、UID 非同步隔離、編輯刪除不復活、信用卡日期、提醒歷史查詢；沒有擴充帳務 schema 或依賴。結果與 5～10 分鐘人工驗收見 [批次報告](data-reliability-2026-09-22.md)。後續先收斂驗證與發布，不新增功能堆疊；Emulator／CI 未通過不宣稱可發布。
 最新已部署安全點 / Latest deployed safety point: `67ed8fc 修正 Windows 正式部署啟動器`
 目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `67ed8fc`; the existing Firestore v7 rules are live, and Firebase Functions remain intentionally undeployed. The schema-v3 life-cycle reminder candidate is local only and requires tested Rules deployment before any matching Hosting release.
 
@@ -113,7 +115,7 @@ Since 2026-08-29, new work follows a maintenance-first gate: every feature needs
 - 資料安全邊界已補強並部署：正式入口不再接受 `?smoke=` 執行測試資料覆寫；smoke runner 改由本機伺服器注入獨立測試入口；Firebase Hosting 改為部署前建立允許清單式 `.firebase-public`，排除文件、測試、Functions、規則、EPUB 與 smoke scenarios。
 - 同一登入帳號的雲端寫入已在本機改為序列 queue：快速連續修改不再並行寫入整份 state，而是在目前寫入後只補寫最新狀態；寫入期間收到的遠端快照會暫存並比對本機送出狀態，以辨識 server echo；帳號切換會停用舊 queue，並等新 `uid` 第一個 snapshot 解析後才開放保存；重新上線不會無條件覆蓋雲端。此階段不加入自動合併，也不改帳務資料模型。
 - 第三、四階段同步整理已完成並部署：localStorage 改為 `local` / Firebase `uid` 單一 snapshot 分區；舊 `fin_v6_*` 只搬到未綁定 local；Firestore v7 已啟用 meta、record-level documents、revision rules、deletion tombstones、UID outbox、整筆衝突選擇與 v6 驗證遷移。
-- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 15 個 UI smoke scenarios；smoke runner 由系統分配可用埠；Windows 開發環境與 GitHub Actions 統一使用 Node 24.15.0、Temurin 21 與固定 `demo-finance-web`。維護性第三階段已完成只讀評估，建議依資產負債、待購清單、準備金、交易、匯入的順序逐一拆 controller。
+- 本機測試基礎已補齊：根目錄 `npm test` 會執行語法、單元、Firestore/Functions Emulator 與全部 18 個 UI smoke scenarios；smoke runner 由系統分配可用埠；Windows 開發環境與 GitHub Actions 統一使用 Node 24.15.0、Temurin 21 與固定 `demo-finance-web`。資產負債、待購清單、準備金、交易與匯入 controllers 已分離；後續依行為風險維護，不重做已完成拆分。
 - 維護性 controller 拆分第一批已在本機完成：資產負債 CRUD、編輯狀態與 emergency toggle 已從 `actions.js` 搬到獨立 controller，bootstrap 保留組裝與原 actions facade；characterization tests 會驗證歷史交易不變、取消無副作用及每次成功操作只 save/render 一次。
 
 ### English
@@ -347,7 +349,7 @@ Mid-term work:
 
 4. **Import / cloud conflict strategy**
    - If local and cloud data differ on Google sign-in, first provide only explicit overwrite choices: use cloud data locally, or upload local data over cloud.
-   - Do not implement automatic merging until records have `updatedAt`, deletion tombstones, or replayable transaction logs.
+   - Record-level revisions and deletion tombstones already exist. Keep whole-record conflict choices; do not infer that these enable safe field-level automatic merging.
    - Future merge support must define per-record conflict rules and recovery behavior first.
 
 5. **Category-budget data cleanup**
@@ -356,7 +358,7 @@ Mid-term work:
 
 6. **AndroMoney compatibility layer**
    - Use AndroMoney CSV as a mobile-compatible transaction interchange format, not as backup/restore for this website.
-   - Upgrade the transaction category model from one field to `category` + `subcategory` so imported AndroMoney data can preserve both levels.
+   - The transaction category model already supports `category` + `subcategory`; preserve both levels and the existing CSV compatibility contract.
    - On CSV import, automatically match normalized exact account names. Missing names default to new zero-balance asset accounts, while the confirmation UI lets the user choose liability for credit cards; never use fuzzy account guessing.
    - Preserve external identifiers such as `externalSource`, `externalId`, and `externalUid` so repeated imports can detect duplicates and future sync logic has stable references.
    - Full website backup and restore must remain a single complete JSON file that includes both `txs` and website-only data.
@@ -443,7 +445,7 @@ Mid-term work:
 - 參考文件：`docs/finance-book-product-design-notes.md`
 - 可考慮的方向：
   - 財務階段視圖。
-  - 六要素後續深化；收入、支出、負債、資產的折疊摘要已成為本機候選，心態與習慣仍只保留非持久化問題。
+  - 六要素是閱讀研究背景，不是待加回的 UI。重複數字與自評區已因人工驗收缺乏實際用途而移除；未來需先證明可採取的具體行動，才考慮新功能。
   - 使用者自選的生活品質情境。
   - 月度回顧：理財餘裕、支出調整、目標進度與下月行動。
   - 將待購清單與大額準備整合成更完整的目標系統。

@@ -243,7 +243,7 @@ Traceability rules:
 
 - 同一日多筆符合交易只算一次發生，避免一次洗牙的掛號費與診療費被誤當兩次。
 - 未啟用的規則保留但不列為待辦；沒有符合交易時清楚顯示「尚無符合紀錄」，不猜測上次日期。
-- 「查看紀錄」只把關鍵字送回既有交易搜尋，搜尋期間仍不改月度報表範圍。
+- 「查看紀錄」把關鍵字送回既有交易搜尋，並切換為明確顯示的「全部期間」、清除舊自訂日期，避免一年前的提醒來源被最近半年篩掉。搜尋期間仍不改月度報表範圍（2026-09-22 修正）。
 - 刪除提醒只刪 `lifeRoutine` record 並建立 tombstone，不刪任何 `txs`。
 
 The routine record stores only the rule. Occurrences remain traceable to `txs`, same-day matches count once, and every date/status is derived. Viewing reuses the existing transaction search; deleting a routine never deletes transactions.

@@ -6,6 +6,17 @@ This document describes the frontend state model and separates accounting facts,
 
 ## 1. State Root
 
+2026-09-22「資料可靠性與日常操作收斂」核對：沿用既有候選 schema v3；本批沒有新增持久化欄位、修改 schema／migration、Rules 或 Functions。變更的是以下操作邊界，而非帳務定義：
+
+- JSON 匯入先檢查所有 record kind 的 canonical ID，數字 `1` 與字串 `"1"` 視為相同；不同 kind 可共用 ID。準備金事件依 codec 的「準備金 ID＋事件 ID」複合身份檢查。衝突整份拒絕並顯示項目位置，不去重或換 ID；CSV 去重與帳戶修復維持原規則。
+- JSON 還原沿用 `commitState()`：正規化 → 目前 scope 的單一 snapshot 本機保存成功 → store 替換 → controller 重設／UI 更新 → 雲端排隊。本機失敗保留原資料與草稿；此契約不宣稱跨多個 storage key 原子性。
+- 本機已保存但 UI／queue 失敗會分別提示，不假裝雲端成功或要求重新記帳。重入更新只排有效的最新提交；非同步 JSON／CSV 讀檔及同步／復原回呼受到登入 generation 保護，帳號切換後不得套用舊結果。
+- 「再記一筆」只產生未保存的 UI 草稿：無特殊關聯的一般收入／支出可預填白名單欄位，日期為今天，確認儲存才建立新 ID；不複製 external identity、同步 metadata、準備金／代墊／還款關聯。失效帳戶或分類要重選，取消零寫入。
+- 不存在的 editing ID 不能退回新增；刪除正在編輯的交易會清除對應編輯狀態，不復活已刪除資料。
+- 信用卡空白／0 日期顯示未設定。「最近預定繳款日」為今天或之後最近一次設定日期，獨立於結帳週期；只有繳款日也可推算。它不代表實際帳單、未繳餘額或銀行假日順延。
+
+本批證據與限制見 [實作報告](data-reliability-2026-09-22.md)。
+
 前端與 JSON 備份仍使用單一 state 物件；本機以完整 snapshot 保存，Firestore 則由同步轉接層拆成 record-level 文件。
 
 The frontend and JSON backup still use one state object. Local storage keeps a complete snapshot, while the Firestore adapter projects it into record-level documents.
