@@ -62,6 +62,7 @@ export function createControllerComposition({
       accountFields: dom.balanceAccountFields,
       accountType: dom.balanceAccountType,
       creditFields: dom.balanceCreditFields,
+      creditDayNote: dom.balanceCreditDayNote,
       creditLimit: dom.balanceCreditLimit,
       statementDay: dom.balanceStatementDay,
       paymentDueDay: dom.balancePaymentDueDay,
@@ -185,6 +186,8 @@ export function createControllerComposition({
       heading: dom.lifeReminderHeading,
       query: dom.transactionSearchQuery,
       name: dom.lifeReminderName,
+      keyword: dom.lifeReminderKeyword,
+      preview: dom.lifeReminderPreview,
       interval: dom.lifeReminderInterval,
       dueSoon: dom.lifeReminderDueSoon,
       save: dom.lifeReminderSave,
@@ -194,7 +197,6 @@ export function createControllerComposition({
     store,
     commitState,
     toast,
-    renderSearch: () => transactionSearchController.render(),
     showSearchHistory: (query) => transactionSearchController.showHistory(query),
   });
   const transactionDetailController = createTransactionDetailController({
@@ -233,6 +235,9 @@ export function createControllerComposition({
     waitForCloudSave: enqueueCloudState,
     refreshTransactionUi: renderAll,
     readBackupFile: importData,
+    confirmEmptyBackup: ({ currentTransactionCount, accountCount }) => window.confirm(
+      `這份備份包含 0 筆交易、${accountCount} 個帳戶。繼續會以這份備份覆蓋目前的 ${currentTransactionCount} 筆交易；若你預期有記帳紀錄，請取消並改選其他備份。確定仍要匯入嗎？`,
+    ),
     exportBackupFile: exportData,
     readTextFile: readFileAsText,
     parseAndroMoneyCsv,
@@ -382,6 +387,7 @@ export function createControllerComposition({
     closeTransactionDetail: transactionDetailController.close,
     trapTransactionDetailFocus: transactionDetailController.trapFocus,
     saveLifeRoutine: lifeRecordReminderController.save,
+    previewLifeRoutine: lifeRecordReminderController.preview,
     beginEditLifeRoutine: lifeRecordReminderController.beginEdit,
     cancelEditLifeRoutine: lifeRecordReminderController.cancelEdit,
     deleteLifeRoutine: lifeRecordReminderController.remove,

@@ -13,7 +13,7 @@ function createHarness() {
   const calls = [];
   const input = (value = "") => ({ value, hidden: false, textContent: "", focus() { calls.push("focus"); }, scrollIntoView() { calls.push("scroll"); } });
   const elements = {
-    panel: { open: false }, heading: input(), query: input("洗牙"), name: input(), interval: input("180"),
+    panel: { open: false }, heading: input(), query: input(""), name: input("洗牙"), keyword: input(), preview: input(), interval: input("180"),
     dueSoon: input("14"), save: input("儲存提醒"), cancel: input(), list: {},
   };
   const commitState = (mutator, { updateUi }) => {
@@ -28,7 +28,6 @@ function createHarness() {
     store: { getState: () => state },
     commitState,
     toast: { show: (message, type) => calls.push(["toast", message, type]) },
-    renderSearch: () => calls.push("search"),
     showSearchHistory: (query) => { elements.query.value = query; calls.push(["history", query]); },
     now: () => new Date("2026-08-29T12:00:00.000Z"),
     createId: () => "routine-1",
@@ -39,15 +38,20 @@ function createHarness() {
 
 test("creates, edits, toggles, views, and deletes one saved routine through commitState", () => {
   const harness = createHarness();
+  harness.elements.name.value = "洗牙";
   harness.elements.interval.value = "180";
+  harness.controller.preview();
+  assert.match(harness.elements.preview.textContent, /找到 1 筆歷史記帳；最近一次 2026-08-01/);
   assert.equal(harness.controller.save(), true);
   assert.deepEqual(harness.getState().lifeRoutines[0], {
     id: "routine-1", name: "洗牙", query: "洗牙", expectedIntervalDays: 180, dueSoonDays: 14,
     enabled: true, createdAt: "2026-08-29T12:00:00.000Z", updatedAt: "2026-08-29T12:00:00.000Z",
   });
+  assert.match(harness.elements.preview.textContent, /輸入提醒名稱/);
 
   harness.controller.beginEdit("routine-1");
   harness.elements.name.value = "每半年洗牙";
+  harness.elements.keyword.value = "洗牙";
   harness.elements.interval.value = "170";
   harness.controller.save();
   assert.equal(harness.getState().lifeRoutines[0].name, "每半年洗牙");
@@ -57,17 +61,21 @@ test("creates, edits, toggles, views, and deletes one saved routine through comm
   assert.equal(harness.getState().lifeRoutines[0].enabled, false);
   harness.controller.view("routine-1");
   assert.equal(harness.elements.query.value, "洗牙");
-  assert.ok(harness.calls.includes("search"));
   assert.ok(harness.calls.some((call) => call[0] === "history" && call[1] === "洗牙"));
   harness.controller.remove("routine-1");
   assert.deepEqual(harness.getState().lifeRoutines, []);
 });
 
-test("rejects missing query and invalid intervals without committing", () => {
+test("searches historical records from the name, allows a separate keyword, and rejects invalid inputs", () => {
   const harness = createHarness();
-  harness.elements.query.value = "";
+  harness.elements.name.value = "";
   assert.equal(harness.controller.save(), false);
-  harness.elements.query.value = "洗牙";
+  harness.elements.name.value = "半年洗牙";
+  harness.controller.preview();
+  assert.match(harness.elements.preview.textContent, /找不到歷史記帳/);
+  harness.elements.keyword.value = "洗牙";
+  harness.controller.preview();
+  assert.match(harness.elements.preview.textContent, /找到 1 筆歷史記帳；最近一次 2026-08-01/);
   harness.elements.interval.value = "0";
   assert.equal(harness.controller.save(), false);
   harness.elements.interval.value = "180";
@@ -105,10 +113,10 @@ test("viewing different reminders finds year-old records and never changes repor
     renderTransactions: (txs) => { displayed = txs; },
   });
   const reminder = createLifeRecordReminderController({
-    elements: { query: searchElements.query, name: input(), interval: input(), dueSoon: input(), list: {} },
+    elements: { query: searchElements.query, name: input(), keyword: input(), interval: input(), dueSoon: input(), list: {} },
     store: { getState: () => state }, now,
     commitState: () => assert.fail("viewing must not save"),
-    renderSearch: search.render, showSearchHistory: search.showHistory, renderCenter() {},
+    showSearchHistory: search.showHistory, renderCenter() {},
   });
   searchElements.query.value = "洗牙";
   assert.equal(search.getModel().matchCount, 0);

@@ -50,6 +50,7 @@ function createHarness() {
     balanceAccountFields: { classList: createClassList() },
     balanceAccountType: { value: "asset" },
     balanceCreditFields: { classList: createClassList(["d-none"]) },
+    balanceCreditDayNote: { classList: createClassList(["d-none"]) },
     balanceCreditLimit: { value: "" },
     balanceStatementDay: { value: "" },
     balancePaymentDueDay: { value: "" },
@@ -77,6 +78,7 @@ function createHarness() {
       accountFields: dom.balanceAccountFields,
       accountType: dom.balanceAccountType,
       creditFields: dom.balanceCreditFields,
+      creditDayNote: dom.balanceCreditDayNote,
       creditLimit: dom.balanceCreditLimit,
       statementDay: dom.balanceStatementDay,
       paymentDueDay: dom.balancePaymentDueDay,
@@ -230,10 +232,15 @@ test("creates and edits credit-card scheduling settings while preserving account
   controller.beginEditBs(card.id, true);
   assert.equal(dom.balanceAccountType.value, "liability");
   assert.equal(dom.balanceCreditFields.classList.contains("d-none"), false);
+  assert.equal(dom.balanceCreditDayNote.classList.contains("d-none"), false);
   dom.balanceCreditLimit.value = "150000";
+  dom.balanceStatementDay.value = "31";
+  dom.balancePaymentDueDay.value = "30";
   controller.addBs();
   assert.equal(store.getState().accounts.at(-1).id, card.id);
   assert.equal(store.getState().accounts.at(-1).creditLimit, 150000);
+  assert.equal(store.getState().accounts.at(-1).statementDay, 31);
+  assert.equal(store.getState().accounts.at(-1).paymentDueDay, 30);
   assert.equal(calls.save, 2);
 });
 

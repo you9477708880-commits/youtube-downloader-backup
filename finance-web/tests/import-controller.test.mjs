@@ -85,11 +85,13 @@ function createHarness() {
     backupExports: [],
     downloads: [],
     parseOptions: [],
+    emptyConfirmations: [],
   };
   let backupResult = structuredClone(initialState);
   let backupError = null;
   let commitError = null;
   let cloudSaveResult = true;
+  let emptyBackupConfirmed = true;
   let nextAccountId = 1;
   let context = 0;
   let readGate = null;
@@ -186,6 +188,10 @@ function createHarness() {
       if (backupError) throw backupError;
       return structuredClone(backupResult);
     },
+    confirmEmptyBackup: (summary) => {
+      calls.emptyConfirmations.push(summary);
+      return emptyBackupConfirmed;
+    },
     exportBackupFile: (state) => calls.backupExports.push(state),
     readTextFile: async () => { if (readGate) await readGate; return "csv-content"; },
     parseAndroMoneyCsv,
@@ -213,6 +219,7 @@ function createHarness() {
     setBackupError(error) { backupError = error; },
     setCommitError(error) { commitError = error; },
     setCloudSaveResult(value) { cloudSaveResult = value; },
+    setEmptyBackupConfirmed(value) { emptyBackupConfirmed = value; },
     setImportedTransactions(value) { importedTransactions = value; },
     switchContext() { context++; },
     setReadGate(value) { readGate = value; },
@@ -221,7 +228,7 @@ function createHarness() {
   };
 }
 
-test("valid JSON backup replaces, persists, and refreshes the whole state once", async () => {
+test("valid JSON backup reports the actual count and refreshes the whole state once", async () => {
   const harness = createHarness();
   const replacement = { ...structuredClone(harness.initialState), txs: [] };
   harness.setBackupResult(replacement);
@@ -232,7 +239,32 @@ test("valid JSON backup replaces, persists, and refreshes the whole state once",
   assert.equal(harness.calls.replace, 1);
   assert.equal(harness.calls.persist, 1);
   assert.equal(harness.calls.refreshWhole, 1);
-  assert.match(harness.calls.toasts.at(-1)[0], /已匯入資料並保存於本機/);
+  assert.deepEqual(harness.calls.emptyConfirmations, [{ currentTransactionCount: 1, accountCount: 2 }]);
+  assert.match(harness.calls.toasts.at(-1)[0], /已匯入 0 筆交易、2 個帳戶並保存於本機；此備份沒有記帳紀錄/);
+});
+
+test("cancelling an empty-transaction backup preserves store, durable state and draft lifecycle", async () => {
+  const h = createHarness();
+  const before = structuredClone(h.store.getState());
+  h.setBackupResult({ ...before, txs: [] });
+  h.setEmptyBackupConfirmed(false);
+
+  assert.equal(await h.controller.importBackupFile({}), false);
+  assert.deepEqual(h.calls.emptyConfirmations, [{ currentTransactionCount: 1, accountCount: 2 }]);
+  assert.deepEqual(h.store.getState(), before);
+  assert.deepEqual(h.durableState, before);
+  assert.equal(h.calls.persist, 0);
+  assert.equal(h.calls.replace, 0);
+  assert.equal(h.calls.refreshWhole, 0);
+  assert.match(h.calls.toasts.at(-1)[0], /已取消匯入.*沒有交易紀錄/);
+});
+
+test("a backup with transactions imports without the empty-backup prompt", async () => {
+  const h = createHarness();
+  await h.controller.importBackupFile({});
+  assert.equal(h.calls.emptyConfirmations.length, 0);
+  assert.equal(h.calls.persist, 1);
+  assert.match(h.calls.toasts.at(-1)[0], /已匯入 1 筆交易、2 個帳戶/);
 });
 
 test("JSON persistence failure preserves original store, durable snapshot and controller drafts", async () => {
@@ -316,7 +348,15 @@ test("backup and CSV exports use the current state and preserve the AndroMoney d
     filename: "AndroMoney.csv",
     type: "text/csv;charset=utf-8",
   }]);
-  assert.deepEqual(harness.calls.toasts.map((item) => item[0]), ["已匯出備份", "已匯出 AndroMoney CSV"]);
+  assert.deepEqual(harness.calls.toasts.map((item) => item[0]), ["已匯出備份：1 筆交易、2 個帳戶", "已匯出 AndroMoney CSV"]);
+});
+
+test("exporting a backup with no transactions explicitly warns that there are no records", () => {
+  const h = createHarness();
+  h.store.update((state) => { state.txs = []; });
+  h.controller.exportBackup();
+  assert.equal(h.calls.backupExports[0].txs.length, 0);
+  assert.match(h.calls.toasts.at(-1)[0], /0 筆交易.*目前沒有記帳紀錄/);
 });
 
 test("opening AndroMoney import shows duplicate preview and account mapping without changing state", async () => {

@@ -1,4 +1,5 @@
-import { deriveLifeRoutineCenter } from "../../domain/life-record-reminder.js";
+import { deriveLifeRecordReminder, deriveLifeRoutineCenter } from "../../domain/life-record-reminder.js";
+import { searchTransactions } from "../../domain/transaction-search.js";
 import { renderLifeRoutineCenter } from "../../views/life-record-reminder-view.js";
 
 function defaultCreateId() {
@@ -11,29 +12,59 @@ export function createLifeRecordReminderController({
   store,
   commitState,
   toast,
-  renderSearch,
   showSearchHistory,
   now = () => new Date(),
   createId = defaultCreateId,
   renderCenter = renderLifeRoutineCenter,
 }) {
-  if (!elements?.query || !elements?.name || !elements?.interval || !elements?.dueSoon || !elements?.list) {
+  if (!elements?.query || !elements?.name || !elements?.keyword || !elements?.interval || !elements?.dueSoon || !elements?.list) {
     throw new Error("life-record-reminder-elements-required");
   }
   if (!store || typeof store.getState !== "function") throw new Error("life-record-reminder-store-required");
-  if (typeof commitState !== "function" || typeof renderSearch !== "function" || typeof showSearchHistory !== "function") {
+  if (typeof commitState !== "function" || typeof showSearchHistory !== "function") {
     throw new Error("life-record-reminder-actions-required");
   }
 
   let editingId = null;
 
+  function currentQuery() {
+    return (elements.keyword.value.trim() || elements.name.value.trim()).normalize("NFKC").replace(/\s+/g, " ");
+  }
+
+  function preview() {
+    if (!elements.preview) return;
+    const query = currentQuery();
+    if (!query) {
+      elements.preview.textContent = "輸入提醒名稱即可檢查歷史記帳。";
+      return;
+    }
+    const state = store.getState();
+    const today = now();
+    const matches = searchTransactions({
+      transactions: state.txs, accounts: state.accounts, funds: state.sinkingFunds,
+      query, range: { start: "", end: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}` }, today,
+    });
+    if (!matches.matchCount) {
+      elements.preview.textContent = `「${query}」找不到歷史記帳；可修改搜尋關鍵字，或先建立提醒後再記錄。`;
+      return;
+    }
+    const interval = Number(elements.interval.value);
+    const dueSoon = Number(elements.dueSoon.value);
+    const schedule = Number.isInteger(interval) && interval >= 1 && interval <= 3650
+      ? deriveLifeRecordReminder({ transactions: state.txs, accounts: state.accounts, funds: state.sinkingFunds, query, expectedIntervalDays: interval, dueSoonDays: Number.isInteger(dueSoon) ? dueSoon : 14, today })
+      : null;
+    elements.preview.textContent = `找到 ${matches.matchCount} 筆歷史記帳；最近一次 ${matches.latestDate}。${schedule?.nextExpectedDate ? `預計下次 ${schedule.nextExpectedDate}。` : "填入預期間隔後可預覽下次日期。"}`;
+  }
+
   function clearForm() {
     editingId = null;
     elements.name.value = "";
+    elements.keyword.value = "";
     elements.interval.value = "";
     elements.dueSoon.value = "14";
     if (elements.cancel) elements.cancel.hidden = true;
     if (elements.save) elements.save.textContent = "儲存提醒";
+    preview();
   }
 
   function getModel() {
@@ -50,16 +81,17 @@ export function createLifeRecordReminderController({
   function render() {
     const model = getModel();
     renderCenter({ model, elements });
+    preview();
     return model;
   }
 
   function save() {
-    const query = elements.query.value.normalize("NFKC").trim().replace(/\s+/g, " ");
-    const name = elements.name.value.trim() || query;
+    const name = elements.name.value.trim();
+    const query = currentQuery();
     const expectedIntervalDays = Number(elements.interval.value);
     const dueSoonDays = Number(elements.dueSoon.value);
-    if (!query) {
-      toast?.show("請先在上方輸入要追蹤的搜尋關鍵字", "error");
+    if (!name) {
+      toast?.show("請輸入提醒名稱", "error");
       return false;
     }
     if (!Number.isInteger(expectedIntervalDays) || expectedIntervalDays < 1 || expectedIntervalDays > 3650) {
@@ -103,14 +135,14 @@ export function createLifeRecordReminderController({
     const routine = store.getState().lifeRoutines.find((item) => String(item.id) === String(id));
     if (!routine) return;
     editingId = routine.id;
-    elements.query.value = routine.query;
     elements.name.value = routine.name;
+    elements.keyword.value = routine.query === routine.name ? "" : routine.query;
     elements.interval.value = String(routine.expectedIntervalDays);
     elements.dueSoon.value = String(routine.dueSoonDays);
     if (elements.panel) elements.panel.open = true;
     if (elements.cancel) elements.cancel.hidden = false;
     if (elements.save) elements.save.textContent = "儲存修改";
-    renderSearch();
+    preview();
     elements.name.focus?.();
   }
 
@@ -157,5 +189,5 @@ export function createLifeRecordReminderController({
   }
 
   clearForm();
-  return { render, save, beginEdit, cancelEdit, remove, toggle, view, reset, getModel };
+  return { render, preview, save, beginEdit, cancelEdit, remove, toggle, view, reset, getModel };
 }

@@ -80,8 +80,8 @@ function isValidAccount(account) {
     VALID_ACCOUNT_TYPES.has(account.type) &&
     isMoneyLike(account.initialBalance) &&
     (!("creditLimit" in account) || isMoneyLike(account.creditLimit)) &&
-    (!("statementDay" in account) || (Number.isSafeInteger(Number(account.statementDay)) && Number(account.statementDay) >= 0 && Number(account.statementDay) <= 28)) &&
-    (!("paymentDueDay" in account) || (Number.isSafeInteger(Number(account.paymentDueDay)) && Number(account.paymentDueDay) >= 0 && Number(account.paymentDueDay) <= 28)) &&
+    (!("statementDay" in account) || (Number.isSafeInteger(Number(account.statementDay)) && Number(account.statementDay) >= 0 && Number(account.statementDay) <= 31)) &&
+    (!("paymentDueDay" in account) || (Number.isSafeInteger(Number(account.paymentDueDay)) && Number(account.paymentDueDay) >= 0 && Number(account.paymentDueDay) <= 31)) &&
     (account.isEm === undefined || typeof account.isEm === "boolean")
   );
 }

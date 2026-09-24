@@ -74,7 +74,7 @@
     <div class="ov-workspace">
       <div class="ov-filter-zone">
         <div class="card p-2 mb-3">
-          <div class="grid-2 flex-row gap-2">
+          <div class="overview-period-controls">
             <select id="f-preset" data-action="change-preset" aria-label="選擇時間區間" class="font-bold text-md p-2">
               <option value="month">本月</option>
               <option value="week">本週</option>
@@ -82,10 +82,9 @@
               <option value="all">全部時間</option>
               <option value="custom">自訂區間...</option>
             </select>
-            <div class="flex-row gap-1">
-              <input type="date" id="f-start" data-action="custom-date" aria-label="開始日期" class="text-sm text-mono px-1">
-              <span class="text-gray">-</span>
-              <input type="date" id="f-end" data-action="custom-date" aria-label="結束日期" class="text-sm text-mono px-1">
+            <div class="overview-date-range">
+              <label><span>開始日期</span><input type="date" id="f-start" data-action="custom-date" class="text-sm text-mono"></label>
+              <label><span>結束日期</span><input type="date" id="f-end" data-action="custom-date" class="text-sm text-mono"></label>
             </div>
           </div>
         </div>
@@ -254,11 +253,15 @@
         <details class="life-reminder" id="life-reminder-panel">
           <summary id="life-reminder-heading">生活週期提醒｜尚未建立</summary>
           <div class="life-reminder-body">
-            <p class="life-reminder-note">把上方的搜尋關鍵字儲存成例行提醒。系統只保存規則，最近紀錄與預計日期會由既有交易即時計算，不會複製明細，也不影響搜尋期間或月度報表。</p>
+            <p class="life-reminder-note">直接輸入提醒名稱，就會搜尋所有歷史記帳並顯示最近日期；名稱與記帳用語不同時，可另外填搜尋關鍵字。系統只保存提醒規則，不複製明細，也不影響搜尋期間或月度報表。</p>
             <form id="form-life-routine" class="life-reminder-controls">
               <label>
-                <span>提醒名稱（選填）</span>
-                <input type="text" id="life-reminder-name" maxlength="200" placeholder="例如：半年洗牙">
+                <span>提醒名稱</span>
+                <input type="text" id="life-reminder-name" maxlength="200" placeholder="例如：換機油" required>
+              </label>
+              <label>
+                <span>搜尋關鍵字（選填）</span>
+                <input type="text" id="life-reminder-keyword" maxlength="200" placeholder="留空就用提醒名稱搜尋">
               </label>
               <label>
                 <span>預期間隔（天）</span>
@@ -272,6 +275,7 @@
                 <button type="submit" class="sbtn compact" id="life-reminder-save">儲存提醒</button>
                 <button type="button" class="sbtn outline compact" id="life-reminder-cancel" hidden>取消編輯</button>
               </div>
+              <div class="life-reminder-preview text-xs" id="life-reminder-preview" role="status" aria-live="polite">輸入提醒名稱即可檢查歷史記帳。</div>
             </form>
             <div class="life-routine-list" id="life-routine-list" aria-live="polite"></div>
             <p class="life-reminder-note">這是裝置內與 Google 帳號同步的日期提醒，不是醫療、汽車保養或其他專業建議，也不會在背景發送系統通知。</p>
@@ -443,9 +447,10 @@
 
             <div id="bs-credit-fields" class="grid-3 d-none">
               <div><label class="flb" for="bs-credit-limit">信用額度</label><input type="number" id="bs-credit-limit" min="0" step="1" placeholder="例：100000"></div>
-              <div><label class="flb" for="bs-statement-day">每月結帳日</label><input type="number" id="bs-statement-day" min="1" max="28" step="1" placeholder="1–28"></div>
-              <div><label class="flb" for="bs-payment-due-day">每月繳款日</label><input type="number" id="bs-payment-due-day" min="1" max="28" step="1" placeholder="1–28"></div>
+              <div><label class="flb" for="bs-statement-day">每月結帳日</label><input type="number" id="bs-statement-day" min="1" max="31" step="1" placeholder="1–31"></div>
+              <div><label class="flb" for="bs-payment-due-day">每月繳款日</label><input type="number" id="bs-payment-due-day" min="1" max="31" step="1" placeholder="1–31"></div>
             </div>
+            <div id="bs-credit-day-note" class="text-xs text-gray mt-1 d-none">可設定 1～31 日；若當月沒有設定的日期（如 2 月 30 日），預定日期以當月最後一天推算。實際帳單日期以銀行為準。</div>
 
             <div><label class="flb" for="bs-a">初始餘額（NT$）</label><input type="number" id="bs-a" placeholder="0" required><div class="text-xs text-gray mt-1">信用卡已有欠款時可輸入負數；之後餘額由交易與對帳調整推導。</div></div>
 

@@ -121,7 +121,7 @@ export function renderLedger({ state, filteredTxs, reportTxs = filteredTxs, cons
                       ${linkedFundName ? `<button type="button" class="sbtn outline compact" data-action="open-fund" data-id="${utils.escapeHTML(tx.linkedFundId)}">查看準備</button>` : ""}
                       ${["income", "expense", "transfer", "advance"].includes(tx.type) ? `<button type="button" class="sbtn outline compact" data-action="edit-tx" data-id="${txId}">編輯</button>` : ""}
                       ${repayment ? `<button type="button" class="sbtn outline compact" data-action="edit-repayment" data-id="${txId}">編輯</button>` : ""}
-                      <button type="button" class="del-btn text-lg p-1" aria-label="刪除" data-action="del-tx" data-id="${txId}">×</button>
+                      <button type="button" class="sbtn outline compact ledger-delete" aria-label="刪除這筆交易" data-action="del-tx" data-id="${txId}">刪除</button>
                     </div>
                   `
                   : linkedFundName

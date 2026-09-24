@@ -57,7 +57,12 @@ export async function runTransactionSearchScenario(app) {
     const reminderPanel = document.getElementById("life-reminder-panel");
     if (!reminderPanel || reminderPanel.open) throw new Error("life-reminder-not-collapsed-by-default");
     reminderPanel.open = true;
-    document.getElementById("life-reminder-name").value = "半年洗牙";
+    const reminderName = document.getElementById("life-reminder-name");
+    reminderName.value = "洗牙";
+    reminderName.dispatchEvent(new Event("input", { bubbles: true }));
+    if (!document.getElementById("life-reminder-preview")?.textContent.includes("找到 3 筆歷史記帳")) {
+      throw new Error("life-routine-name-did-not-preview-history");
+    }
     const reminderInterval = document.getElementById("life-reminder-interval");
     reminderInterval.value = "180";
     document.getElementById("life-reminder-due-soon").value = "14";
@@ -65,7 +70,7 @@ export async function runTransactionSearchScenario(app) {
     await new Promise((resolve) => setTimeout(resolve, 50));
     const routine = app.store.getState().lifeRoutines?.[0];
     const routineCard = document.querySelector("#life-routine-list .life-routine-card");
-    if (!routine || routine.name !== "半年洗牙" || routine.query !== "醫療 洗牙" || !routineCard?.textContent.includes("半年洗牙")) {
+    if (!routine || routine.name !== "洗牙" || routine.query !== "洗牙" || !routineCard?.textContent.includes("洗牙")) {
       throw new Error("life-routine-save-or-render-missing");
     }
     if (!document.getElementById("life-reminder-heading")?.textContent.includes("1 項")) throw new Error("life-routine-heading-missing");
@@ -89,7 +94,7 @@ export async function runTransactionSearchScenario(app) {
 
     document.querySelector('#life-routine-list [data-action="view-life-routine"]')?.click();
     if (
-      query.value !== "醫療 洗牙" || preset.value !== "all" ||
+      query.value !== "洗牙" || preset.value !== "all" ||
       document.getElementById("tx-cnt")?.textContent !== "3 筆" ||
       document.getElementById("f-start")?.value !== reportStart ||
       document.getElementById("f-end")?.value !== reportEnd

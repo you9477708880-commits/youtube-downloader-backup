@@ -25,6 +25,7 @@ export function createBalanceSheetController({
     accountFields,
     accountType,
     creditFields,
+    creditDayNote,
     creditLimit,
     statementDay,
     paymentDueDay,
@@ -39,6 +40,7 @@ export function createBalanceSheetController({
     categoryWrap.classList.toggle("d-none", isAccount);
     accountFields.classList.toggle("d-none", !isAccount);
     creditFields.classList.toggle("d-none", !isAccount || accountType.value !== "liability");
+    creditDayNote?.classList.toggle("d-none", !isAccount || accountType.value !== "liability");
     amount.min = isAccount ? "" : "0";
   };
 
@@ -66,8 +68,8 @@ export function createBalanceSheetController({
       return;
     }
     const normalizedCreditLimit = Math.max(0, toMoneyInt(creditLimit.value));
-    const normalizedStatementDay = Math.min(28, Math.max(0, toMoneyInt(statementDay.value)));
-    const normalizedPaymentDueDay = Math.min(28, Math.max(0, toMoneyInt(paymentDueDay.value)));
+    const normalizedStatementDay = Math.min(31, Math.max(0, toMoneyInt(statementDay.value)));
+    const normalizedPaymentDueDay = Math.min(31, Math.max(0, toMoneyInt(paymentDueDay.value)));
 
     const wasEditing = !!editingBsId;
     commitState((draft) => {

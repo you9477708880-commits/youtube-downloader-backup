@@ -591,7 +591,7 @@ function testStateMoneyNormalization() {
     ],
     bsI: [{ id: "asset", amount: 999.9999999999999 }],
     wishes: [{ id: "wish", price: 999.9999999999999 }],
-    accounts: [{ id: "bank", initialBalance: 999.9999999999999 }],
+    accounts: [{ id: "bank", initialBalance: 999.9999999999999, statementDay: 31, paymentDueDay: 30 }],
     sinkingFunds: [
       {
         id: "sf",
@@ -615,6 +615,8 @@ function testStateMoneyNormalization() {
   assert.equal(normalized.bsI[0].amount, 1000);
   assert.equal(normalized.wishes[0].price, 1000);
   assert.equal(normalized.accounts[0].initialBalance, 1000);
+  assert.equal(normalized.accounts[0].statementDay, 31);
+  assert.equal(normalized.accounts[0].paymentDueDay, 30);
   assert.equal(normalized.sinkingFunds[0].targetAmount, 30000);
   assert.equal(normalized.sinkingFunds[0].monthlyContribution, 2000);
   assert.equal(normalized.sinkingFunds[0].events[0].amount, 1000);
@@ -1047,6 +1049,7 @@ function testLedgerFundTraceRendering() {
   assert.match(dom.aTx.innerHTML, /準備支付 NT\$ 20,000 ｜ 本月不另外扣款/);
   assert.match(dom.aTx.innerHTML, /準備支付 NT\$ 12,000 ｜ 本月支出 NT\$ 18,000/);
   assert.match(dom.aTx.innerHTML, /data-action="edit-tx"/);
+  assert.match(dom.aTx.innerHTML, /data-action="del-tx"[^>]*>刪除<\/button>/);
   assert.match(dom.aTx.innerHTML, /data-action="view-tx"/);
 }
 
@@ -1094,7 +1097,8 @@ function testImportValidationRejectsUnsafeShape() {
     accounts: [{ ...validImport.accounts[0], creditLimit: 50000, statementDay: 5, paymentDueDay: 23 }],
   }), true);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ id: "adj-bad", type: "balance_adjustment", amount: 250, date: "2026-04-01", acc: "cash", direction: "sideways" }] }), false);
-  assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], statementDay: 31 }] }), false);
+  assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], statementDay: 31, paymentDueDay: 29 }] }), true);
+  assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], statementDay: 32 }] }), false);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], amount: {} }] }), false);
   assert.equal(isValidImportShape({ ...validImport, txs: [{ ...validImport.txs[0], date: "not-a-date" }] }), false);
   assert.equal(isValidImportShape({ ...validImport, accounts: [{ ...validImport.accounts[0], id: 'bad" onmouseover="x' }] }), false);

@@ -99,6 +99,7 @@ export function createImportController({
   waitForCloudSave = async () => false,
   refreshTransactionUi,
   readBackupFile,
+  confirmEmptyBackup = () => false,
   exportBackupFile,
   readTextFile,
   parseAndroMoneyCsv,
@@ -263,8 +264,9 @@ export function createImportController({
   };
 
   const exportBackup = () => {
-    exportBackupFile(store.getState());
-    toast.show("已匯出備份");
+    const state = store.getState();
+    exportBackupFile(state);
+    toast.show(`已匯出備份：${state.txs.length} 筆交易、${state.accounts.length} 個帳戶${state.txs.length === 0 ? "；目前沒有記帳紀錄，請確認匯出的是預期資料" : ""}`);
   };
 
   const importBackupFile = async (file) => {
@@ -274,11 +276,23 @@ export function createImportController({
     if (context !== getContext() || generation !== importGeneration) {
       throw new Error("stale-import-context");
     }
+    const transactionCount = nextState.txs.length;
+    if (transactionCount === 0 && !confirmEmptyBackup({
+      currentTransactionCount: store.getState().txs.length,
+      accountCount: nextState.accounts.length,
+    })) {
+      toast.show("已取消匯入；這份備份沒有交易紀錄，原資料保持不變");
+      return false;
+    }
+    if (context !== getContext() || generation !== importGeneration) throw new Error("stale-import-context");
     commitState(() => nextState, { updateUi: () => {
       resetWholeStateControllers();
       refreshWholeStateUi();
     } });
-    if (context === getContext()) toast.show("已匯入資料並保存於本機；雲端進度請查看同步狀態");
+    if (context === getContext()) {
+      toast.show(`已匯入 ${transactionCount} 筆交易、${nextState.accounts.length} 個帳戶並保存於本機；${transactionCount === 0 ? "此備份沒有記帳紀錄；" : ""}雲端進度請查看同步狀態`);
+    }
+    return true;
   };
 
   const exportAndroMoney = () => {

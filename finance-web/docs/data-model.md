@@ -236,7 +236,7 @@ Advance repayment is not income. It is receivable recovery.
 }
 ```
 
-- `creditLimit`、`statementDay`、`paymentDueDay` 是信用卡帳戶的選填設定；日期欄位限 `1` 到 `28`，`0` 或缺少代表未設定。
+- `creditLimit`、`statementDay`、`paymentDueDay` 是信用卡帳戶的選填設定；日期欄位限 `1` 到 `31`，`0` 或缺少代表未設定。29～31 日遇較短月份時，僅在日期推算中取該月最後一天；不修改原設定值，也不代表銀行實際帳單或假日順延。
 - 帳戶中心的餘額、欠款、可用額度、本期刷卡與繳款皆由 `accounts + txs` 推導，不另存第二份總額。
 - 更改帳戶名稱或資產／負債類型會保留原 `id`，因此歷史交易關聯不變。
 

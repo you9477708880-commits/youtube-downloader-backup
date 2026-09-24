@@ -41,7 +41,7 @@ test("credit-card center derives debt, available credit, billing charges, and pa
 
 test("credit-card unset days never become the first day and partial settings stay independent", () => {
   const today = new Date(2026, 8, 20, 23, 59);
-  for (const value of [undefined, null, "", " ", 0, "0", -1, 29, NaN]) {
+  for (const value of [undefined, null, "", " ", 0, "0", -1, 32, NaN]) {
     assert.equal(getCreditCardSchedule({ statementDay: value, paymentDueDay: value }, today), null);
   }
   assert.deepEqual(getCreditCardSchedule({ statementDay: 0, paymentDueDay: 23 }, today), {
@@ -63,6 +63,15 @@ test("nearest scheduled payment includes today and crosses months or years witho
     [new Date(2026, 8, 20), 5, 23, "2026-09-23"],
     [new Date(2026, 8, 23, 23, 59, 59), 5, 23, "2026-09-23"],
     [new Date(2026, 8, 24), 5, 23, "2026-10-23"],
+    [new Date(2026, 8, 24), 5, 24, "2026-09-24"],
+    [new Date(2026, 3, 29), 31, 31, "2026-04-30"],
+    [new Date(2026, 3, 30), 31, 31, "2026-04-30"],
+    [new Date(2026, 4, 1), 31, 31, "2026-05-31"],
+    [new Date(2026, 1, 27), 30, 30, "2026-02-28"],
+    [new Date(2028, 1, 28), 31, 31, "2028-02-29"],
+    [new Date(2028, 1, 29), 31, 31, "2028-02-29"],
+    [new Date(2026, 11, 31), 31, 31, "2026-12-31"],
+    [new Date(2027, 0, 1), 31, 31, "2027-01-31"],
     [new Date(2026, 11, 29), 5, 23, "2027-01-23"],
     [new Date(2026, 11, 31), 28, 1, "2027-01-01"],
     [new Date(2026, 1, 28, 18), 28, 28, "2026-02-28"],
@@ -71,6 +80,15 @@ test("nearest scheduled payment includes today and crosses months or years witho
   for (const [today, statementDay, paymentDueDay, expected] of cases) {
     assert.equal(getCreditCardSchedule({ statementDay, paymentDueDay }, today).nextPaymentDueDate, expected);
   }
+});
+
+test("month-end statement cycles use the actual last day and do not skip February", () => {
+  assert.deepEqual(getCreditCardSchedule({ statementDay: 31, paymentDueDay: 30 }, new Date(2026, 1, 27)), {
+    periodStart: "2026-02-01", periodEnd: "2026-02-28", nextStatementDate: "2026-02-28", nextPaymentDueDate: "2026-02-28",
+  });
+  assert.deepEqual(getCreditCardSchedule({ statementDay: 31, paymentDueDay: 30 }, new Date(2026, 1, 28)), {
+    periodStart: "2026-03-01", periodEnd: "2026-03-31", nextStatementDate: "2026-03-31", nextPaymentDueDate: "2026-02-28",
+  });
 });
 
 test("credit-card view labels missing days and calendar-only reminder without inventing billing totals", () => {
@@ -85,7 +103,7 @@ test("credit-card view labels missing days and calendar-only reminder without in
   const noDates = renderCard(0, 0);
   assert.match(noDates, /結帳日：未設定/);
   assert.match(noDates, /最近預定繳款日：未設定/);
-  assert.match(noDates, /日期依設定推算；不代表銀行實際帳單或尚未繳清/);
+  assert.match(noDates, /29～31 日遇較短月份以月底推算；不代表銀行實際帳單或尚未繳清/);
   const dueOnly = renderCard(0, 23);
   assert.match(dueOnly, /本期新增刷卡<\/span><strong>設定結帳日後顯示/);
   assert.match(dueOnly, /最近預定繳款日：\d{4}-\d{2}-23/);

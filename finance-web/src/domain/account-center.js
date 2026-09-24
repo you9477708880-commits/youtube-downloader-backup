@@ -2,11 +2,13 @@ import { calculateAccountBalances, getAccountTransactionDelta } from "./accounts
 
 function configuredDay(value) {
   const day = Number(value);
-  return Number.isInteger(day) && day >= 1 && day <= 28 ? day : 0;
+  return Number.isInteger(day) && day >= 1 && day <= 31 ? day : 0;
 }
 
 function dateAtMonthDay(year, month, day) {
-  return new Date(year, month, day);
+  const firstOfMonth = new Date(year, month, 1);
+  const lastDay = new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth() + 1, 0).getDate();
+  return new Date(firstOfMonth.getFullYear(), firstOfMonth.getMonth(), Math.min(day, lastDay));
 }
 
 function localDateString(date) {

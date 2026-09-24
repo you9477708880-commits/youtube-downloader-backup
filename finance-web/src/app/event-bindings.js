@@ -130,6 +130,9 @@ export function bindAppEvents({ doc, win = window, dom, actions, ui, handlers })
   on(dom.transactionSearchStart, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchEnd, "change", handlers.changeTransactionSearchPeriod);
   on(dom.transactionSearchClear, "click", handlers.clearTransactionSearch);
+  on(dom.lifeReminderName, "input", actions.previewLifeRoutine);
+  on(dom.lifeReminderKeyword, "input", actions.previewLifeRoutine);
+  on(dom.lifeReminderInterval, "input", actions.previewLifeRoutine);
   on(dom.inputCategory, "change", () => ui.populateTransactionSubcategoryOptions({ reset: true }));
   on(dom.balanceType, "change", (event) => handlers.changeBalanceType(event.target.value, event));
   on(dom.balanceAccountType, "change", (event) => handlers.changeBalanceType(event.target.value, event));

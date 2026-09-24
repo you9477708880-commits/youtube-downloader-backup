@@ -102,6 +102,42 @@
   font-size: 12px;
 }
 
+.sbtn.outline.ledger-delete {
+  border-color: var(--red-m);
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+.overview-period-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, auto);
+  align-items: end;
+  gap: 8px;
+}
+
+.overview-date-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.overview-date-range label { min-width: 0; }
+.overview-date-range label span {
+  display: block;
+  color: var(--tx3);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.overview-date-range input { width: 100%; padding: 10px 8px; }
+
+@media (max-width: 720px) {
+  .overview-period-controls { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .overview-date-range { grid-template-columns: minmax(0, 1fr); }
+}
+
 .seg {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1175,10 +1211,11 @@
 }
 .life-reminder > summary { padding: 12px; cursor: pointer; font-weight: 700; }
 .life-reminder-body { display: grid; gap: 10px; padding: 0 12px 12px; }
-.life-reminder-controls { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(130px, .7fr) minmax(130px, .7fr); gap: 10px; align-items: end; }
+.life-reminder-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; }
 .life-reminder-controls label { display: grid; gap: 5px; color: var(--tx3); font-size: 12px; font-weight: 600; }
 .life-reminder-controls input { min-width: 0; width: 100%; }
 .life-reminder-form-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+.life-reminder-preview { grid-column: 1 / -1; color: var(--tx3); }
 .life-reminder-note { margin: 0; color: var(--tx3); font-size: 11px; line-height: 1.55; }
 .life-routine-list { display: grid; gap: 8px; }
 .life-routine-empty { margin: 0; border: 1px dashed var(--bdr); border-radius: var(--r); padding: 12px; color: var(--tx3); font-size: 12px; }

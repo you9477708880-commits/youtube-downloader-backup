@@ -27,6 +27,9 @@ export async function runDailyOperationsScenario(app) {
     const note = document.getElementById("i-desc");
     const original = structuredClone(app.store.getState().txs.find((tx) => tx.id === "a-source"));
     const beforeCount = app.store.getState().txs.length;
+    for (const id of ["f-start", "f-end"]) {
+      assert(document.getElementById(id).getBoundingClientRect().width >= 170, `${id}-date-clipped`);
+    }
     document.querySelector('[data-action="tab"][data-target="lg"]').click();
     ledger.querySelector('[data-list-page="next"]').click();
     assert(ledger.textContent.includes("51–"), "daily-ledger-page-missing");
