@@ -42,6 +42,52 @@ npm run preview:acceptance
 `fin_v7:acceptance:*` localStorage 與獨立的衝突復原 IndexedDB。正式版資料不會被
 讀取、遷移或覆蓋。關閉瀏覽器網站資料會清除這份驗收資料。
 
+## Windows GitHub 推送流程
+
+本機 `git commit` 不需要 GitHub 連線；完成一批功能並通過本機測試後可以先提交，
+不必每次都推送。只有取得推送授權時，才執行以下流程。這是 2026-09-24～25 在
+本機驗證成功的操作方式，不代表已找到原本 HTTPS 程序崩潰的單一根因。
+
+1. 先確認分支、`HEAD`、`origin` URL、工作目錄與遠端分支 SHA。保留工作區根目錄
+   其他專案的既存變更；不要用 `git add -A`、強制推送或清理整個倉庫。
+2. 確認以下替代 Git 仍存在，且版本與已驗證的 `2.53.0.windows.3` 相符；路徑或
+   版本若改變，先做唯讀測試與 dry-run，不直接正式推送：
+
+   ```text
+   C:\Users\you94\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe
+   ```
+
+3. 只在該次 Git 子程序設定下列環境，不寫入全域 Git 設定，也不把認證 token 放在
+   URL、命令列或日誌中。先對確切目標分支做 `push --dry-run`，通過後才執行非強制
+   `push origin HEAD:refs/heads/<branch>`。若會跳 Windows 錯誤視窗，以隱藏視窗、
+   有時限的子程序執行；失敗時停止，不盲目重試。
+
+   | 子程序環境 | 值 |
+   | --- | --- |
+   | `GIT_CONFIG_NOSYSTEM` | `1` |
+   | `GIT_CONFIG_GLOBAL` | `NUL` |
+   | `GIT_CONFIG_COUNT` | `4` |
+   | `GIT_CONFIG_KEY_0` / `GIT_CONFIG_VALUE_0` | `credential.helper` / `!gh auth git-credential` |
+   | `GIT_CONFIG_KEY_1` / `GIT_CONFIG_VALUE_1` | `http.sslBackend` / `openssl` |
+   | `GIT_CONFIG_KEY_2` / `GIT_CONFIG_VALUE_2` | `http.version` / `HTTP/1.1` |
+   | `GIT_CONFIG_KEY_3` / `GIT_CONFIG_VALUE_3` | `safe.directory` / `D:/桌面/音樂下載` |
+   | `GIT_TERMINAL_PROMPT` / `GCM_INTERACTIVE` | `0` / `never` |
+
+4. 推送後以 `git -c http.sslBackend=openssl ls-remote origin refs/heads/<branch>`
+   核對遠端 SHA **恰好等於**本機 `HEAD`。本機 `.git/refs/remotes/origin/*` 可能因
+   Codex 沙箱無寫入權而報 `update_ref ... Permission denied`；只有遠端 SHA 確認相等
+   後，才在獲准的檔案權限下以
+   `git update-ref refs/remotes/origin/<branch> <已核對的遠端SHA> <舊本機SHA>`
+   更新該確切本機追蹤參照。這個警告不是遠端推送失敗的證據，也不能直接忽略而
+   讓本機參照保持過期。若遠端 SHA 不一致，先停下查明，不做第二次推送。
+5. 確認本次提交的 GitHub CI 通過。合併、Rules 和 Hosting 部署是另外的授權與
+   檢查關卡，不因推送成功而自動進行。
+
+2026-09-24 的原生 Git `2.53.0.windows.1` 曾在 `git-remote-https.exe` 發生記憶體
+讀取錯誤；用不同連線參數重試也崩潰。上述隔離方式成功推送候選分支及 `main`，
+但尚不能判定是 Git 版本、系統設定、連線參數或其組合造成差異。不要以
+`http.sslVerify=false`、改變檔案 ACL、儲存明文 token 或 SSH 主機驗證繞過來消除錯誤。
+
 ## 部署前檢查
 
 請先確認目前 PowerShell 路徑：

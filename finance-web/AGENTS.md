@@ -168,6 +168,8 @@ git diff --check
 - Frequent local commits are acceptable and useful.
 - Frequent remote pushes are not required.
 - Push only after a coherent batch is complete and tested, or when the user asks.
+- Before pushing from this Windows Codex environment, follow the verified, per-process Git procedure in `docs/deploy-checklist.md` under 「Windows GitHub 推送流程」. The default Git HTTPS helper crashed on 2026-09-24; do not repeat that failing command or change global Git/security settings as a workaround.
+- A local `update_ref` permission warning after `git push` does not establish whether GitHub received the commit. Compare the remote branch SHA with local `HEAD` before retrying or updating the local tracking ref. Never force-push to work around this warning.
 - Firebase Hosting deployment is separate from GitHub push.
 - Deploy only when the user asks and after final checks pass.
 - Never add the EPUB reference file unless explicitly requested.
