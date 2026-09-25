@@ -84,6 +84,18 @@ test("account dropdown avoids rewrites and keeps a surviving selection, with exp
   assert.equal(node.value, "cash");
 });
 
+test("removed accounts stay in history names but not in new-transaction choices", () => {
+  const state = makeState(makeTransactions(1));
+  state.accounts.push({ id: "old-bank", name: "舊銀行", enabled: false, initialBalance: 500 });
+  state.txs[0].acc = "old-bank";
+  const node = { value: "", set innerHTML(value) { this.html = value; this.value = "cash"; } };
+  refreshAccountOptions({ state, utils, root: { querySelectorAll: () => [node] } });
+  assert.doesNotMatch(node.html, /舊銀行/);
+  const dom = { advList: container(), oTx: container(), aTx: container(), txCount: container() };
+  renderLedger({ state, filteredTxs: state.txs, constants, utils, dom });
+  assert.match(dom.aTx.innerHTML, /舊銀行/);
+});
+
 test("ledger search changes only its result list, keeping report recent transactions", () => {
   const state = makeState(makeTransactions(3));
   const dom = { advList: container(), oTx: container(), aTx: container(), txCount: container() };

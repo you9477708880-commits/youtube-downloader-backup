@@ -1,6 +1,7 @@
 import { calculateBalanceSheet } from "../domain/accounts.js";
 import { calculateAccountCenter } from "../domain/account-center.js";
 import { prepareAccountHistory, resetAccountHistory } from "./account-history-view.js";
+import { activeAccounts, isActiveAccount } from "../domain/account-status.js";
 
 export function resetBalanceSheetView(dom) {
   resetAccountHistory(dom.accountCenter);
@@ -12,7 +13,8 @@ export function renderBalanceSheet({ state, utils, dom, readModels, pageSize }) 
   const historyView = prepareAccountHistory({ container: dom.accountCenter, state, utils, pageSize });
   const emergencyIcon = (enabled) => (enabled ? "🛡️" : '<span class="opacity-30">🛡️</span>');
 
-  const accountRows = state.accounts
+  const availableAccounts = activeAccounts(state.accounts);
+  const accountRows = availableAccounts
     .map((account) => {
       const accountId = utils.escapeHTML(account.id);
       return `
@@ -23,6 +25,14 @@ export function renderBalanceSheet({ state, utils, dom, readModels, pageSize }) 
       `;
     })
     .join("");
+  const removedAccountRows = state.accounts
+    .filter((account) => !isActiveAccount(account) && data.balances[account.id] !== 0)
+    .map((account) => `
+      <div class="sr">
+        <span>${utils.escapeHTML(account.name)}（已移除）</span>
+        <span class="font-mono ${data.balances[account.id] < 0 ? "text-exp" : ""}">${utils.formatMoney(data.balances[account.id])}</span>
+      </div>
+    `).join("");
 
   const buildRows = (items) =>
     items
@@ -57,7 +67,8 @@ export function renderBalanceSheet({ state, utils, dom, readModels, pageSize }) 
     .join("");
 
   dom.balanceSheetBody.innerHTML = `
-    <div class="sdiv">帳戶</div>${state.accounts.length ? accountRows : '<div class="empty">尚無帳戶</div>'}
+    <div class="sdiv">帳戶</div>${availableAccounts.length ? accountRows : '<div class="empty">尚無可用帳戶</div>'}
+    ${removedAccountRows ? `<div class="sdiv">已移除帳戶餘額（仍計入總額）</div>${removedAccountRows}` : ""}
     <div class="sdiv">其他資產</div>${data.assets.length ? buildRows(data.assets) : '<div class="empty">尚無其他資產</div>'}
     <div class="sdiv">代墊應收款</div>${data.receivables.length ? receivableRows : '<div class="empty">目前沒有未收回的代墊款</div>'}
     <div class="sr st"><span>總資產</span><span class="text-inc font-mono">${utils.formatMoney(data.totalAssets)}</span></div>

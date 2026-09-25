@@ -101,6 +101,20 @@ assert.equal(routineDeletion.envelope.deleted, true);
 const afterChanges = recordEnvelopesToState(applyMutations(baseline, nextMutations));
 assert.equal(areFinanceStatesEquivalent(changed, afterChanges), true);
 
+const removedAccountState = structuredClone(state);
+removedAccountState.accounts[0].enabled = false;
+const accountMutations = buildRecordMutations(removedAccountState, baseline, {
+  updatedBy: "device-a",
+  updatedAt: "SERVER_TIME_3",
+});
+const accountMutation = accountMutations.find((mutation) => mutation.envelope.kind === "account");
+assert.equal(accountMutation.envelope.deleted, false);
+assert.equal(accountMutation.envelope.revision, 2);
+assert.equal(accountMutation.envelope.payload.name, "現金");
+assert.equal(accountMutation.envelope.payload.initialBalance, 1000);
+assert.equal(accountMutation.envelope.payload.enabled, false);
+assert.equal(recordEnvelopesToState(applyMutations(baseline, accountMutations)).accounts[0].enabled, false);
+
 assert.throws(() => mapSnapshotRecords({
   forEach(callback) {
     callback({

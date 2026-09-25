@@ -1,6 +1,7 @@
 import { compareTransactionsByDateDesc } from "../domain/transactions.js";
 import { getTransactionAccountIds, renderTransactionDetailList } from "./transaction-detail-view.js";
 import { DEFAULT_PAGE_SIZE, focusListPageControl, paginateList, renderListPagination } from "./list-pagination.js";
+import { activeAccounts } from "../domain/account-status.js";
 
 const accountViews = new WeakMap();
 
@@ -62,7 +63,7 @@ export function prepareAccountHistory({ container, state, utils, pageSize = DEFA
   const accountNames = new Map();
   const occurrences = new Map();
   const accountIdsByKey = new Map();
-  const accountKeys = state.accounts.map((account) => {
+  const accountKeys = activeAccounts(state.accounts).map((account) => {
     if (!accountNames.has(account.id)) accountNames.set(account.id, account.name);
     const occurrence = occurrences.get(account.id) || 0;
     occurrences.set(account.id, occurrence + 1);
@@ -70,6 +71,7 @@ export function prepareAccountHistory({ container, state, utils, pageSize = DEFA
     accountIdsByKey.set(key, account.id);
     return key;
   });
+  for (const account of state.accounts) if (!accountNames.has(account.id)) accountNames.set(account.id, account.name);
   for (const id of view.pages.keys()) if (!accountIdsByKey.has(id)) view.pages.delete(id);
   let transactionsByAccount = null;
   const sortedAccounts = new Set();

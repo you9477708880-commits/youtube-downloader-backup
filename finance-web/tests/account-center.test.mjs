@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createAccountCenterController } from "../src/app/controllers/account-center-controller.js";
 import { calculateAccountBalances } from "../src/domain/accounts.js";
+import { calculateBalanceSheet } from "../src/domain/accounts.js";
 import { calculateAccountCenter, getCreditCardSchedule } from "../src/domain/account-center.js";
 import { summarizeOverview } from "../src/domain/transactions.js";
 import { createStore } from "../src/state/store.js";
@@ -37,6 +38,21 @@ test("credit-card center derives debt, available credit, billing charges, and pa
   const bank = data.accounts.find((item) => item.id === "bank");
   assert.equal(bank.monthInflow, 0);
   assert.equal(bank.monthOutflow, 300);
+});
+
+test("removed accounts disappear from daily cards but their balances remain traceable in totals", () => {
+  const state = sampleState();
+  const before = calculateBalanceSheet(state);
+  state.accounts[1].enabled = false;
+  assert.deepEqual(calculateBalanceSheet(state), before);
+  assert.deepEqual(calculateAccountCenter(state).accounts.map((account) => account.id), ["bank"]);
+  const utils = { escapeHTML: (value) => String(value), formatMoney: (value) => String(value) };
+  const dom = { balanceSheetBody: {}, accountCenter: {} };
+  renderBalanceSheet({ state, utils, dom });
+  assert.match(dom.balanceSheetBody.innerHTML, /已移除帳戶餘額（仍計入總額）/);
+  assert.match(dom.balanceSheetBody.innerHTML, /信用卡（已移除）/);
+  assert.match(dom.balanceSheetBody.innerHTML, /-1200/);
+  assert.doesNotMatch(dom.accountCenter.innerHTML, /信用卡/);
 });
 
 test("credit-card unset days never become the first day and partial settings stay independent", () => {

@@ -9,6 +9,7 @@ import {
   getOpenAdvances,
 } from "./transactions.js";
 import { getFundAvailableBeforeExpense, withoutFundEventsLinkedToTransaction } from "./sinking-funds.js";
+import { isActiveAccount } from "./account-status.js";
 
 export const sameTransactionId = (left, right) => String(left) === String(right);
 
@@ -67,6 +68,19 @@ export function prepareMainTransaction({ state, editingTxId = null, input }) {
     linkedFundId,
   });
   if (editingTx) tx.id = editingTx.id;
+
+  const canUseAccount = (id, originalId) => id !== undefined && id !== null && id !== "" && (
+    state.accounts.some((item) => sameTransactionId(item.id, id) && isActiveAccount(item))
+    || (originalId !== undefined && sameTransactionId(id, originalId))
+  );
+  if (tx.type === "transfer") {
+    if (!canUseAccount(tx.fromAcc, editingTx?.type === "transfer" ? editingTx.fromAcc : undefined)
+      || !canUseAccount(tx.toAcc, editingTx?.type === "transfer" ? editingTx.toAcc : undefined)) {
+      return failure("invalid_transfer_accounts", "請選擇有效的轉出與轉入帳戶");
+    }
+  } else if (!canUseAccount(tx.acc, editingTx?.type === tx.type ? editingTx.acc : undefined)) {
+    return failure("invalid_account", "請選擇有效帳戶");
+  }
 
   if (tx.type === "transfer" && sameTransactionId(tx.fromAcc, tx.toAcc)) {
     return failure("same_transfer_account", "轉出與轉入帳戶不能相同");
@@ -158,7 +172,7 @@ export function applyMainTransaction(draft, { tx, editingTx, effectiveLinkedFund
 }
 
 function accountExists(state, accountId) {
-  return state.accounts.some((item) => sameTransactionId(item.id, accountId));
+  return state.accounts.some((item) => sameTransactionId(item.id, accountId) && isActiveAccount(item));
 }
 
 export function prepareDetailTransaction({ state, original, input }) {
@@ -280,7 +294,7 @@ export function prepareNewAdvanceRepayment({ state, advanceId, amount, accountId
   if (repaymentAmount <= 0 || repaymentAmount > getAdvanceOutstanding(state.txs, advance)) {
     return failure("invalid_repayment_amount", "收回金額不正確");
   }
-  const account = state.accounts.find((item) => sameTransactionId(item.id, accountId));
+  const account = state.accounts.find((item) => sameTransactionId(item.id, accountId) && isActiveAccount(item));
   if (!account) return failure("invalid_account", "沒有選到有效帳戶");
   return {
     ok: true,
@@ -298,7 +312,7 @@ export function prepareAdvanceRepaymentEdit({ state, repaymentId, amount, date, 
   const repaymentAmount = toMoneyInt(amount);
   if (repaymentAmount <= 0 || repaymentAmount > maxAmount) return failure("invalid_repayment_amount", "收回金額不正確");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return failure("invalid_date", "日期格式不正確");
-  const account = state.accounts.find((item) => sameTransactionId(item.id, accountId));
-  if (!account) return failure("invalid_account", "沒有選到有效帳戶");
-  return { ok: true, repayment, advance, maxAmount, changes: { amount: repaymentAmount, date, acc: account.id } };
+  const account = state.accounts.find((item) => sameTransactionId(item.id, accountId) && isActiveAccount(item));
+  if (!account && !sameTransactionId(repayment.acc, accountId)) return failure("invalid_account", "沒有選到有效帳戶");
+  return { ok: true, repayment, advance, maxAmount, changes: { amount: repaymentAmount, date, acc: account?.id ?? accountId } };
 }

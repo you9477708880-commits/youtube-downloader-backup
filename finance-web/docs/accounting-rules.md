@@ -163,6 +163,8 @@ accountBalance =
 
 注意：大額準備的每月提撥不是帳戶轉帳，不應直接影響帳戶餘額。
 
+刪除不用的帳戶只會讓它退出新交易、代墊收款與 CSV 對應選項。計算仍保留原帳戶的 `initialBalance` 和全部交易變動；刪除動作本身不得改變總資產、總負債、淨值或退休連動資產。非零餘額須在「已移除帳戶餘額」明列，不能隱藏或移入另一個帳戶。若實際資金已轉走，使用者應先記錄真實轉帳或對帳調整，不由刪除動作虛構轉帳。
+
 Note: planned monthly fund contributions are not account transfers and should not directly affect account balances.
 
 ### CSV 匯入建立帳戶 / Account Creation During CSV Import

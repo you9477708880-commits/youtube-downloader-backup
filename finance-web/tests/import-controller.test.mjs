@@ -379,6 +379,46 @@ test("opening AndroMoney import shows duplicate preview and account mapping with
   assert.equal(harness.calls.commit, 0);
 });
 
+test("CSV import never selects a removed account or rewrites its historical duplicate by default", async () => {
+  const harness = createHarness();
+  harness.store.update((state) => { state.accounts.find((account) => account.id === "cash").enabled = false; });
+  await harness.controller.openAndroMoneyImport({});
+  assert.doesNotMatch(harness.elements.androMoneyAccounts.innerHTML, /value="cash"/);
+  await harness.controller.confirmAndroMoneyImport();
+  const state = harness.store.getState();
+  assert.equal(state.txs.find((tx) => tx.id === "local-6542").acc, "cash");
+  assert.equal(state.txs.find((tx) => tx.externalId === "6543").acc, "bank");
+  assert.match(harness.calls.toasts.at(-1)[0], /1 筆已移除帳戶的舊紀錄未改寫/);
+});
+
+test("CSV full update also preserves a removed account's historical transaction", async () => {
+  const harness = createHarness();
+  harness.store.update((state) => {
+    state.accounts.find((account) => account.id === "cash").enabled = false;
+    state.txs.find((transaction) => transaction.id === "local-6542").amount = 321;
+  });
+  await harness.controller.openAndroMoneyImport({});
+  harness.elements.androMoneyDuplicateMode.value = "update";
+
+  await harness.controller.confirmAndroMoneyImport();
+
+  const historical = harness.store.getState().txs.find((transaction) => transaction.id === "local-6542");
+  assert.equal(historical.acc, "cash");
+  assert.equal(historical.amount, 321);
+  assert.match(harness.calls.toasts.at(-1)[0], /1 筆已移除帳戶的舊紀錄未改寫/);
+});
+
+test("CSV import creates a distinct active account when only a removed account has that name", async () => {
+  const harness = createHarness();
+  harness.store.update((state) => { state.accounts.find((account) => account.id === "bank").enabled = false; });
+  await harness.controller.openAndroMoneyImport({});
+  assert.match(harness.elements.androMoneySummary.textContent, /將建立 1 個缺少的帳戶/);
+  harness.accountSelects.push({ dataset: { andromoneyAccount: "台新銀行" }, value: "__create_andromoney_account__" });
+  await harness.controller.confirmAndroMoneyImport();
+  assert.equal(harness.store.getState().accounts.find((account) => account.id === "bank").enabled, false);
+  assert.equal(harness.store.getState().accounts.find((account) => account.id === "imported-account-1").name, "台新銀行");
+});
+
 test("CSV import creates a missing account as an asset by default in the same commit as its transactions", async () => {
   const harness = createHarness();
   harness.store.update((state) => {

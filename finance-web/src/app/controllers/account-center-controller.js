@@ -1,6 +1,7 @@
 import { calculateAccountBalances } from "../../domain/accounts.js";
 import { buildBalanceAdjustment } from "../../domain/transactions.js";
 import { toMoneyInt } from "../../utils/format.js";
+import { isActiveAccount } from "../../domain/account-status.js";
 
 export function createAccountCenterController({
   root,
@@ -20,7 +21,7 @@ export function createAccountCenterController({
     const state = store.getState();
     const account = state.accounts.find((item) => String(item.id) === String(id));
     const input = findInput(id);
-    if (!account || !input) {
+    if (!isActiveAccount(account) || !input) {
       toast.show("找不到要對帳的帳戶", "error");
       return false;
     }

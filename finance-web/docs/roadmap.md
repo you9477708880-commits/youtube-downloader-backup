@@ -5,6 +5,8 @@
 本機候選分支 / Local candidate branch: `codex/maintenance-life-cycle`
 
 本輪優先成果（2026-09-22，本機未發布）：完成「資料可靠性與日常操作收斂」A～F 與交易詳情「再記一筆」。重點是 JSON 本機保存邊界、匯入 canonical ID、UI 失敗不截斷同步、UID 非同步隔離、編輯刪除不復活、信用卡日期、提醒歷史查詢；沒有擴充帳務 schema 或依賴。結果與 5～10 分鐘人工驗收見 [批次報告](data-reliability-2026-09-22.md)。後續先收斂驗證與發布，不新增功能堆疊；Emulator／CI 未通過不宣稱可發布。
+
+2026-09-26 帳戶刪除保留歷史批次（本機驗證完成，未發布）：使用者刪除後帳戶退出日常操作選項，但底層保留帳戶 ID、名稱、起始餘額與 `enabled: false`，避免舊交易出現未知帳戶或總額變動；非零餘額在資產負債表明列。JSON／v7 record 同步、CSV 匯入、歷史編輯及瀏覽器情境已有測試；CSV「完整更新」也不改寫已移除帳戶的既有交易。Service Worker 快取版本已更新，發布後仍應重新整理舊分頁。非 Emulator 測試通過，本機 Firestore Emulator 仍遇 Windows 503，完整發布驗證未通過；正式 Hosting 發布也受 `HEAD == origin/main` 保護，不得為跳過推送而繞過 guard。
 最新已部署安全點 / Latest deployed safety point: `67ed8fc 修正 Windows 正式部署啟動器`
 目前部署狀態 / Current deployment status: Firebase Hosting is deployed to `financial-computer` at `67ed8fc`; the existing Firestore v7 rules are live, and Firebase Functions remain intentionally undeployed. The schema-v3 life-cycle reminder candidate is local only and requires tested Rules deployment before any matching Hosting release.
 

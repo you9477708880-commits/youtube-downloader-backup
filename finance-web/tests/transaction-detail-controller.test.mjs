@@ -193,6 +193,15 @@ test("editor exposes a selected fallback for a deleted account", () => {
   assert.match(fx.body.innerHTML, /value="cash" selected>已刪除帳戶（原紀錄）<\/option>/);
 });
 
+test("editor retains a removed account's original name without offering it as a new choice", () => {
+  const fx = setup();
+  fx.state.accounts.find((account) => account.id === "cash").enabled = false;
+  fx.controller.openTransaction("tx-1");
+  assert.match(fx.body.innerHTML, /現金/);
+  fx.controller.startEdit();
+  assert.match(fx.body.innerHTML, /value="cash" selected>已移除帳戶：現金（原紀錄）<\/option>/);
+});
+
 test("saving keeps the original transaction-row focus target", async () => {
   const fx = setup();
   fx.controller.openTransaction("tx-1", fx.trigger);

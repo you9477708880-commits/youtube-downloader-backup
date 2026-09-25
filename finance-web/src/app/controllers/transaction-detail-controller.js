@@ -1,6 +1,7 @@
 import { formatTransactionCategory, getAdvanceRepaidAmount } from "../../domain/transactions.js";
 import { getTransactionTitle } from "../../views/transaction-detail-view.js";
 import { canRepeatTransaction } from "../../domain/transaction-repeat.js";
+import { activeAccounts, isActiveAccount } from "../../domain/account-status.js";
 
 const TYPE_LABELS = {
   income: "收入",
@@ -77,14 +78,15 @@ export function createTransactionDetailController({ elements, store, formatMoney
   const renderEditor = (tx) => {
     const state = store.getState();
     const accountOptionsFor = (selectedValue) => {
-      const deletedOption = selectedValue && !state.accounts.some((item) => String(item.id) === String(selectedValue))
-        ? option(selectedValue, "已刪除帳戶（原紀錄）", selectedValue)
+      const originalAccount = state.accounts.find((item) => String(item.id) === String(selectedValue));
+      const deletedOption = selectedValue && !isActiveAccount(originalAccount)
+        ? option(selectedValue, originalAccount ? `已移除帳戶：${originalAccount.name}（原紀錄）` : "已刪除帳戶（原紀錄）", selectedValue)
         : "";
-      return deletedOption + state.accounts.map((item) => option(item.id, item.name, selectedValue)).join("");
+      return deletedOption + activeAccounts(state.accounts).map((item) => option(item.id, item.name, selectedValue)).join("");
     };
     const accountOptions = accountOptionsFor(tx.acc);
     const fromAccountOptions = accountOptionsFor(tx.fromAcc || tx.acc);
-    const defaultToAccount = tx.toAcc || state.accounts.find((item) => String(item.id) !== String(tx.fromAcc || tx.acc))?.id || "";
+    const defaultToAccount = tx.toAcc || activeAccounts(state.accounts).find((item) => String(item.id) !== String(tx.fromAcc || tx.acc))?.id || "";
     const toAccountOptions = accountOptionsFor(defaultToAccount);
     const typeOptions = tx.type === "advance_repayment"
       ? option("advance_repayment", "代墊收款", "advance_repayment")

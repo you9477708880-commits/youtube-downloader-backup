@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createStore } from "../src/state/store.js";
 import { createBalanceSheetController } from "../src/app/controllers/balance-sheet-controller.js";
+import { calculateBalanceSheet } from "../src/domain/accounts.js";
 
 function createClassList(initial = []) {
   const values = new Set(initial);
@@ -261,7 +262,7 @@ test("zero remains a valid amount and missing edit targets have no side effects"
   assert.equal(calls.render, 1);
 });
 
-test("delete and emergency toggle preserve unrelated collections and save once", () => {
+test("removing an account preserves its history, name, opening balance and calculated totals", () => {
   const { store, calls, controller } = createHarness();
   const originalTransactions = structuredClone(store.getState().txs);
 
@@ -271,14 +272,20 @@ test("delete and emergency toggle preserve unrelated collections and save once",
   assert.equal(calls.save, 1);
   assert.equal(calls.render, 1);
 
+  const before = calculateBalanceSheet(store.getState());
   controller.delBs("cash", true);
-  assert.equal(store.getState().accounts.some((item) => item.id === "cash"), false);
+  const removed = store.getState().accounts.find((item) => item.id === "cash");
+  assert.deepEqual({ id: removed.id, name: removed.name, initialBalance: removed.initialBalance, enabled: removed.enabled },
+    { id: "cash", name: "現金", initialBalance: 1000, enabled: false });
   assert.deepEqual(store.getState().txs, originalTransactions);
+  assert.deepEqual(calculateBalanceSheet(store.getState()), before);
   assert.equal(calls.save, 2);
   assert.equal(calls.render, 2);
+  controller.delBs("cash", true);
+  assert.equal(calls.save, 2);
 });
 
-test("deletes numeric legacy account IDs when the DOM provides a string ID", () => {
+test("removes numeric legacy account IDs when the DOM provides a string ID", () => {
   const { store, calls, controller } = createHarness();
   store.update((draft) => {
     draft.accounts.push({
@@ -292,7 +299,7 @@ test("deletes numeric legacy account IDs when the DOM provides a string ID", () 
 
   controller.delBs("42", true);
 
-  assert.equal(store.getState().accounts.some((item) => item.id === 42), false);
+  assert.equal(store.getState().accounts.find((item) => item.id === 42).enabled, false);
   assert.equal(calls.save, 1);
   assert.equal(calls.render, 1);
 });

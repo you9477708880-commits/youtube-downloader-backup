@@ -220,7 +220,33 @@ export async function runAccountCenterScenario(app) {
       throw new Error("account-center-credit-fields-hidden");
     }
 
-    writeSmokeResult("pass", "account and credit-card summaries, schedule settings, and confirmed traceable reconciliation passed");
+    const balanceBeforeRemoval = document.getElementById("bs-b").querySelector(".divider-top")?.textContent;
+    const removeCard = center.querySelector('[data-account-card="card"] [data-action="del-bs"]');
+    if (!removeCard) throw new Error("account-remove-control-missing");
+    const removeConfirm = window.confirm;
+    window.confirm = () => true;
+    try {
+      removeCard.click();
+    } finally {
+      window.confirm = removeConfirm;
+    }
+    await waitFor(() => app.store.getState().accounts.find((account) => account.id === "card")?.enabled === false);
+    if (center.querySelector('[data-account-card="card"]')) throw new Error("removed-account-still-in-center");
+    if (document.getElementById("bs-b").querySelector(".divider-top")?.textContent !== balanceBeforeRemoval) {
+      throw new Error("account-removal-changed-net-worth");
+    }
+    if (!document.getElementById("bs-b").textContent.includes("測試信用卡（已移除）")) {
+      throw new Error("removed-account-balance-not-traceable");
+    }
+    document.querySelector('[data-action="tab"][data-target="lg"]')?.click();
+    await waitFor(() => document.querySelector('#a-tx [data-action="view-tx"][data-id="card-charge"]'));
+    document.querySelector('#a-tx [data-action="view-tx"][data-id="card-charge"]').click();
+    await waitFor(() => !document.getElementById("transaction-detail-modal")?.classList.contains("d-none"));
+    if (!document.getElementById("transaction-detail-body").textContent.includes("測試信用卡")) {
+      throw new Error("removed-account-name-missing-from-history");
+    }
+
+    writeSmokeResult("pass", "credit-card reconciliation and removal preserve historical name and net worth while hiding the old account from daily use");
   } catch (error) {
     writeSmokeResult("fail", error.message || "unknown-error");
   }

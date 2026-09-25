@@ -230,6 +230,7 @@ Advance repayment is not income. It is receivable recovery.
   type: "asset" | "liability",
   initialBalance,
   isEm,
+  enabled?, // false 表示使用者已移除；缺少或 true 表示可用
   creditLimit?,
   statementDay?,
   paymentDueDay?
@@ -239,6 +240,8 @@ Advance repayment is not income. It is receivable recovery.
 - `creditLimit`、`statementDay`、`paymentDueDay` 是信用卡帳戶的選填設定；日期欄位限 `1` 到 `31`，`0` 或缺少代表未設定。29～31 日遇較短月份時，僅在日期推算中取該月最後一天；不修改原設定值，也不代表銀行實際帳單或假日順延。
 - 帳戶中心的餘額、欠款、可用額度、本期刷卡與繳款皆由 `accounts + txs` 推導，不另存第二份總額。
 - 更改帳戶名稱或資產／負債類型會保留原 `id`，因此歷史交易關聯不變。
+- 使用者「刪除帳戶」時，不實體刪除有歷史意義的帳戶 record，而是設 `enabled: false`。原 `id`、名稱、類型、起始餘額與交易參照保留，避免舊交易失去帳戶名或報表漏算；新增交易、收款及 CSV 自動對應不得再選此帳戶，CSV 重新匯入（包含完整更新）也不得改寫既有已移除帳戶交易。舊交易仍可保留原帳戶參照編輯備註等內容。
+- 已移除帳戶若仍有非零計算餘額，資產負債表明列「已移除帳戶餘額」並照常計入資產、負債與淨值。JSON 備份及 v7 record sync 保留完整帳戶與 `enabled` 旗標；這是同一帳戶 record 的更新，不產生 account tombstone。舊版真正遺失帳戶 record 的交易仍沿用孤兒帳戶 fallback。
 
 ### 補充：代墊與還款關聯 / Addendum: Advance And Repayment Relationship
 

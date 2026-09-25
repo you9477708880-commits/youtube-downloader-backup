@@ -1,4 +1,6 @@
 import { toMoneyInt } from "../../utils/format.js";
+import { isActiveAccount } from "../../domain/account-status.js";
+import { calculateAccountBalances } from "../../domain/accounts.js";
 
 function defaultCreateId(prefix) {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;
@@ -163,13 +165,22 @@ export function createBalanceSheetController({
   };
 
   const delBs = (id, isAccount) => {
-    if (!confirmDelete("確定要刪除這個項目嗎？")) return;
+    const account = isAccount ? store.getState().accounts.find((item) => String(item.id) === String(id)) : null;
+    if (isAccount && (!account || !isActiveAccount(account))) return;
+    const balance = account ? calculateAccountBalances(store.getState())[account.id] || 0 : 0;
+    const message = account
+      ? `確定要刪除「${account.name}」嗎？舊交易、帳戶名稱與起始餘額會保留供歷史查詢及報表計算，新交易不能再使用。${balance ? `目前餘額 ${balance} 元，刪除後仍會列在「已移除帳戶餘額」。` : ""}`
+      : "確定要刪除這個項目嗎？";
+    if (!confirmDelete(message)) return;
     const deletesCurrentEdit =
       editingBsId &&
       editingBsIsAccount === Boolean(isAccount) &&
       String(editingBsId) === String(id);
     commitState((draft) => {
-      if (isAccount) draft.accounts = draft.accounts.filter((account) => String(account.id) !== String(id));
+      if (isAccount) {
+        const target = draft.accounts.find((item) => String(item.id) === String(id));
+        if (target) target.enabled = false;
+      }
       else draft.bsI = draft.bsI.filter((item) => String(item.id) !== String(id));
     }, {
       updateUi: () => {

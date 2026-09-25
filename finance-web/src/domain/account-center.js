@@ -1,4 +1,5 @@
 import { calculateAccountBalances, getAccountTransactionDelta } from "./accounts.js";
+import { activeAccounts } from "./account-status.js";
 
 function configuredDay(value) {
   const day = Number(value);
@@ -58,7 +59,7 @@ export function calculateAccountCenter(state, today = new Date(), shared = {}) {
   const balances = shared.balances ?? calculateAccountBalances(state);
   const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
   const todayText = localDateString(today);
-  const accounts = state.accounts.map((account) => {
+  const accounts = activeAccounts(state.accounts).map((account) => {
     const balance = balances[account.id] || 0;
     const transactions = state.txs.filter((tx) => getAccountTransactionDelta(tx, account.id) !== 0);
     const schedule = account.type === "liability" ? getCreditCardSchedule(account, today) : null;

@@ -64,6 +64,12 @@ try {
   assert.doesNotThrow(() => stateToRecordSpecs(imported));
   assert.equal(imported.txs[0].id, "shared");
   assert.equal(imported.sinkingFunds[0].events[0].id, 1);
+  const removedAccountBackup = createInitialState();
+  removedAccountBackup.accounts = [{ id: "old", name: "舊銀行", type: "asset", initialBalance: 500, enabled: false }];
+  assert.equal(isValidImportShape(removedAccountBackup), true);
+  assert.equal((await read(removedAccountBackup)).accounts[0].enabled, false);
+  removedAccountBackup.accounts[0].enabled = "false";
+  assert.equal(isValidImportShape(removedAccountBackup), false);
 
   const legacy = createInitialState();
   delete legacy.schemaVersion;

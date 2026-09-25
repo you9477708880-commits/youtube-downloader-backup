@@ -16,6 +16,7 @@ import {
 } from "../../domain/transaction-commands.js";
 import { DEFAULT_SUBCATEGORY } from "../../config/constants.js";
 import { prepareRepeatTransaction } from "../../domain/transaction-repeat.js";
+import { activeAccounts, isActiveAccount } from "../../domain/account-status.js";
 import { localDateStr, toMoneyInt } from "../../utils/format.js";
 
 function createClientId(prefix) {
@@ -257,6 +258,11 @@ export function createTransactionController({
       toast.show("這種交易目前不能用這個表單編輯", "error");
       return;
     }
+    const usedIds = tx.type === "transfer" ? [tx.fromAcc, tx.toAcc] : [tx.acc];
+    if (usedIds.some((accountId) => !isActiveAccount(state.accounts.find((item) => sameId(item.id, accountId))))) {
+      toast.show("這筆交易使用已移除帳戶；請點開交易詳情編輯，原帳戶會保留在舊紀錄中", "error");
+      return;
+    }
 
     editingTxId = tx.id;
     draftGeneration += 1;
@@ -386,10 +392,11 @@ export function createTransactionController({
       return;
     }
 
-    const accountMenu = state.accounts.map((item, index) => `${index + 1}. ${item.name}`).join("\n");
+    const availableAccounts = activeAccounts(state.accounts);
+    const accountMenu = availableAccounts.map((item, index) => `${index + 1}. ${item.name}`).join("\n");
     const rawIndex = promptInput(`收款到哪個帳戶？\n${accountMenu}`, "1");
     if (rawIndex === null) return;
-    const repaymentAccount = state.accounts[Math.max(0, Math.min(state.accounts.length - 1, Number(rawIndex) - 1))];
+    const repaymentAccount = availableAccounts[Math.max(0, Math.min(availableAccounts.length - 1, Number(rawIndex) - 1))];
     if (!repaymentAccount) {
       toast.show("沒有選到有效帳戶", "error");
       return;
@@ -443,11 +450,14 @@ export function createTransactionController({
       return;
     }
 
-    const accountMenu = state.accounts.map((item, index) => `${index + 1}. ${item.name}`).join("\n");
-    const currentIndex = Math.max(0, state.accounts.findIndex((item) => item.id === repayment.acc));
+    const originalAccount = state.accounts.find((item) => sameId(item.id, repayment.acc));
+    const availableAccounts = activeAccounts(state.accounts);
+    const choices = originalAccount && !isActiveAccount(originalAccount) ? [originalAccount, ...availableAccounts] : availableAccounts;
+    const accountMenu = choices.map((item, index) => `${index + 1}. ${item.name}${isActiveAccount(item) ? "" : "（已移除，僅保留原紀錄）"}`).join("\n");
+    const currentIndex = Math.max(0, choices.findIndex((item) => sameId(item.id, repayment.acc)));
     const rawIndex = promptInput(`收款到哪個帳戶？\n${accountMenu}`, String(currentIndex + 1));
     if (rawIndex === null) return;
-    const repaymentAccount = state.accounts[Math.max(0, Math.min(state.accounts.length - 1, Number(rawIndex) - 1))];
+    const repaymentAccount = choices[Math.max(0, Math.min(choices.length - 1, Number(rawIndex) - 1))];
     if (!repaymentAccount) {
       toast.show("沒有選到有效帳戶", "error");
       return;

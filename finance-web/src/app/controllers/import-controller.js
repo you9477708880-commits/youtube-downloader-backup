@@ -1,4 +1,5 @@
 import { withoutFundEventsLinkedToTransaction } from "../../domain/sinking-funds.js";
+import { activeAccounts, isActiveAccount } from "../../domain/account-status.js";
 
 const CREATE_ACCOUNT_VALUE = "__create_andromoney_account__";
 
@@ -17,7 +18,7 @@ function accountNameKey(value) {
 
 function findMatchingAccount(accounts, name) {
   const key = accountNameKey(name);
-  return accounts.find((account) => accountNameKey(account.name) === key) || null;
+  return accounts.find((account) => isActiveAccount(account) && accountNameKey(account.name) === key) || null;
 }
 
 function indexExternalTransactions(transactions) {
@@ -151,7 +152,7 @@ export function createImportController({
           .map(
             (name) => {
               const matchingAccount = findMatchingAccount(state.accounts, name);
-              const accountOptions = state.accounts
+              const accountOptions = activeAccounts(state.accounts)
                 .map((account) => {
                   const label = account.type === "liability" ? `${account.name}（負債）` : account.name;
                   return `<option value="${escapeHTML(account.id)}"${matchingAccount?.id === account.id ? " selected" : ""}>${escapeHTML(label)}</option>`;
@@ -237,7 +238,7 @@ export function createImportController({
 
     accountNames.forEach((name) => {
       const choice = choices.get(name);
-      const selectedAccount = state.accounts.find((account) => String(account.id) === String(choice?.accountId));
+      const selectedAccount = state.accounts.find((account) => isActiveAccount(account) && String(account.id) === String(choice?.accountId));
       if (selectedAccount) {
         accountMapEntries.push([name, selectedAccount.id]);
         return;
@@ -333,7 +334,14 @@ export function createImportController({
       );
       return;
     }
-    const existingTransactions = store.getState().txs;
+    const currentState = store.getState();
+    const existingTransactions = currentState.txs;
+    const removedAccountIds = new Set(currentState.accounts
+      .filter((account) => !isActiveAccount(account))
+      .map((account) => String(account.id)));
+    const hasRemovedAccountReference = (transaction) => [transaction?.acc, transaction?.fromAcc, transaction?.toAcc]
+      .filter((id) => id !== undefined && id !== null && id !== "")
+      .some((id) => removedAccountIds.has(String(id)));
     const findExistingTransaction = indexExternalTransactions(existingTransactions);
     const duplicateMode = androMoneyDuplicateMode.value || "skip";
     const duplicateCount = findDuplicateExternalTransactions(existingTransactions, parsed.transactions).length;
@@ -344,7 +352,9 @@ export function createImportController({
       ? parsed.transactions
           .map((transaction) => {
             const existingTransaction = findExistingTransaction(transaction);
-            return existingTransaction ? { ...transaction, id: existingTransaction.id } : null;
+            return existingTransaction && !hasRemovedAccountReference(existingTransaction)
+              ? { ...transaction, id: existingTransaction.id }
+              : null;
           })
           .filter(Boolean)
       : [];
@@ -352,6 +362,7 @@ export function createImportController({
       ? parsed.transactions
           .map((transaction) => {
             const existingTransaction = findExistingTransaction(transaction);
+            if (hasRemovedAccountReference(existingTransaction)) return null;
             const repaired = repairTransactionAccount(existingTransaction, transaction);
             return repaired ? { ...repaired, id: existingTransaction.id } : null;
           })
@@ -363,6 +374,9 @@ export function createImportController({
           return existingTransaction && existingTransaction.type !== transaction.type;
         }).length
       : 0;
+    const preservedRemovedAccountCount = ["repair-accounts", "update"].includes(duplicateMode)
+      ? parsed.transactions.filter((transaction) => hasRemovedAccountReference(findExistingTransaction(transaction))).length
+      : 0;
     const referencedAccountIds = new Set(
       [...newTransactions, ...updateTransactions, ...repairTransactions]
         .flatMap((transaction) => [transaction.acc, transaction.fromAcc, transaction.toAcc])
@@ -372,8 +386,8 @@ export function createImportController({
     const newAccounts = plannedAccounts.filter((account) => referencedAccountIds.has(String(account.id)));
 
     if (!newTransactions.length && !updateTransactions.length && !repairTransactions.length) {
-      const message = duplicateMode === "repair-accounts"
-        ? `帳戶對應已是最新${repairConflictCount ? `；另有 ${repairConflictCount} 筆交易類型不同，未自動修改` : ""}`
+      const message = ["repair-accounts", "update"].includes(duplicateMode)
+        ? `帳戶對應已是最新${repairConflictCount ? `；另有 ${repairConflictCount} 筆交易類型不同，未自動修改` : ""}${preservedRemovedAccountCount ? `；${preservedRemovedAccountCount} 筆使用已移除帳戶的舊紀錄保留原關聯` : ""}`
         : "沒有新的 AndroMoney 交易可匯入";
       toast.show(message);
       reset();
@@ -409,7 +423,7 @@ export function createImportController({
     const skipped = duplicateMode === "skip" ? duplicateCount : 0;
     const cloudSaved = await waitForCloudSave();
     if (context !== getContext()) return;
-    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${repairTransactions.length ? `，修正 ${repairTransactions.length} 筆帳戶` : ""}${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}${repairConflictCount ? `，${repairConflictCount} 筆類型不同未修改` : ""}`;
+    const result = `已新增 ${newTransactions.length} 筆、更新 ${updateTransactions.length} 筆${repairTransactions.length ? `，修正 ${repairTransactions.length} 筆帳戶` : ""}${newAccounts.length ? `，建立 ${newAccounts.length} 個帳戶` : ""}${skipped ? `，略過 ${skipped} 筆重複` : ""}${repairConflictCount ? `，${repairConflictCount} 筆類型不同未修改` : ""}${preservedRemovedAccountCount ? `，${preservedRemovedAccountCount} 筆已移除帳戶的舊紀錄未改寫` : ""}`;
     toast.show(cloudSaved ? `${result}，已同步雲端` : `${result}，已保存於本機，尚未同步雲端`);
   };
 

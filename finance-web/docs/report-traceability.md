@@ -39,6 +39,7 @@ This document defines the traceability standard for report numbers. Users should
 | 大額準備 / Funds | 目前累積 | 規劃提撥 + `topup` - `spend` | 準備規劃與事件 |
 | 大額準備 / Funds | 動用紀錄 | `sinkingFunds.events` 中的 `spend` | 可連到 `linkedTxId` |
 | 資產負債 / Balance Sheet | 帳戶餘額 | `accounts.initialBalance` + `txs` | 已支援帳戶明細 |
+| 資產負債 / Balance Sheet | 已移除帳戶餘額 | `accounts[enabled=false].initialBalance` + 對應 `txs` | 非零時逐帳戶明列並計入總額；舊交易保留原帳戶名稱 |
 | 帳戶中心 / Account Center | 本月流入／流出 | 當月 `txs` 對指定帳戶的正負變動，排除 `balance_adjustment` | 可由交易推導 |
 | 帳戶中心 / Credit Card | 欠款／可用額度 | 帳戶餘額與 `accounts.creditLimit` | 不另存總額 |
 | 帳戶中心 / Credit Card | 本期刷卡／繳款 | 結帳週期內指定卡片的支出與轉入款 | 可由交易推導 |

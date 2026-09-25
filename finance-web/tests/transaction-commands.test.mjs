@@ -67,6 +67,17 @@ test("missing edit identity is rejected instead of creating a new transaction", 
   assert.deepEqual(state.txs, []);
 });
 
+test("new transactions reject removed accounts while historical edits may retain the same ID", () => {
+  const original = { id: "old", type: "expense", amount: 200, date: "2026-08-01", acc: "cash", category: "餐飲", subcategory: "午餐" };
+  const state = createState({ txs: [original] });
+  state.accounts[0].enabled = false;
+  assert.equal(prepareMainTransaction({ state, input: mainInput() }).code, "invalid_account");
+  assert.equal(prepareMainTransaction({ state, editingTxId: "old", input: mainInput() }).ok, true);
+  assert.equal(prepareMainTransaction({ state, editingTxId: "old", input: mainInput({ accountId: "bank" }) }).ok, true);
+  assert.equal(prepareDetailTransaction({ state, original, input: { type: "expense", amount: "200", date: "2026-08-01", category: "餐飲", accountId: "cash", desc: "修正備註" } }).ok, true);
+  assert.equal(prepareNewAdvanceRepayment({ state: createState({ txs: [{ id: "adv", type: "advance", amount: 300, ownAmount: 0, receivableAmount: 300, acc: "bank" }], accounts: state.accounts }), advanceId: "adv", amount: "100", accountId: "cash", date: "2026-08-02" }).code, "invalid_account");
+});
+
 test("an edit removed after preparation is rejected at the apply boundary", () => {
   const tx = { id: 0, type: "expense", amount: 100, date: "2026-08-15", acc: "cash", category: "餐飲" };
   const state = createState({ txs: [tx] });
